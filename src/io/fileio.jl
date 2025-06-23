@@ -1,34 +1,67 @@
 using HDF5
-using AutomaticDocstrings
+using CSV, DataFrames
 
-@autodoc
-function read_conf_data(mol_order, start_i, end_i)
+function read_hdf5(file::HDF5.File,
+                   species::String = "water")
     #=
-     
+    Reads the SPICE dataset hdf5 file for a given species.
+    
+    ARGS:
+        file::HDF5.File --> The file to open
+        species::String --> The species to read. Defaults to water
+    
+    RETURN:
+        conformations::Array{Float32, 3}
+        dft_energies::Array{Float32}
+        dft_gradients::Array{Float32, 3}
+
     =#
-    hdf5_list = [h5open(joinpath(data_dir, hdf5_file), "r") for hdf5_file in hdf5_files]
-    map_res = map(start_i:end_i) do i
-        mol_id, conf_i, conf_i_p1, repeat_i = mol_order[i]
-        mol_hdf5_or_xyz, _, _ = extract_hdf5_or_xyz(mol_id, hdf5_list)
-        coords = read_coordinates(mol_hdf5_or_xyz, conf_i)
-        dft_fs, exceeds_max = read_dft_forces(mol_hdf5_or_xyz, conf_i)
-        dft_pe = read_dft_pe(mol_hdf5_or_xyz, conf_i)
-        dft_charges, has_charges = read_dft_charges(mol_hdf5_or_xyz, conf_i)
-        pair_present = !iszero(conf_i_p1)
-        if pair_present
-            coords_p1 = read_coordinates(mol_hdf5_or_xyz, conf_i_p1)
-            dft_fs_p1, exceeds_max_p1 = read_dft_forces(mol_hdf5_or_xyz, conf_i_p1)
-            dft_pe_p1 = read_dft_pe(mol_hdf5_or_xyz, conf_i_p1)
-            dft_charges_p1, has_charges_p1 = read_dft_charges(mol_hdf5_or_xyz, conf_i_p1)
-        else
-            coords_p1, dft_fs_p1, exceeds_max_p1, dft_pe_p1, dft_charges_p1, has_charges_p1 = coords,
-                                dft_fs, exceeds_max, dft_pe, dft_charges, has_charges
-        end
-        exceeds_max_either = exceeds_max || exceeds_max_p1
-        return coords, dft_fs, dft_pe, dft_charges, has_charges, coords_p1, dft_fs_p1,
-                dft_pe_p1, dft_charges_p1, has_charges_p1, exceeds_max_either, pair_present
-    end
-    close.(hdf5_list)
-    return map_res
+
+    atom_number::Array{Int16}          = read(file["$species/atomic_numbers"])
+    conformations::Array{Float32, 3}   = read(file["$species/conformations"])
+    dft_energies::Array{Float32}       = read(file["$species/dft_total_energy"])
+    dft_gradients::Array{Float32, 3}   = read(file["$species/dft_total_gradient"])
+    n_conf::Tuple{Int16, Int16, Int16} = size(conformations)
+
+    println(n_conf)
+
+    return n_conf[3], atom_number, conformations, dft_energies, dft_gradients
+    
+end
+#= 
+function read_feat_files(file_list::Tuple{String})
+
+    full_paths = [joinpath(DATASETS_PATH, file) for file in file_list]
+
+    line_feats = vcat(readlines.(full_paths)...)
+    
+    mol_feats = Dict(Pair(String.(split(line, "\t"; limit=2))...) for line in line_feats)
+
+    return mol_feats
+
+end
+=#
+
+function read_feat_file(path::String)::DataFrame
+
+    dataframe::DataFrame = CSV.read(joinpath(DATASETS_PATH, path), DataFrame; delim='\t')
+
+    rename!(dataframe, FEATURE_COL_NAMES)
+
+    return dataframe
+
 end
 
+function read_conf_data(mol_order,
+                        start_i,
+                        end_i)
+
+    #=
+    Read conformations from the HDF5 files
+    =#
+ 
+    hdf5_list = [h5open(joinpath(DATASETS_PATH, file), "r") for file in HDF5_FILES]
+
+    _,_,_,_ = read_hdf5(hdf5_list[1])
+
+end

@@ -1,0 +1,7 @@
+{
+    "n_atom_features_in": 29,
+    "dim_hidden_dense": 128,
+    "dim_hidden_gnn": 128,
+    "dim_hidden_pairwise": 64,
+    "activation_str": "relu"
+}
