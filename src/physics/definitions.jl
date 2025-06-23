@@ -2,6 +2,11 @@ vdw_functional_form   = MODEL_PARAMS["physics"]["vdw_functional_form"]
 bond_functional_form  = MODEL_PARAMS["physics"]["bond_functional_form"]
 angle_functional_form = MODEL_PARAMS["physics"]["angle_functional_form"]
 
+const bohr_to_nm = T(5.29177210903e-2)
+const hartree_to_kJpmol = T(4.3597447222071 * 6.02214076e2)
+const force_conversion = hartree_to_kJpmol / bohr_to_nm
+const eVpÅ_to_kJpmolpnm = T(964.8533212331)
+
 inverse_sigmoid(x) = log(x / (1 - x))
 const starting_weight14_vdw  = inverse_sigmoid(T(0.5))
 const starting_weight14_coul = inverse_sigmoid(T(0.8333))

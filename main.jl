@@ -28,20 +28,17 @@ include("src/nets/trainer.jl")  # Methods and variables related to Neural Nets
 ############### MAIN LOGIC ###############
 
 const global DATASETS_PATH::String = parsed_args["db"]
+const global MACEOFF_PATH::String  = "/lmb/home/alexandrebg/Documents/QuarantineScripts/JG/typing/data_kovacs2023/water"
 const global HDF5_FILES = ("SPICE-2.0.1.hdf5",)#, Just use SPICE water for now
 #                           "RNA-DIVERSE-OPENFF-DEFAULT.hdf5",
 #                           "RNA-NUCLEOSIDE-OPENFF-DEFAULT.hdf5",
 #                           "RNA-TRINUCLEOTIDE-OPENFF-DEFAULT.hdf5")
 
 const global FEATURE_COL_NAMES = ["MOLECULE", "ATOMIC_MASS", "FORMAL_CHARGE", "AROMATICITY", "N_BONDS", "BONDS", "ANGLES", "PROPER", "IMPROPER", "MOL_ID"]
-const global FEATURE_FILES = ("features.tsv",) # Just the SPICE features for now too. Generated with custom script!!! TODO: Take a look at said script, maybe integrate here?
+const global FEATURE_FILES = ("features.tsv",
+                              "features_maceoff.tsv",
+                              "features_cond.tsv",) # Just the SPICE features for now too. Generated with custom script!!! TODO: Take a look at said script, maybe integrate here?
 
-read_conf_data(1,2,3)
+conf_dataframe = read_conf_data()
 
-const global mol_features = read_feat_file(FEATURE_FILES[1])
-
-build_adj_list(mol_features[mol_features[!, :MOLECULE] .== "water", :])
-
-models = build_models()
-
-train!(models, ())
+feature_dataframes = [read_feat_file(file) for file in FEATURE_FILES]
