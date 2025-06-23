@@ -23,8 +23,6 @@ function read_hdf5(file::HDF5.File,
     dft_gradients::Array{Float32, 3}   = read(file["$species/dft_total_gradient"])
     n_conf::Tuple{Int16, Int16, Int16} = size(conformations)
 
-    println(n_conf)
-
     return n_conf[3], atom_number, conformations, dft_energies, dft_gradients
     
 end

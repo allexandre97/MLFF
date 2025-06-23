@@ -1,7 +1,27 @@
 {
-    "n_atom_features_in": 29,
-    "dim_hidden_dense": 128,
-    "dim_hidden_gnn": 128,
-    "dim_hidden_pairwise": 64,
-    "activation_str": "relu"
+    "networks":{
+
+        "n_epochs":1000,
+
+        "n_atom_features_in": 29,
+
+        "dim_embed_atom":64,
+        "dim_embed_inter":64,
+        "dim_hidden_dense": 128,
+        "dim_hidden_gnn": 128,
+        "dim_hidden_pairwise": 64,
+
+        "gcn_conv_layer":"SAGEConv",
+        "activation_str": "relu",
+        "aggr_str": "mean",
+
+        "dropout_dense":0.0,
+        "n_layers_nn":2
+    },
+
+    "physics":{
+        "vdw_functional_form":"dexp",
+        "bond_functional_form":"harmonic",
+        "angle_functional_form":"harmonic"
+    }
 }
