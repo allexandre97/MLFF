@@ -121,7 +121,7 @@ end
 ########## MODELS ##########
 
 function build_models()
-        # Pooling step
+    # Pooling step
     atom_embedding_model = GNNChain(
         gcn_conv(NET_PARAMS["n_atom_features_in"] => NET_PARAMS["dim_hidden_gnn"],
                  activation_gnn, init_gnn),
@@ -166,7 +166,11 @@ function build_models()
         Dense(NET_PARAMS["dim_hidden_dense"] => n_angle_params),
     )
 
-    return [atom_embedding_model, bond_pooling_model, angle_pooling_model,
-            atom_features_model, bond_features_model, angle_features_model]
+    models = [atom_embedding_model, bond_pooling_model, angle_pooling_model,
+              atom_features_model, bond_features_model, angle_features_model]
+
+    optims = [Flux.setup(Adam(NET_PARAMS["learning_rate"]), m) for m in models]
+
+    return models, optims
 
 end

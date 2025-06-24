@@ -3,6 +3,8 @@
 
         "n_epochs":1000,
 
+        "learning_rate":1e-4,
+
         "n_atom_features_in": 29,
 
         "dim_embed_atom":64,

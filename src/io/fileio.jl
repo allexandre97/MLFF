@@ -24,6 +24,7 @@ function read_file(file::HDF5.File, species::String = "water")
         dft_forces::Vector{Vector{SVector{3, T}}}
     =#
 
+    subset::String                = read(file["$species/subset"])[1]
     atom_number::Vector{Int16}    = read(file["$species/atomic_numbers"])
     conformations_raw::Array{T,3} = read(file["$species/conformations"])
     dft_energies::Vector{T}       = read(file["$species/dft_total_energy"])
@@ -56,7 +57,7 @@ function read_file(file::HDF5.File, species::String = "water")
         dft_forces[conf_i] = SVector{3, T}.(eachcol(-total_grad .* force_conversion))
     end
 
-    return species, n_confs, atom_number, conformations, dft_energies, dft_forces
+    return species, subset, n_confs, atom_number, conformations, dft_energies, dft_forces
 end
 
 
@@ -114,11 +115,23 @@ function read_conf_data()
 
     # Process HDF5 files
     for hdf5 in hdf5_list
-        species, n_confs, atom_numbers, conformations, energies, gradients = read_file(hdf5)
+        #=
+        TODO: Right now we are just getting the information for the water clusters
+        (see method read_file for HDF5 files). In the future we have to get the information
+        for all the molecules in the SPICE datasets and so on. A first idea on how to 
+        approach this is to iterate over keys = keys(HDF5_file) and do the relevant extraction
+        for each one of those.
+        =#
+
+        species = "water"
+
+        species, subset, n_confs, atom_numbers,
+        conformations, energies, gradients = read_file(hdf5, 
+                                                       species)
         for i in 1:n_confs
             row = Dict{Symbol, Any}()
             row[:mol_name] = species
-            row[:source] = "hdf5"
+            row[:source] = subset
             row[:conf_id] = i
             row[:n_atoms] = length(atom_numbers)
             row[:energy] = energies[i]
@@ -150,7 +163,7 @@ function read_conf_data()
 
         row = Dict{Symbol, Any}()
         row[:mol_name] = "water"
-        row[:source] = "xyz"
+        row[:source] = "MACE-OFF water"
         row[:conf_id] = conf_i
         row[:n_atoms] = n_atoms
         row[:energy] = energy
@@ -179,6 +192,6 @@ function read_conf_data()
     desired_order = [:mol_name, :source, :conf_id, :n_atoms, :energy, :px, :py, :pz, :fx, :fy, :fz]
     df = df[:, desired_order]
     return df
-    
+
 end
 

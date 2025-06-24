@@ -39,6 +39,9 @@ const global FEATURE_FILES = ("features.tsv",
                               "features_maceoff.tsv",
                               "features_cond.tsv",) # Just the SPICE features for now too. Generated with custom script!!! TODO: Take a look at said script, maybe integrate here?
 
-conf_dataframe = read_conf_data()
+const global CONF_DATAFRAME     = read_conf_data()
+const global FEATURE_DATAFRAMES = [read_feat_file(file) for file in FEATURE_FILES]
 
-feature_dataframes = [read_feat_file(file) for file in FEATURE_FILES]
+models, optims     = build_models()
+
+train!(models, optims)
