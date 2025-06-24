@@ -38,13 +38,13 @@ const global SUBSET_N_REPEATS = Dict(
     "SPICE Dipeptides Single Points Dataset v1.3"           => 10 , # 33,850  -> 338,500
     "SPICE Amino Acid Ligand v1.0"                          => 2  , # 194,174 -> 388,348
     "SPICE Solvated PubChem Set 1 v1.0"                     => 20 , # 13,934  -> 278,680
-    "SPICE Water Clusters v1.0"                             => 100, # 1,000   -> 100,000
+    "SPICE Water Clusters v1.0"                             => 1, #100, # 1,000   -> 100,000
     # Takaba2024 Espaloma
     "RNA Single Point Dataset v1.0"                         => 10 , # 8,560   -> 85,600
     "RNA Nucleoside Single Point Dataset v1.0"              => 10 , # 120     -> 1,200
     "RNA Trinucleotide Single Point Dataset v1.0"           => 10 , # 6,080   -> 60,800
     # Kovacs2023 MACE-OFF23
-    "MACE-OFF water"                                        => 100, # 1,681   -> 168,100
+    "MACE-OFF water"                                        => 1, #100, # 1,681   -> 168,100
     # GEMS
     "GEMS crambin"                                          => 100, # 5,140   -> 514,000
     # Condensed ΔHvap
@@ -61,19 +61,46 @@ const global FEATURE_FILES = ("features.tsv",
 const global CONF_DATAFRAME     = read_conf_data()
 const global FEATURE_DATAFRAMES = [read_feat_file(file) for file in FEATURE_FILES]
 
+const global CONDENSED_TEST_SYSTEMS = (
+    "vapourisation_liquid_CC(=O)C", # Acetone
+    "mixing_combined_CNCCO_O",
+    "mixing_combined_CCC(C)=O_Nc1ccccc1",
+)
+const global COND_SIM_FRAMES = 101:250 
+const global COND_MOLECULES  = Vector{Tuple{String, T, Int, Int}}()
+
+for mol_id in FEATURE_DATAFRAMES[3].MOLECULE
+    mol_id in CONDENSED_TEST_SYSTEMS && continue # Skip if in test systems
+    if startswith(mol_id, "vapourisation_liquid_") && endswith(mol_id, "liquid_O") # Force to get only the data for water, remember to change this when moving to complex stuff
+        repeats = SUBSET_N_REPEATS["vapourisation"]
+        for temp in T.(285:10:325)
+            for frame_i in COND_SIM_FRAMES
+                for repeat_i in 1:repeats
+                    push!(COND_MOLECULES, (mol_id, temp, frame_i, repeat_i))
+                end
+            end
+        end
+
+    #=
+    TODO: This part of the logic is only needed when training on something else
+    than just pure water, as there is no enthalpy of mixing for only single 
+    components. 
+    =#
+
+    #= elseif startswith(mol_id, "mixing_combined_")
+        repeats = SUBSET_N_REPEATS["mixing"]
+        for frame_i in COND_SIM_FRAMES
+            for repeat_i in 1:repeats
+                push!(COND_MOLECULES, (mol_id, T(298.15), frame_i, repeat_i))
+            end
+        end
+    =#
+    end 
+end
+shuffle!(COND_MOLECULES)
+const global COND_MOL_VAL   = COND_MOLECULES[1:MODEL_PARAMS["training"]["n_frames_val_cond"]]
+const global COND_MOL_TRAIN = COND_MOLECULES[(MODEL_PARAMS["training"]["n_frames_val_cond"]+1):end]
+
 models, optims     = build_models()
 
-conf_pairs = train!(models, optims)
-
-#= for pair in conf_pairs
-    a, b = pair
-
-    if b == 0
-        continue
-    end
-
-    source_a, n_a, id_a = CONF_DATAFRAME[a,:source], CONF_DATAFRAME[a,:n_atoms], CONF_DATAFRAME[a,:conf_id]
-    source_b, n_b, id_b = CONF_DATAFRAME[b,:source], CONF_DATAFRAME[b,:n_atoms], CONF_DATAFRAME[b,:conf_id]
-    
-    println("$source_a : $n_a : $id_a, $source_b : $n_b : $id_b")
-end =#
+train!(models, optims)

@@ -1,4 +1,3 @@
-using Combinatorics
 
 function gen_conf_pairs(df::DataFrame; rng=Random.GLOBAL_RNG)
     # 1) group rows by (source, n_atoms)
@@ -19,7 +18,9 @@ function gen_conf_pairs(df::DataFrame; rng=Random.GLOBAL_RNG)
             i, j = idxs[k], idxs[k+1]
             source = df[i,:source]
             repeats = SUBSET_N_REPEATS[source]
-            push!(out, i < j ? (i, j, repeats) : (j, i, repeats))
+            for repeat_i in 1:repeats
+                push!(out, i < j ? (i, j, repeat_i) : (j, i, repeat_i))
+            end
         end
 
         # leftover?
@@ -27,7 +28,9 @@ function gen_conf_pairs(df::DataFrame; rng=Random.GLOBAL_RNG)
             leftover = last(idxs)
             source = df[leftover,:source]
             repeats = SUBSET_N_REPEATS[source]
-            push!(out, (leftover, 0, repeats))
+            for repeat_i in 1:repeats
+                push!(out, (leftover, 0, repeats))
+            end
         end
     end
 

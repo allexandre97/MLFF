@@ -1,11 +1,22 @@
 {
-    "networks":{
+    "training":{
+
+        "n_frames_val_cond":500,
+
+        "train_size":0.9,
 
         "n_epochs":2,
 
+        "training_sims_first_epoch":5,
+
+        "n_minibatch":256
+
+    },
+
+    "networks":{
+
         "learning_rate":1e-4,
 
-        "train_size":0.8,
 
         "n_atom_features_in": 29,
 
