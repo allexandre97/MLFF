@@ -1,3 +1,5 @@
+include("../nets/models.jl")
+
 function build_adj_list(mol_row::DataFrame)::Array
     
     n_atoms::Int16    = size(split(mol_row[!, :ATOMIC_MASS][1], ","))[1]
@@ -12,4 +14,60 @@ function build_adj_list(mol_row::DataFrame)::Array
     end
 
     return adj_list
+end
+
+Flux.@non_differentiable build_adj_list(mol_row::DataFrame)
+
+function mol_to_preds(
+    mol_id::String,
+    args...
+)
+
+    mol_to_system(mol_id, args...)
+
+end
+
+
+function mol_to_system(
+    mol_id::String,
+    feat_df::DataFrame,
+    coords,
+    boundary::CubicBoundary{Float32},
+    atom_embedding_model::GNNChain,
+    bond_pooling_model::Chain,
+    angle_pooling_model::Chain,
+    proper_pooling_model::Chain,
+    improper_pooling_model::Chain,
+    atom_features_model::Chain,
+    bond_features_model::Chain,
+    angle_features_model::Chain,
+    proper_features_model::Chain,
+    improper_features_model::Chain
+)
+
+    # Read the relevant features and store them in vectors
+    
+    elements, formal_charges,
+    bonds_i, bonds_j,
+    angles_i, angles_j, angles_k,
+    propers_i, propers_j, propers_k, propers_l,
+    impropers_i, impropers_j, impropers_k, impropers_l,
+    mol_inds, adj_list, n_atoms, atom_feats = decode_feats(feat_df)
+
+    # The total number of molecules in a conformation
+    n_mols    = maximum(mol_inds)
+    n_repeats = (startswith(mol_id, "mixing_combined_") ? (n_mols ÷ 2) : n_mols)
+
+    atom_feats, atom_embeds = calc_embeddings(mol_id, adj_list, atom_feats,
+                                              atom_embedding_model, atom_features_model)
+    
+    bond_pool, angle_pool, proper_pool, improper_pool = embed_to_pool(atom_embeds,
+                                                                      bonds_i, bonds_j,
+                                                                      angles_i, angles_j, angles_k,
+                                                                      propers_i, propers_j, propers_k, propers_l,
+                                                                      impropers_i, impropers_j, impropers_k, impropers_l,
+                                                                      bond_pooling_model, 
+                                                                      angle_pooling_model, 
+                                                                      proper_pooling_model, 
+                                                                      improper_pooling_model)
 end

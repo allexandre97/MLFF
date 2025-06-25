@@ -1,5 +1,7 @@
 using ArgParse
 using JSON
+using Molly
+using Flux
 
 function parse_commandline()::Dict{String, Any}
 
@@ -100,6 +102,9 @@ end
 shuffle!(COND_MOLECULES)
 const global COND_MOL_VAL   = COND_MOLECULES[1:MODEL_PARAMS["training"]["n_frames_val_cond"]]
 const global COND_MOL_TRAIN = COND_MOLECULES[(MODEL_PARAMS["training"]["n_frames_val_cond"]+1):end]
+
+# Molly Constants. TODO: How can I pack these in a json?
+const global boundary_inf = CubicBoundary(T(Inf))
 
 models, optims     = build_models()
 

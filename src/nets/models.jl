@@ -4,7 +4,9 @@ using GraphNeuralNetworks
 
 include("../physics/definitions.jl")
 
-const NET_PARAMS = MODEL_PARAMS["networks"]
+NET_PARAMS = MODEL_PARAMS["networks"]
+
+Flux.@non_differentiable GraphNeuralNetworks.GNNGraph(args...)
 
 ########## SOME PARSING LOGIC ##########
 
@@ -142,6 +144,21 @@ function build_models()
         generate_dense_layers(NET_PARAMS["n_layers_nn"] - 2)...,
         Dense(NET_PARAMS["dim_hidden_dense"] => NET_PARAMS["dim_embed_inter"]),
     )
+
+    proper_pooling_model = Chain(
+        Dense(NET_PARAMS["dim_embed_atom"] * 4 => NET_PARAMS["dim_hidden_dense"],
+              activation_dense; init=init_dense),
+        generate_dense_layers(NET_PARAMS["n_layers_nn"] - 2)...,
+        Dense(NET_PARAMS["dim_hidden_dense"] => NET_PARAMS["dim_embed_inter"]),
+    )
+
+    improper_pooling_model = Chain(
+        Dense(NET_PARAMS["dim_embed_atom"] * 4 => NET_PARAMS["dim_hidden_dense"],
+              activation_dense; init=init_dense),
+        generate_dense_layers(NET_PARAMS["n_layers_nn"] - 2)...,
+        Dense(NET_PARAMS["dim_hidden_dense"] => NET_PARAMS["dim_embed_inter"]),
+    )
+
     #
 
     # Feature prediction step
@@ -166,11 +183,158 @@ function build_models()
         Dense(NET_PARAMS["dim_hidden_dense"] => n_angle_params),
     )
 
-    models = [atom_embedding_model, bond_pooling_model, angle_pooling_model,
-              atom_features_model, bond_features_model, angle_features_model]
+    proper_features_model = Chain(
+        Dense(NET_PARAMS["dim_embed_inter"] => NET_PARAMS["dim_hidden_dense"],
+              activation_dense; init=init_dense),
+        generate_dense_layers(NET_PARAMS["n_layers_nn"] - 2)...,
+        Dense(NET_PARAMS["dim_hidden_dense"] => n_proper_terms),
+    )
+
+    improper_features_model = Chain(
+        Dense(NET_PARAMS["dim_embed_inter"] => NET_PARAMS["dim_hidden_dense"],
+              activation_dense; init=init_dense),
+        generate_dense_layers(NET_PARAMS["n_layers_nn"] - 2)...,
+        Dense(NET_PARAMS["dim_hidden_dense"] => n_improper_terms),
+    )
+
+    models = [atom_embedding_model, bond_pooling_model, angle_pooling_model, proper_pooling_model, improper_pooling_model,
+              atom_features_model, bond_features_model, angle_features_model, proper_features_model, improper_features_model]
 
     optims = [Flux.setup(Adam(NET_PARAMS["learning_rate"]), m) for m in models]
 
     return models, optims
+
+end
+
+function calc_embeddings(
+    mol_id::String,
+    adj_list::Vector{Vector{Int64}},
+    atom_feats,
+    atom_embedding_model::GNNChain,
+    atom_features_model::Chain
+)
+
+    if any(startswith.(mol_id, ("vapourisation_", "mixing_"))) # Condensed phase
+
+    elseif startswith(mol_id, "protein") # Unused for now
+    
+    else
+
+        mol_graph       = GNNGraph(adj_list)
+        atom_embeddings = atom_embedding_model(mol_graph, atom_feats)
+        atom_features   = atom_features_model(atom_embeddings)
+
+    end
+
+    return atom_features, atom_embeddings
+
+end
+
+function embed_to_pool(
+    atom_embeddings,
+    bonds_i, bonds_j,
+    angles_i, angles_j, angles_k,
+    propers_i, propers_j, propers_k, propers_l,
+    impropers_i, impropers_j, impropers_k, impropers_l,
+    bond_pooling_model::Chain,
+    angle_pooling_model::Chain,
+    proper_pooling_model::Chain,
+    improper_pooling_model::Chain
+)
+
+    bond_emb_i,
+    bond_emb_j = atom_embeddings[:, bonds_i],
+                 atom_embeddings[:, bonds_j]
+
+    angle_emb_i,
+    angle_emb_j,
+    angle_emb_k = atom_embeddings[:, angles_i, :],
+                  atom_embeddings[:, angles_j, :],
+                  atom_embeddings[:, angles_k, :]
+
+    proper_emb_i,
+    proper_emb_j,
+    proper_emb_k,
+    proper_emb_l = atom_embeddings[:, propers_i],
+                   atom_embeddings[:, propers_j],
+                   atom_embeddings[:, propers_k],
+                   atom_embeddings[:, propers_l]
+
+    improper_emb_i,
+    improper_emb_j,
+    improper_emb_k,
+    improper_emb_l = atom_embeddings[:, impropers_i],
+                     atom_embeddings[:, impropers_j],
+                     atom_embeddings[:, impropers_k],
+                     atom_embeddings[:, impropers_l]
+
+    bond_com_emb_1 = cat(bond_emb_i, bond_emb_j; dims=1)
+    bond_com_emb_2 = cat(bond_emb_j, bond_emb_i; dims=1)
+    bond_pool_1    = bond_pooling_model(bond_com_emb_1)
+    bond_pool_2    = bond_pooling_model(bond_com_emb_2)
+    bond_pool = bond_pool_1 .+ bond_pool_2
+
+    angle_com_emb_1 = cat(angle_emb_i, angle_emb_j, angle_emb_k; dims=1)
+    angle_com_emb_2 = cat(angle_emb_k, angle_emb_j, angle_emb_i; dims=1)
+    angle_pool_1    = angle_pooling_model(angle_com_emb_1)
+    angle_pool_2    = angle_pooling_model(angle_com_emb_2)
+    angle_pool = angle_pool_1 .+ angle_pool_2
+
+    proper_com_emb_1 = cat(proper_emb_i, proper_emb_j, proper_emb_k, proper_emb_l; dims=1)
+    proper_com_emb_2 = cat(proper_emb_l, proper_emb_k, proper_emb_j, proper_emb_i; dims=1)
+    proper_pool_1    = proper_pooling_model(proper_com_emb_1)
+    proper_pool_2    = proper_pooling_model(proper_com_emb_2)
+    proper_pool = proper_pool_1 .+ proper_pool_2
+
+    improper_com_emb_1 = cat(improper_emb_i, improper_emb_j, improper_emb_k, improper_emb_l; dims=1)
+    improper_com_emb_2 = cat(improper_emb_i, improper_emb_k, improper_emb_j, improper_emb_l; dims=1)
+    improper_com_emb_3 = cat(improper_emb_i, improper_emb_l, improper_emb_j, improper_emb_k; dims=1)
+    improper_pool_1    = improper_pooling_model(improper_com_emb_1)
+    improper_pool_2    = improper_pooling_model(improper_com_emb_2)
+    improper_pool_3    = improper_pooling_model(improper_com_emb_3)
+    improper_pool = improper_pool_1 .+ improper_pool_2 .+ improper_pool_3
+
+    return (
+        bond_pool,
+        angle_pool,
+        proper_pool,
+        improper_pool
+    )
+
+end
+
+function pool_to_feats(
+    mol_id::String,
+    n_repeats::Int,
+    bond_pool,
+    angle_pool,
+    proper_pool,
+    improper_pool,
+    bond_features_model::Chain,
+    angle_features_model::Chain,
+    proper_features_model::Chain,
+    improper_features_model::Chain
+)
+    if any(startswith.(mol_id, ("vapourisation_", "mixing_")))
+        bond_feats     = repeat(bond_features_model(bond_pool), 1, n_repeats)
+        angle_feats    = repeat(angle_features_model(angle_pool), 1, n_repeats)
+        proper_feats   = repeat(proper_features_model(proper_pool), 1, n_repeats)
+        improper_feats = repeat(improper_features_model(improper_pool), 1, n_repeats)
+    
+    elseif startswith(mol_id, "protein")
+        #TODO: Add this magic
+    else
+        bond_feats     = bond_features_model(bond_pool)
+        angle_feats    = angle_features_model(angle_pool)
+        proper_feats   = proper_features_model(proper_pool)
+        improper_feats = improper_features_model(improper_pool)
+    end
+
+    return(
+        bond_feats,
+        angle_feats,
+        proper_feats,
+        improper_feats
+    )
 
 end

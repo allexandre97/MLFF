@@ -10,56 +10,74 @@ end
 
 function read_file(file::HDF5.File, species::String = "water")
     #=
-    Reads a SPICE-format HDF5 file for a given species.
-
-    ARGS:
-        file::HDF5.File --> Open HDF5 file handle
-        species::String --> Molecule name/group inside file
-
-    RETURNS:
-        n_confs::Int
-        atom_number::Vector{Int16}
-        conformations::Vector{Vector{SVector{3, T}}}
-        dft_energies::Vector{T}
-        dft_forces::Vector{Vector{SVector{3, T}}}
+    Reads SPICE-format HDF5 for one species, returning:
+      n_confs::Int
+      atom_number::Vector{Int16}
+      conformations::Vector{Vector{SVector{3, T}}}
+      dft_energies::Vector{T}
+      dft_forces::Vector{Vector{SVector{3, T}}}
+      mbis_charges::Vector{Vector{T}}
+      has_mbis_charges::Bool
     =#
 
-    subset::String                = read(file["$species/subset"])[1]
-    atom_number::Vector{Int16}    = read(file["$species/atomic_numbers"])
-    conformations_raw::Array{T,3} = read(file["$species/conformations"])
-    dft_energies::Vector{T}       = read(file["$species/dft_total_energy"])
-    dft_gradients_raw::Array{T,3} = read(file["$species/dft_total_gradient"])
+    #— read basic arrays —#
+    subset              = read(file["$species/subset"])[1]
+    atom_number         = read(file["$species/atomic_numbers"])
+    conformations_raw   = read(file["$species/conformations"])
+    dft_energies        = read(file["$species/dft_total_energy"])
+    dft_grads_raw       = read(file["$species/dft_total_gradient"])
 
+    #— optional dispersion correction —#
+    has_disp = haskey(file, "$species/dispersion_correction_gradient")
+    disp_raw = has_disp ? read(file["$species/dispersion_correction_gradient"])::Array{T,3} : nothing
+    is_rna   = startswith(species, "RNA")
+
+    #— optional MBIS charges —#
+    has_mbis_charges = haskey(file, "$species/mbis_charges")
+    mbis_charges_raw = has_mbis_charges ? read(file["$species/mbis_charges"])::Array{T,3} : nothing
+
+    # sizes
     n_atoms = size(conformations_raw, 2)
     n_confs = size(conformations_raw, 3)
 
-    # Optional dispersion correction for RNA
-    has_disp_corr = haskey(file, "$species/dispersion_correction_gradient")
-    disp_corr = has_disp_corr ? read(file["$species/dispersion_correction_gradient"]) : nothing
-    is_rna = startswith(species, "RNA")
-
-    # Convert conformations to Vector{Vector{SVector{3,T}}}
-    conformations = [
-        [SVector{3, T}(conformations_raw[:, atom_i, conf_i] .* bohr_to_nm)
-         for atom_i in 1:n_atoms]
-        for conf_i in 1:n_confs
-    ]
-
-    # Compute DFT forces (with optional dispersion correction)
-    dft_forces = Vector{Vector{SVector{3, T}}}(undef, n_confs)
-
-    for conf_i in 1:n_confs
-        total_grad = dft_gradients_raw[:, :, conf_i]
-        if is_rna && has_disp_corr
-            total_grad .+= disp_corr[:, :, conf_i]
-        end
-        # Convert: negate and scale
-        dft_forces[conf_i] = SVector{3, T}.(eachcol(-total_grad .* force_conversion))
+    #— build conformations → SVector{3,T} —#
+    conformations = Vector{Vector{SVector{3, T}}}(undef, n_confs)
+    for ci in 1:n_confs
+        conformations[ci] = [
+            SVector{3, T}(conformations_raw[:, ai, ci] .* bohr_to_nm)
+            for ai in 1:n_atoms
+        ]
     end
 
-    return species, subset, n_confs, atom_number, conformations, dft_energies, dft_forces
-end
+    #— build DFT forces (negate grads + convert) —#
+    dft_forces = Vector{Vector{SVector{3, T}}}(undef, n_confs)
+    for ci in 1:n_confs
+        grad = dft_grads_raw[:, :, ci]
+        if is_rna && has_disp
+            grad .+= disp_raw[:, :, ci]
+        end
+        dft_forces[ci] = SVector{3, T}.(eachcol(-grad .* force_conversion))
+    end
 
+    #— build MBIS charges per atom (if present) —#
+    mbis_charges = Vector{Vector{T}}(undef, n_confs)
+    if has_mbis_charges
+        for ci in 1:n_confs
+            mbis_charges[ci] = vec(mbis_charges_raw[1, :, ci])  # <- fixed indexing here
+        end
+    else
+        fill!(mbis_charges, Vector{T}())
+    end
+
+    return (subset,
+            n_confs,
+            atom_number,
+            conformations,
+            dft_energies,
+            dft_forces,
+            mbis_charges,
+            has_mbis_charges)
+end
 
 
 function read_file(file::XYZFile)
@@ -125,10 +143,12 @@ function read_conf_data()
 
         species = "water"
 
-        species, subset, n_confs, atom_numbers,
-        conformations, energies, gradients = read_file(hdf5, 
-                                                       species)
+        subset, n_confs, atom_numbers,
+        conformations, energies, forces,
+        charges, has_charges = read_file(hdf5, species)
+
         for i in 1:n_confs
+
             row = Dict{Symbol, Any}()
             row[:mol_name] = species
             row[:source] = subset
@@ -136,12 +156,23 @@ function read_conf_data()
             row[:n_atoms] = length(atom_numbers)
             row[:energy] = energies[i]
 
+            if !has_charges
+                row[:charge] = "-"
+            else
+                charge_str = ""
+                for j in 1:length(atom_numbers)
+                    c = charges[i][j]
+                    charge_str *= string(c) * ","
+                end
+                row[:charge] = charge_str
+            end
+
             x_str = ""; y_str = ""; z_str = ""
             fx_str = ""; fy_str = ""; fz_str = ""
 
             for j in 1:length(atom_numbers)
                 pos = conformations[i][j]
-                grad = gradients[i][j]
+                grad = forces[i][j]
                 x_str  *= string(pos[1]) * ","
                 y_str  *= string(pos[2]) * ","
                 z_str  *= string(pos[3]) * ","
@@ -168,6 +199,8 @@ function read_conf_data()
         row[:n_atoms] = n_atoms
         row[:energy] = energy
 
+        row[:charge] = "-"
+
         x_str = ""; y_str = ""; z_str = ""
         fx_str = ""; fy_str = ""; fz_str = ""
 
@@ -189,9 +222,57 @@ function read_conf_data()
     end
 
     df = DataFrame(row_buffer)
-    desired_order = [:mol_name, :source, :conf_id, :n_atoms, :energy, :px, :py, :pz, :fx, :fy, :fz]
+    desired_order = [:mol_name, :source, :conf_id, :n_atoms, :energy, :charge, :px, :py, :pz, :fx, :fy, :fz]
     df = df[:, desired_order]
     return df
 
 end
 
+function decode_feats(df::DataFrame)
+    #=
+    Takes an entry of a feature dataframe and decodes it as vectors
+    that can then be fed to the NN model.
+    =#
+
+    elements::Vector{Int}       = parse.(Int, split(df.ATOMIC_MASS[1], ","))
+    formal_charges::Vector{Int} = parse.(Int, split(df.FORMAL_CHARGE[1], ","))
+
+    aromatics::Vector{Int} = parse.(Int, split(df.AROMATICITY[1], ","))
+
+    n_bonds::Vector{Int} = parse.(T, split(df.N_BONDS[1], ","))
+
+    bonds::Matrix{Int}     = reduce(vcat, [parse.(Int, split(pair, "/"))' for pair in split(df.BONDS[1], ",")])
+    angles::Matrix{Int}    = reduce(vcat, [parse.(Int, split(trio, "/"))' for trio in split(df.ANGLES[1], ",")])
+    propers::Matrix{Int}   = df.PROPER[1] == "-"   ? Matrix{Int}(undef,0,4) : reduce(vcat, [parse.(Int, split(quad, "/"))' for quad in split(df.PROPER[1], ",")])
+    impropers::Matrix{Int} = df.IMPROPER[1] == "-" ? Matrix{Int}(undef,0,4) : reduce(vcat, [parse.(Int, split(quad, "/"))' for quad in split(df.IMPROPER[1], ",")])
+    
+    mol_inds::Vector{Int} = parse.(Int, split(df.MOL_ID[1], ","))
+    
+    adj_list = build_adj_list(df)
+
+    n_atoms    = length(elements)
+    atom_feats = zeros(T, MODEL_PARAMS["networks"]["n_atom_features_in"], n_atoms)
+
+    for i in 1:n_atoms
+        atom_feats[elements[i], i] = one(T)
+        atom_feats[19 + formal_charges[i], i] = one(T)
+        atom_feats[22, i] = aromatics[i]
+        atom_feats[23 + min(n_bonds[i], 6), i] = one(T)
+    end
+
+    return (
+        elements,
+        formal_charges,
+        bonds[:,1], bonds[:,2],
+        angles[:,1], angles[:,2], angles[:,3],
+        propers[:,1], propers[:,2], propers[:,3], propers[:,4],
+        impropers[:,1], impropers[:,2], impropers[:,3], impropers[:,4],
+        mol_inds,
+        adj_list,
+        n_atoms,
+        atom_feats
+    )
+
+end
+
+Flux.@non_differentiable decode_feats(df::DataFrame)

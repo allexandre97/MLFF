@@ -1,5 +1,13 @@
 {
+    "paths":{
+        "out_dir":"./runs"
+    },
+
     "training":{
+
+        "verbose":true,
+
+        "use_gaff_simulations":true,
 
         "n_frames_val_cond":500,
 
@@ -37,6 +45,8 @@
     "physics":{
         "vdw_functional_form":"dexp",
         "bond_functional_form":"harmonic",
-        "angle_functional_form":"harmonic"
+        "angle_functional_form":"harmonic",
+        "n_proper_terms":6,
+        "n_improper_terms":2
     }
 }
