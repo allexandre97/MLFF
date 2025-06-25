@@ -1,4 +1,5 @@
 include("../nets/models.jl")
+include("../physics/transformer.jl")
 
 function build_adj_list(mol_row::DataFrame)::Array
     
@@ -52,13 +53,13 @@ function mol_to_system(
     angles_i, angles_j, angles_k,
     propers_i, propers_j, propers_k, propers_l,
     impropers_i, impropers_j, impropers_k, impropers_l,
-    mol_inds, adj_list, n_atoms, atom_feats = decode_feats(feat_df)
+    mol_inds, adj_list, n_atoms, atom_features = decode_feats(feat_df)
 
     # The total number of molecules in a conformation
     n_mols    = maximum(mol_inds)
     n_repeats = (startswith(mol_id, "mixing_combined_") ? (n_mols ÷ 2) : n_mols)
 
-    atom_feats, atom_embeds = calc_embeddings(mol_id, adj_list, atom_feats,
+    atom_feats, atom_embeds = calc_embeddings(mol_id, adj_list, atom_features,
                                               atom_embedding_model, atom_features_model)
     
     bond_pool, angle_pool, proper_pool, improper_pool = embed_to_pool(atom_embeds,
@@ -70,4 +71,17 @@ function mol_to_system(
                                                                       angle_pooling_model, 
                                                                       proper_pooling_model, 
                                                                       improper_pooling_model)
+
+    bond_feats, angle_feats, proper_feats, improper_feats = pool_to_feats(mol_id,
+                                                                          n_repeats,
+                                                                          bond_pool,
+                                                                          angle_pool,
+                                                                          proper_pool,
+                                                                          improper_pool,
+                                                                          bond_features_model,
+                                                                          angle_features_model,
+                                                                          proper_features_model,
+                                                                          improper_features_model)
+
+    partial_charges = atom_feats_to_charges(mol_id, n_atoms, n_mols, atom_feats, formal_charges, mol_inds)
 end
