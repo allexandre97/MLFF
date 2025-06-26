@@ -64,6 +64,9 @@ end
 const n_proper_terms   = MODEL_PARAMS["physics"]["n_proper_terms"]
 const n_improper_terms = MODEL_PARAMS["physics"]["n_improper_terms"]
 
+const torsion_periodicities = ntuple(i -> i, 6)
+const torsion_phases = ntuple(i -> i % 2 == 0 ? T(π) : zero(T), 6)
+
 # Some magic hackery. TODO: READ RELEVANT PAPERS
 transform_lj_σ(x) = sigmoid(x) * T(0.42) + T(0.08) # 0.08 nm -> 0.5 nm
 transform_lj_ϵ(x) = sigmoid(x) * T(0.95) + T(0.05) # 0.05 kJ/mol -> 1.0 kJ/mol

@@ -147,7 +147,7 @@ function atom_feats_to_vdW(
             "A" => As,
             "B" => Bs,
             "C" => Cs
-            )
+        )
     end
 
     #=
@@ -166,7 +166,7 @@ function feats_to_bonds(
         k  = transform_bond_k.(bond_feats[1, :], bond_feats[2, :])
         r0 = transform_bond_r0.(bond_feats[1, :], bond_feats[2, :])
         return Dict(
-            "bond_functional_form" => bond_functional_form,
+            "functional" => bond_functional_form,
             "k" => k,
             "r0" => r0
         )
@@ -175,7 +175,7 @@ function feats_to_bonds(
         r0 = transform_morse_a.(bond_feats[3, :])
         a  = transform_bond_r0.(bond_feats[1, :], bond_feats[2, :])
         return Dict(
-            "bond_functional_form" => bond_functional_form,
+            "functional" => bond_functional_form,
             "k" => k,
             "r0" => r0,
             "a" => a
@@ -194,7 +194,7 @@ function feats_to_angles(
         k  = transform_angle_k.(angle_feats[1, :], angle_feats[2, :])
         θ0 = transform_angle_θ0.(angle_feats[1, :], angle_feats[2, :])
         return Dict(
-            "angle_functional_form" => angle_functional_form,
+            "functional" => angle_functional_form,
             "k" => k,
             "θ0" => θ0
         )
@@ -204,7 +204,7 @@ function feats_to_angles(
         kj  = transform_angle_k.(angle_feats[3, :], angle_feats[4, :])
         θ0j = transform_angle_θ0.(angle_feats[3, :], angle_feats[4, :])
         return Dict(
-            "angle_functional_form" => angle_functional_form,
+            "functional" => angle_functional_form,
             "ki" => ki,
             "θ0i" => θ0i,
             "kj" => kj,
