@@ -1,15 +1,16 @@
 vdw_functional_form   = MODEL_PARAMS["physics"]["vdw_functional_form"]
+mixing_function       = MODEL_PARAMS["physics"]["mixing_function"]
 bond_functional_form  = MODEL_PARAMS["physics"]["bond_functional_form"]
 angle_functional_form = MODEL_PARAMS["physics"]["angle_functional_form"]
 
-const bohr_to_nm = T(5.29177210903e-2)
-const hartree_to_kJpmol = T(4.3597447222071 * 6.02214076e2)
-const force_conversion = hartree_to_kJpmol / bohr_to_nm
-const eVpÅ_to_kJpmolpnm = T(964.8533212331)
+bohr_to_nm = T(5.29177210903e-2)
+hartree_to_kJpmol = T(4.3597447222071 * 6.02214076e2)
+force_conversion = hartree_to_kJpmol / bohr_to_nm
+eVpÅ_to_kJpmolpnm = T(964.8533212331)
 
 inverse_sigmoid(x) = log(x / (1 - x))
-const starting_weight14_vdw  = inverse_sigmoid(T(0.5))
-const starting_weight14_coul = inverse_sigmoid(T(0.8333))
+starting_weight14_vdw  = inverse_sigmoid(T(0.5))
+starting_weight14_coul = inverse_sigmoid(T(0.8333))
 
 # Initialize some constants depending on the functional form of vdW interactions
 if vdw_functional_form in ("lj", "lj69")
@@ -28,6 +29,19 @@ elseif vdw_functional_form == "nn"
     const global_params = vcat(starting_weight14_vdw, T.(Flux.kaiming_uniform(n_params_pairwise)))
 else
     error("unknown vdw functional form $vdw_functional_form")
+end
+
+if mixing_function == "lb"
+    const σ_mixing = Molly.lorentz_σ_mixing
+    const ϵ_mixing = Molly.geometric_ϵ_mixing
+elseif mixing_function == "geom"
+    const σ_mixing = Molly.geometric_σ_mixing
+    const ϵ_mixing = Molly.geometric_ϵ_mixing
+elseif mixing_function == "wh"
+    const σ_mixing = Molly.waldman_hagler_σ_mixing
+    const ϵ_mixing = Molly.waldman_hagler_ϵ_mixing
+else
+    error("unknown mixing function $mixing_function")
 end
 
 # Initialize some constants based on the functioal form for bonds description
@@ -66,7 +80,9 @@ transform_buck_C(x) = sigmoid(x) * T(0.0095) + T(0.0005) # 0.0005 kJ/mol nm^6 ->
 
 transform_bond_k(  k1, k2) = max(k1 + k2, zero(T))
 transform_angle_k( k1, k2) = max(k1 + k2, zero(T))
+bond_r1, bond_r2 = MODEL_PARAMS["physics"]["bond_r1"], MODEL_PARAMS["physics"]["bond_r2"]
+angle_r1, angle_r2 = MODEL_PARAMS["physics"]["angle_r1"], MODEL_PARAMS["physics"]["angle_r2"]
 transform_bond_r0( k1, k2) = max((k1 * bond_r1  + k2 * bond_r2 ) / (k1 + k2), zero(T))
-transform_angle_θ0(k1, k2) = max((k1 * angle_r1 + k2 * angle_r2) / (k1 + k2), zero(T))
+transform_angle_θ0(k1, k2) = max((k1 * deg2rad(angle_r1) + k2 * deg2rad(angle_r2)) / (k1 + k2), zero(T))
 
 transform_morse_a(a) = max(a, zero(T))

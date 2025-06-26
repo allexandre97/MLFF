@@ -44,8 +44,13 @@
 
     "physics":{
         "vdw_functional_form":"dexp",
+        "mixing_function":"lb",
         "bond_functional_form":"harmonic",
+        "bond_r1":0.05,
+        "bond_r2":0.3,
         "angle_functional_form":"harmonic",
+        "angle_r1":0.0,
+        "angle_r2":180.0,
         "n_proper_terms":6,
         "n_improper_terms":2
     }

@@ -84,4 +84,11 @@ function mol_to_system(
                                                                           improper_features_model)
 
     partial_charges = atom_feats_to_charges(mol_id, n_atoms, n_mols, atom_feats, formal_charges, mol_inds)
+
+    vdw_dict    = atom_feats_to_vdW(atom_feats)
+    bonds_dict  = feats_to_bonds(bond_feats)
+    angles_dict = feats_to_angles(angle_feats)
+
+    
+
 end
