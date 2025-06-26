@@ -30,7 +30,7 @@ function gen_conf_pairs(df::DataFrame; rng=Random.GLOBAL_RNG)
             source = df[leftover,:source]
             repeats = SUBSET_N_REPEATS[source]
             for repeat_i in 1:repeats
-                push!(out, (leftover, 0, repeats))
+                push!(out, (leftover, 0, repeat_i))
             end
         end
     end
@@ -38,23 +38,28 @@ function gen_conf_pairs(df::DataFrame; rng=Random.GLOBAL_RNG)
     return out
 end
 
-function read_coords(df::DataFrameRow)
+function read_coords(df::DataFrameRow,
+    n_atoms::Int)
     
     px = parse.(T, split(df.px, ",")[1:end-1])
     py = parse.(T, split(df.py, ",")[1:end-1])
     pz = parse.(T, split(df.pz, ",")[1:end-1])
-    
-    return hcat(px,py,pz) # Returns Vector of shape (N_atoms, 3)
+
+    raw = reshape(hcat(px,py,pz), n_atoms * 3)
+
+    # This returns the approprate shape and type for Molly
+    return reinterpret(SVector{3, T}, raw) # Returns Vector of shape (3, N_atoms)
 
 end
 
-function read_forces(df::DataFrameRow)
+function read_forces(df::DataFrameRow,
+    n_atoms::Int)
 
     fx = parse.(T, split(df.fx, ",")[1:end-1])
     fy = parse.(T, split(df.fy, ",")[1:end-1])
     fz = parse.(T, split(df.fz, ",")[1:end-1])
 
-    force = hcat(fx, fy, fz)
+    force = reinterpret(SVector{3, T}, reshape(hcat(fx, fy, fz), n_atoms * 3))
     exceeds = maximum(norm.(force)) > T(1e4)
 
     return force, exceeds
@@ -76,23 +81,25 @@ function read_charges(df::DataFrameRow)
     end
 end
 
-function read_conformation(mol_order, start_mol, end_mol)
+function read_conformation(df, mol_order, start_mol, end_mol)
 
     map_result = map(start_mol:end_mol) do i 
         
         conf_i, conf_j, repeat = mol_order[i]
-        df_i = CONF_DATAFRAME[conf_i, :]
+        df_i = df[conf_i, :]
+        n_atoms_i = df_i.n_atoms
 
-        coords_i                 = read_coords(df_i)
-        forces_i, exceeds_i      = read_forces(df_i)
+        coords_i                 = read_coords(df_i, n_atoms_i)
+        forces_i, exceeds_i      = read_forces(df_i, n_atoms_i)
         energy_i                 = read_energies(df_i)
         charges_i, has_charges_i = read_charges(df_i)
         pair_present = !iszero(conf_j)
 
         if pair_present
-            df_j = CONF_DATAFRAME[conf_j, :]
-            coords_j                 = read_coords(df_j)
-            forces_j, exceeds_j      = read_forces(df_j)
+            df_j = df[conf_j, :]
+            n_atoms_j = df_j.n_atoms
+            coords_j                 = read_coords(df_j, n_atoms_j)
+            forces_j, exceeds_j      = read_forces(df_j, n_atoms_j)
             energy_j                 = read_energies(df_j)
             charges_j, has_charges_j = read_charges(df_j)
         else

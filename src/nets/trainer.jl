@@ -101,7 +101,6 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
     #grads_jc = convert(Vector{Any}, fill(nothing, length(models)))
 
     n_chunks = Threads.nthreads()
-    println(n_chunks)
     if !isnothing(MODEL_PARAMS["paths"]["out_dir"])
         for store_id in ("val-val", "ΔHvap", "ΔHmix")
             rm(joinpath(MODEL_PARAMS["paths"]["out_dir"], "store_$store_id.txt"); force=true)
@@ -129,7 +128,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
         #TODO: Add loss for J couplings
         grads_chunks = [convert(Vector{Any}, fill(nothing, length(models))) for _ in 1:n_chunks]
         print_chunks = fill("", n_chunks)
-        conf_data = read_conformation(train_order, start_i, end_i)
+        conf_data = read_conformation(conf_train, train_order, start_i, end_i)
 
         #=
         Then we separate each batch into several chunks. Each chunk is worked
@@ -142,10 +141,12 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
 
                 # Read Conformation indices
                 conf_i, conf_j, repeat_i = train_order[i]
-                mol_id = CONF_DATAFRAME[conf_i,:mol_name]
+                mol_id = conf_train[conf_i,:mol_name]
 
                 # Index dataframe for features
-                feat_df = FEATURE_DATAFRAMES[1]
+                
+                feat_df = occursin("maceoff", mol_id) ? FEATURE_DATAFRAMES[2] : FEATURE_DATAFRAMES[1]
+
                 feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
 
                 # Get the relevant conformation data
@@ -170,7 +171,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
 
                     force_loss_intra_sum, force_loss_inter_sum = zero(T), zero(T)
                     energy_loss_sum, charge_loss_sum, vdW_loss_sum, reg_loss_sum = zero(T), zero(T), zero(T), zero(T)
-                    mol_to_preds(mol_id, feat_df, coords_i, boundary_inf, models...)
+                    sys = mol_to_preds(mol_id, feat_df, coords_i, boundary_inf, models...)
                     return 0 
                 end
 

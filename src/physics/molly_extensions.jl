@@ -1,4 +1,5 @@
 using Molly
+using ChainRulesCore
 
 struct DoubleExponential{T, S, E, W}
     α::T
@@ -313,4 +314,130 @@ end
     else
         return zero(SVector{3, T})
     end
+end
+
+########## WRAPPERS TO CALCULATE POTENTIAL ENERGIES ##########
+
+function pe_wrap(atoms, coords, velocities, boundary, pairwise_inters_nl,
+                 sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+    pe_vec = zeros(T, 1)
+    pe_wrap!(pe_vec, atoms, coords, velocities, boundary, pairwise_inters_nl,
+             sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+    return pe_vec[1]
+end
+
+function pe_wrap!(pe_vec, atoms, coords, velocities, boundary, pairwise_inters_nl,
+                  sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+    pe = Molly.pairwise_pe(atoms, coords, velocities, boundary, neighbors, NoUnits, length(atoms),
+                           (), pairwise_inters_nl, T, 0)
+    pe += Molly.specific_pe(atoms, coords, velocities, boundary, NoUnits, (),
+                            sils_2_atoms, sils_3_atoms, sils_4_atoms, T, 0)
+    pe_vec[1] = pe
+    return pe_vec
+end
+
+function ChainRulesCore.rrule(::typeof(pe_wrap), atoms, coords, velocities, boundary,
+                              pairwise_inters_nl, sils_2_atoms, sils_3_atoms, sils_4_atoms,
+                              neighbors)
+    Y = pe_wrap(atoms, coords, velocities, boundary, pairwise_inters_nl, sils_2_atoms,
+                sils_3_atoms, sils_4_atoms, neighbors)
+    function pe_wrap_pullback(d_pe)
+        d_atoms = zero.(atoms)
+        d_coords = zero(coords)
+        d_sils_2_atoms = zero.(sils_2_atoms)
+        d_sils_3_atoms = zero.(sils_3_atoms)
+        d_sils_4_atoms = zero.(sils_4_atoms)
+        if vdw_functional_form == "nn"
+            d_pairwise_inters_nl = zero.(pairwise_inters_nl)
+            pair_enz = Enzyme.Duplicated(pairwise_inters_nl, d_pairwise_inters_nl)
+        elseif length(pairwise_inters_nl) > 0
+            pair_enz = Enzyme.Active(pairwise_inters_nl)
+        else
+            pair_enz = Enzyme.Const(pairwise_inters_nl)
+        end
+        grads = Enzyme.autodiff(
+            Enzyme.set_runtime_activity(Enzyme.Reverse),
+            pe_wrap!,
+            Enzyme.Const,
+            Enzyme.Duplicated(zeros(T, 1), [d_pe]),
+            Enzyme.Duplicated(atoms, d_atoms),
+            Enzyme.Duplicated(coords, d_coords),
+            Enzyme.Const(velocities),
+            Enzyme.Const(boundary),
+            pair_enz,
+            duplicated_if_present(sils_2_atoms, d_sils_2_atoms),
+            duplicated_if_present(sils_3_atoms, d_sils_3_atoms),
+            duplicated_if_present(sils_4_atoms, d_sils_4_atoms),
+            Enzyme.Const(neighbors),
+        )[1]
+        pair_grad = (vdw_functional_form == "nn" ? d_pairwise_inters_nl : grads[6])
+        return NoTangent(), d_atoms, d_coords, NoTangent(), NoTangent(), pair_grad,
+               d_sils_2_atoms, d_sils_3_atoms, d_sils_4_atoms, NoTangent()
+    end
+    return Y, pe_wrap_pullback
+end
+
+########## WRAPPERS TO CALCULATE FORCES ##########
+
+function forces_wrap(atoms, coords, velocities, boundary, pairwise_inters_nl,
+                     sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+    fs_nounits = zero(coords)
+    forces_wrap!(fs_nounits, atoms, coords, velocities, boundary, pairwise_inters_nl,
+                 sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+    return fs_nounits
+end
+
+function forces_wrap!(fs_nounits, atoms, coords, velocities, boundary, pairwise_inters_nl,
+                      sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+    Molly.pairwise_forces!(fs_nounits, atoms, coords, velocities, boundary, neighbors, NoUnits,
+                           length(atoms), (), pairwise_inters_nl, 0)
+    Molly.specific_forces!(fs_nounits, atoms, coords, velocities, boundary, NoUnits, (),
+                           sils_2_atoms, sils_3_atoms, sils_4_atoms, 0)
+    return fs_nounits
+end
+
+duplicated_if_present(x, dx) = (length(x) > 0 ? Enzyme.Duplicated(x, dx) : Enzyme.Const(x))
+
+function ChainRulesCore.rrule(::typeof(forces_wrap), atoms, coords, velocities, boundary,
+                              pairwise_inters_nl, sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+    Y = forces_wrap(atoms, coords, velocities, boundary, pairwise_inters_nl, sils_2_atoms,
+                    sils_3_atoms, sils_4_atoms, neighbors)
+    function forces_wrap_pullback(d_fs_nounits)
+        fs_nounits = zero(coords)
+        d_atoms = zero.(atoms)
+        d_coords = zero(coords)
+        d_sils_2_atoms = zero.(sils_2_atoms)
+        d_sils_3_atoms = zero.(sils_3_atoms)
+        d_sils_4_atoms = zero.(sils_4_atoms)
+        if vdw_functional_form == "nn"
+            # Active fails here
+            # Temp gives zero grad for weight_special, though that is set to 1 anyway
+            d_pairwise_inters_nl = zero.(pairwise_inters_nl)
+            pair_enz = Enzyme.Duplicated(pairwise_inters_nl, d_pairwise_inters_nl)
+        elseif length(pairwise_inters_nl) > 0
+            # Active required to get non-zero grads for weight_special etc.
+            pair_enz = Enzyme.Active(pairwise_inters_nl)
+        else
+            pair_enz = Enzyme.Const(pairwise_inters_nl)
+        end
+        grads = Enzyme.autodiff(
+            Enzyme.set_runtime_activity(Enzyme.Reverse),
+            forces_wrap!,
+            Enzyme.Const,
+            Enzyme.Duplicated(fs_nounits, d_fs_nounits),
+            Enzyme.Duplicated(atoms, d_atoms),
+            Enzyme.Duplicated(coords, d_coords),
+            Enzyme.Const(velocities),
+            Enzyme.Const(boundary),
+            pair_enz,
+            duplicated_if_present(sils_2_atoms, d_sils_2_atoms),
+            duplicated_if_present(sils_3_atoms, d_sils_3_atoms),
+            duplicated_if_present(sils_4_atoms, d_sils_4_atoms),
+            Enzyme.Const(neighbors),
+        )[1]
+        pair_grad = (vdw_functional_form == "nn" ? d_pairwise_inters_nl : grads[6])
+        return NoTangent(), d_atoms, d_coords, NoTangent(), NoTangent(), pair_grad,
+               d_sils_2_atoms, d_sils_3_atoms, d_sils_4_atoms, NoTangent()
+    end
+    return Y, forces_wrap_pullback
 end

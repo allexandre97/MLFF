@@ -193,7 +193,7 @@ function read_conf_data()
         n_atoms, coords, forces, energy = read_file(xyz)
 
         row = Dict{Symbol, Any}()
-        row[:mol_name] = "water"
+        row[:mol_name] = "maceoff_water_$conf_i"
         row[:source] = "MACE-OFF water"
         row[:conf_id] = conf_i
         row[:n_atoms] = n_atoms

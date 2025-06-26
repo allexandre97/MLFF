@@ -25,7 +25,24 @@ function mol_to_preds(
     args...
 )
 
-    mol_to_system(mol_id, args...)
+    sys, partial_charges, vdw_size, torsion_size, elements, mol_inds = mol_to_system(mol_id, args...)
+    neighbors = find_neighbors(sys; n_threads = 1)
+    # Get interaction lists separate depending on the number of atoms involves
+    sils_2_atoms = filter(il -> il isa InteractionList2Atoms, values(sys.specific_inter_lists))
+    sils_3_atoms = filter(il -> il isa InteractionList3Atoms, values(sys.specific_inter_lists))
+    sils_4_atoms = filter(il -> il isa InteractionList4Atoms, values(sys.specific_inter_lists))
+    if any(startswith.(mol_id, ("vapourisation_", "mixing_", "protein_")))
+        forces = nothing
+        peotential = pe_wrap(sys.atoms, sys.coords, sys.velocities, sys.boundary, sys.pairwise_inters,
+                        sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+    else
+        forces = forces_wrap(sys.atoms, sys.coords, sys.velocities, sys.boundary, sys.pairwise_inters,
+                            sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+        potential = pe_wrap(sys.atoms, sys.coords, sys.velocities, sys.boundary, sys.pairwise_inters,
+                        sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+    end
+
+    return forces, potential, partial_charges, vdw_size, torsion_size, elements, mol_inds
 
 end
 
@@ -72,6 +89,8 @@ function generate_neighbors(
 
     return neighbor_finder
 end
+
+@non_differentiable generate_neighbors(args...)
 
 # Can this function be non-differentiable??
 function build_sys(
@@ -181,6 +200,8 @@ function build_sys(
 
     angles = InteractionList3Atoms(angles_i, angles_j, angles_k, angle_inter)
 
+    ######### Torsion Interactions section ##########
+
     proper_inter = setup_torsions(proper_feats, torsion_periodicities, torsion_phases, true)
     propers = InteractionList4Atoms(propers_i, propers_j, propers_k, propers_l, proper_inter)
 
@@ -201,6 +222,7 @@ function build_sys(
         specific_inter_lists = ()
     end
 
+
     neighbor_finder = generate_neighbors(n_atoms, 
                                          bonds_i, bonds_j,
                                          angles_i, angles_k,
@@ -208,6 +230,7 @@ function build_sys(
                                          dist_nb_cutoff)
 
     velocities = zero(coords)
+
 
     sys = System{3, Array, T, typeof(atoms), typeof(coords), typeof(boundary), typeof(velocities), typeof([]),
                  Nothing, typeof(pairwise_inter), typeof(specific_inter_lists), typeof(()), typeof(()),
@@ -220,7 +243,7 @@ function build_sys(
 
 end
 
-Flux.@non_differentiable build_sys(args...)
+#Flux.@non_differentiable build_sys(args...)
 
 function mol_to_system(
     mol_id::String,
@@ -247,6 +270,11 @@ function mol_to_system(
     propers_i, propers_j, propers_k, propers_l,
     impropers_i, impropers_j, impropers_k, impropers_l,
     mol_inds, adj_list, n_atoms, atom_features = decode_feats(feat_df)
+
+#=     println("elements: ", size(elements))
+    println("bonds: ", size(bonds_i))
+    println("angles: ", size(angles_i))
+    println("coords: ", length(coords)) =#
 
     # The total number of molecules in a conformation
     n_mols    = maximum(mol_inds)
@@ -282,6 +310,14 @@ function mol_to_system(
     bonds_dict  = feats_to_bonds(bond_feats)
     angles_dict = feats_to_angles(angle_feats)
 
+    torsion_ks_size = zero(T)
+    if length(proper_feats) > 0
+        torsion_ks_size += mean(abs, proper_feats)
+    end
+    if length(improper_feats) > 0
+        torsion_ks_size += mean(abs, improper_feats)
+    end
+
     # Why is this padding needed?
     proper_feats_pad   = cat(proper_feats, zeros(T, 6 - n_proper_terms, length(propers_i)); dims = 1)
     improper_feats_pad = cat(improper_feats, zeros(T, 6 - n_improper_terms, length(impropers_i)); dims = 1)
@@ -298,5 +334,14 @@ function mol_to_system(
                           proper_feats_pad, improper_feats_pad,
                           propers_i, propers_j, propers_k, propers_l,
                           impropers_i, impropers_j, impropers_k, impropers_l)
+
+    return (
+        molly_sys,
+        partial_charges, 
+        vdw_dict["params_size"],
+        torsion_ks_size,
+        elements,
+        mol_inds
+    )
 
 end

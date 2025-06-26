@@ -108,4 +108,6 @@ const global boundary_inf = CubicBoundary(T(Inf))
 
 models, optims     = build_models()
 
+@non_differentiable Molly.find_neighbors(args...)
+
 train!(models, optims)
