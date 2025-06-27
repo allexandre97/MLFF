@@ -1,6 +1,3 @@
-using ChainRulesCore
-using Enzyme
-
 function multi_mol_charge_factors!(mol_charge_factors, charge_e_inv_s, charge_inv_s,
                                    formal_charges, molecule_inds, n_molecules)
     for mi in 1:n_molecules

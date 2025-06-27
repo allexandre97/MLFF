@@ -1,14 +1,20 @@
-using Random
-using Dates
-using Flux
-using Zygote
-using TimerOutputs
-
-include("../io/conformations.jl")
-include("../physics/forces.jl")
-include("../nets/losses.jl")
-
 const TO = TimerOutput()
+
+multiply_grads(grads, x) = fmap(i -> (isnothing(i) ? nothing : i * x), grads)
+
+accum_grads(x, y) = Zygote.accum(x, y)
+
+# Fails on Dropout layer so define that special case
+# This is type piracy but avoids defining all the methods
+function Zygote.accum(::NamedTuple{(:p, :dims, :active, :rng), T},
+                      ::NamedTuple{(:p, :dims, :active, :rng), T}) where T
+    return nothing
+end
+
+Zygote.accum(::NamedTuple{(:p, :dims, :active, :rng), <:Any}, ::Nothing) = nothing
+Zygote.accum(::Nothing, ::NamedTuple{(:p, :dims, :active, :rng), <:Any}) = nothing
+
+check_no_nans(grads) = !any(g -> any(isnan, Flux.destructure(g)[1]), grads)
 
 function fwd_and_loss(
     mol_id,
@@ -355,7 +361,44 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
                 
                 end
 
+                if check_no_nans(grads)
+                    grads_chunks[chunk_id] = accum_grads.(grads_chunks[chunk_id], grads)
+                end
             end
+        end
+
+        MODEL_PARAMS["training"]["verbose"] && foreach(report, print_chunks)
+
+        print_chunks = fill("", n_chunks)
+        time_spice  += time() - time_group
+
+        time_group = time()
+
+        @timeit TO "Gradients" begin
+            grads_minibatch = convert(Vector{Any}, fill(nothing, length(models)))
+            for chunk_id in 1:n_chunks
+                grads_minibatch = accum_grads.(grads_minibatch, grads_chunks[chunk_id])
+            end
+            grad_vals, restructure = Flux.destructure(grads_minibatch)
+            grads_clamp = restructure(clamp.(grad_vals, -MODEL_PARAMS["training"]["grad_clamp_val"], MODEL_PARAMS["training"]["grad_clamp_val"]))
+            for model_i in eachindex(models)
+                Flux.update!(optims[model_i], models[model_i], grads_clamp[model_i])
+            end
+        end
+
+        @timeit TO "Logging" begin
+            
+        end
+
+        out_fp_models = joinpath(out_dir, "model.bson")
+        out_fp_optims = joinpath(out_dir, "optim.bson")
+        BSON.@save out_fp_models models
+        BSON.@save out_fp_optims optims
+        if save_every_epoch
+            out_fp_models_epoch = joinpath(out_dir, "models", "model_ep_$epoch_n.bson")
+            out_fp_optims_epoch = joinpath(out_dir, "optims", "optim_ep_$epoch_n.bson")
+            BSON.@save out_fp_models_epoch models
+            BSON.@save out_fp_optims_epoch optims
         end
 
     end
@@ -412,6 +455,50 @@ function train!(models, optims)
     conf_val = conf_val_test[val_ids,:]
     conf_test = conf_val_test[test_ids,:]
 
+    out_dir = MODEL_PARAMS["paths"]["out_dir"]
+
+    if !isnothing(out_dir) && isfile(joinpath(out_dir, "training.log"))
+        for line in readlines(joinpath(out_dir, "training.log"))
+            if startswith(line, "Epoch")
+                cols = split(line)
+                push!(epochs_mean_fs_intra_train     , parse(T, cols[9 ]))
+                push!(epochs_mean_fs_inter_train     , parse(T, cols[13]))
+                push!(epochs_mean_pe_train           , parse(T, cols[16]))
+                push!(epochs_mean_charges_train      , parse(T, cols[18]))
+                push!(epochs_mean_vdw_params_train   , parse(T, cols[21]))
+                push!(epochs_mean_torsion_ks_train   , parse(T, cols[24]))
+                push!(epochs_mean_fs_intra_train_gems, parse(T, cols[10]))
+                push!(epochs_mean_fs_inter_train_gems, parse(T, cols[14]))
+                push!(epochs_mean_enth_vap_train     , parse(T, cols[26]))
+                push!(epochs_mean_enth_mixing_train  , parse(T, cols[28]))
+                push!(epochs_mean_J_coupling_train   , parse(T, cols[30]))
+                push!(epochs_mean_chem_shift_train   , parse(T, cols[33]))
+                push!(epochs_loss_regularisation     , parse(T, cols[35]))
+                push!(epochs_mean_fs_intra_val       , parse(T, cols[42]))
+                push!(epochs_mean_fs_inter_val       , parse(T, cols[46]))
+                push!(epochs_mean_pe_val             , parse(T, cols[49]))
+                push!(epochs_mean_charges_val        , parse(T, cols[51]))
+                push!(epochs_mean_vdw_params_val     , parse(T, cols[54]))
+                push!(epochs_mean_torsion_ks_val     , parse(T, cols[57]))
+                push!(epochs_mean_fs_intra_val_gems  , parse(T, cols[43]))
+                push!(epochs_mean_fs_inter_val_gems  , parse(T, cols[47]))
+                push!(epochs_mean_enth_vap_val       , parse(T, cols[59]))
+                push!(epochs_mean_enth_mixing_val    , parse(T, cols[61]))
+                push!(epochs_mean_J_coupling_val     , parse(T, cols[63]))
+                push!(epochs_mean_chem_shift_val     , parse(T, cols[66]))
+            end
+        end
+        starting_epoch = length(epochs_mean_fs_intra_train) + 1
+        trained_model = joinpath(out_dir, "model.bson")
+        trained_optim = joinpath(out_dir, "optim.bson")
+        BSON.@load trained_model models
+        BSON.@load trained_optim optims
+        report("Restarting training from epoch ", starting_epoch, " on ",
+               Threads.nthreads(), " thread(s)\n")
+    else
+        starting_epoch = 1
+        report("Starting training on ", Threads.nthreads(), " thread(s)\n")
+    end
 
     # For now simplified logic, must improve and simmilarize to JG code!
     starting_epoch = 1

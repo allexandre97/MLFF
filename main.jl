@@ -1,7 +1,26 @@
 using ArgParse
 using JSON
-using Molly
+
 using Flux
+using GraphNeuralNetworks
+using Zygote
+using Enzyme
+using ChainRulesCore
+using BSON
+
+using Random
+using Statistics
+using LinearAlgebra
+using StaticArrays
+
+using CSV
+using HDF5
+using DataFrames
+
+using Dates
+using TimerOutputs
+
+using Molly
 
 function parse_commandline()::Dict{String, Any}
 
@@ -22,10 +41,20 @@ const T = Float32
 parsed_args::Dict{String, Any} = parse_commandline() # Read args from cli
 const global MODEL_PARAMS::Dict = JSON.parsefile("params.json") # Read model parameters from JSON file
 
-include("src/io/fileio.jl")    # Handles file input output
-include("src/mol/molbuild.jl") # Helpers to build molecule connectivity
-include("src/nets/models.jl")  # Methods and variables related to Neural Nets
-include("src/nets/trainer.jl")  # Methods and variables related to Neural Nets
+include("./src/io/conformations.jl")
+include("./src/io/fileio.jl")
+include("./src/io/logging.jl")
+
+include("./src/mol/molbuild.jl")
+
+include("./src/nets/losses.jl")
+include("./src/nets/models.jl")
+include("./src/nets/trainer.jl")
+
+include("./src/physics/definitions.jl")
+include("./src/physics/forces.jl")
+include("./src/physics/molly_extensions.jl")
+include("./src/physics/transformer.jl")
 
 ############### MAIN LOGIC ###############
 
@@ -110,4 +139,19 @@ models, optims     = build_models()
 
 @non_differentiable Molly.find_neighbors(args...)
 
-train!(models, optims)
+out_dir = MODEL_PARAMS["paths"]["out_dir"]
+
+const global save_every_epoch = true
+
+if !isnothing(out_dir) && !isdir(out_dir)
+    mkdir(out_dir)
+    #cp("train.jl", joinpath(out_dir, "train.jl"))
+    mkdir(joinpath(out_dir, "ff_xml"))
+    mkdir(joinpath(out_dir, "training_sims"))
+    if save_every_epoch
+        mkdir(joinpath(out_dir, "models"))
+        mkdir(joinpath(out_dir, "optims"))
+    end
+end
+
+# train!(models, optims)

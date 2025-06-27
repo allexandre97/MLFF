@@ -1,9 +1,3 @@
-using Statistics
-using Flux
-using GraphNeuralNetworks
-
-include("../physics/definitions.jl")
-
 NET_PARAMS = MODEL_PARAMS["networks"]
 
 Flux.@non_differentiable GraphNeuralNetworks.GNNGraph(args...)

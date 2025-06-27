@@ -13,7 +13,7 @@
 
         "train_size":0.9,
 
-        "n_epochs":2,
+        "n_epochs":20,
 
         "training_sims_first_epoch":5,
 
@@ -33,7 +33,9 @@
         "train_on_forces_intra":1.0,
         "train_on_forces_inter":1.0,
         "train_on_pe":1.0,
-        "train_on_charges":1.0
+        "train_on_charges":1.0,
+
+        "grad_clamp_val":1e3
 
     },
 

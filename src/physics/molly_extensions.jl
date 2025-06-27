@@ -1,6 +1,3 @@
-using Molly
-using ChainRulesCore
-
 struct DoubleExponential{T, S, E, W}
     α::T
     β::T

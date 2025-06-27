@@ -1,5 +1,3 @@
-using LinearAlgebra
-
 function gen_conf_pairs(
     df::DataFrame; 
     rng=Random.GLOBAL_RNG

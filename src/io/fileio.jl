@@ -1,9 +1,3 @@
-using HDF5
-using StaticArrays
-using CSV, DataFrames
-
-include("../physics/definitions.jl")
-
 struct XYZFile
     filepath::String
 end

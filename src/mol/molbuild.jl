@@ -1,7 +1,3 @@
-include("../nets/models.jl")
-include("../physics/transformer.jl")
-include("../physics/molly_extensions.jl")
-
 function build_adj_list(mol_row::DataFrame)::Array
     
     n_atoms::Int16    = size(split(mol_row[!, :ATOMIC_MASS][1], ","))[1]
