@@ -209,7 +209,7 @@ end
 function calc_embeddings(
     mol_id::String,
     adj_list::Vector{Vector{Int64}},
-    atom_feats,
+    atom_feats::Matrix{T},
     atom_embedding_model::GNNChain,
     atom_features_model::Chain
 )

@@ -113,6 +113,10 @@ function read_file(file::XYZFile)
 end
 
 function read_feat_file(path::String)::DataFrame
+    #=
+    Reads a .tsv file where features for a given set of molecules
+    is encoded. 
+    =#
 
     dataframe::DataFrame = CSV.read(joinpath(DATASETS_PATH, path), DataFrame; delim='\t', header = false)
 
@@ -189,6 +193,7 @@ function read_conf_data()
     end
 
     # Process XYZ files
+    # I believe that the only datasets in .xyz format belong to the MACE-OFF water
     for (conf_i, xyz) in enumerate(xyz_list)
         n_atoms, coords, forces, energy = read_file(xyz)
 
@@ -210,7 +215,7 @@ function read_conf_data()
             x_str  *= string(pos[1]) * ","
             y_str  *= string(pos[2]) * ","
             z_str  *= string(pos[3]) * ","
-            fx_str *= string(grad[1]) * ","
+            fx_str *= string(grad[1]) * "," # This is sub-optimal as it leaves a trailing comma that needs to be filtered out downstream
             fy_str *= string(grad[2]) * ","
             fz_str *= string(grad[3]) * ","
         end
@@ -248,9 +253,9 @@ function decode_feats(df::DataFrame)
     
     mol_inds::Vector{Int} = parse.(Int, split(df.MOL_ID[1], ","))
     
-    adj_list = build_adj_list(df)
+    adj_list::Vector{Vector{Int}} = build_adj_list(df)
 
-    n_atoms    = length(elements)
+    n_atoms::Int          = length(elements)
     atom_feats = zeros(T, MODEL_PARAMS["networks"]["n_atom_features_in"], n_atoms)
 
     for i in 1:n_atoms
@@ -272,7 +277,6 @@ function decode_feats(df::DataFrame)
         n_atoms,
         atom_feats
     )
-
 end
 
 Flux.@non_differentiable decode_feats(df::DataFrame)

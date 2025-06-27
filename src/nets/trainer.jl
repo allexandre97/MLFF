@@ -5,8 +5,122 @@ using Zygote
 using TimerOutputs
 
 include("../io/conformations.jl")
+include("../physics/forces.jl")
+include("../nets/losses.jl")
 
 const TO = TimerOutput()
+
+function fwd_and_loss(
+    mol_id,
+    feat_df,
+    coords,
+    dft_forces,
+    dft_charges, has_charges,
+    boundary_inf, 
+    models
+)
+    # Forward pass and feat prediction
+    sys,
+    forces, potential, charges,
+    vdw_size, torsion_size, 
+    elements, mol_inds = mol_to_preds(mol_id, feat_df, coords, boundary_inf, models...)
+    
+    # Split the forces in inter and intramolecular contributions
+    pred_force_intra, pred_force_inter = split_forces(forces, coords, mol_inds, elements)
+    dft_force_intra, dft_force_inter   = split_forces(dft_forces, coords, mol_inds, elements)
+
+    # Calculate the losses
+    forces_loss_intra = force_loss(pred_force_intra, dft_force_intra)
+    forces_loss_inter = force_loss(pred_force_inter, dft_force_inter)
+    charges_loss      = (has_charges ? charge_loss(charges, dft_charges) : zero(T))
+    vdw_loss          = vdw_params_loss(vdw_size)
+    torsions_loss     = torsion_ks_loss(torsion_size)
+    reg_loss          = param_regularisation((models...,))
+    
+    return (
+        sys,
+        forces,
+        potential,
+        charges,
+        vdw_size, torsion_size,
+        elements, mol_inds,
+        forces_loss_inter, forces_loss_intra,
+        charges_loss, vdw_loss,
+        torsions_loss, reg_loss
+    )
+    
+end
+
+function loss_update(
+
+    chunk_id,
+
+    forces_intra_loss_chunks, forces_inter_loss_chunks,
+    potential_loss_chunks,
+    charges_loss_chunks, vdw_loss_chunks,
+    torsions_loss_chunks,
+
+    forces_intra_loss_sum, forces_inter_loss_sum,
+    potential_loss_sum,
+    charges_loss_sum, vdw_loss_sum,
+    torsions_loss_sum, reg_loss_sum,
+
+    forces_loss_intra, forces_loss_inter,
+    charges_loss, vdw_loss,
+    torsions_loss, reg_loss,
+
+    pair_present,
+
+    epoch_n     = nothing,
+    pe_diff     = nothing,
+    dft_pe_diff = nothing
+)
+
+    # Catch if any of the losses is NaN
+    if isnan(forces_loss_inter) || isnan(forces_loss_intra) ||
+        isnan(charges_loss) || isnan(vdw_loss) || isnan(torsions_loss) || isnan(reg_loss)
+        return false
+    else
+        if pair_present
+            if epoch_n > MODEL_PARAMS["training"]["loss_energy_first_epoch"]
+                loss_pe_unbound = pe_loss(pe_diff, dft_pe_diff)
+                if loss_pe_unbound < MODEL_PARAMS["training"]["loss_weight_energy_factor"]*MODEL_PARAMS["training"]["loss_weight_energy"]
+                    loss_pe = loss_pe_unbound
+                else
+                    loss_pe = zero(T)
+                end
+            else
+                loss_pe = zero(T)
+            end
+            if isnan(loss_pe)
+                return false
+            end
+        end
+        # Store the losses in the arrays indexed by chunk
+        ignore_derivatives() do 
+            push!(forces_intra_loss_chunks[chunk_id], forces_loss_intra)
+            push!(forces_inter_loss_chunks[chunk_id], forces_loss_inter)
+            if pair_present
+                push!(potential_loss_chunks[chunk_id], loss_pe)
+            end
+            push!(charges_loss_chunks[chunk_id], charges_loss)
+            push!(vdw_loss_chunks[chunk_id], vdw_loss)
+            push!(torsions_loss_chunks[chunk_id], torsions_loss)
+            #Why is reg loss not pushed into any array?
+        end
+        # Add loss to sum of losses
+        forces_intra_loss_sum += forces_loss_intra
+        forces_inter_loss_sum += forces_loss_inter
+        if pair_present
+            potential_loss_sum += loss_pe
+        end
+        charges_loss_sum      += charges_loss
+        vdw_loss_sum          += vdw_loss
+        torsions_loss_sum     += torsions_loss
+        reg_loss_sum          += reg_loss
+    end
+    return true
+end
 
 function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
     #=
@@ -116,15 +230,15 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
         end_i   = min(start_i + MODEL_PARAMS["training"]["n_minibatch"] - 1, n_conf_pairs_train)
 
         # Initialize vectors to store the losses of each chunk in parallel
-        loss_intra_force_chunks = [T[] for _ in 1:n_chunks]
-        loss_inter_force_chunks = [T[] for _ in 1:n_chunks]
-        loss_pot_ener_chunks    = [T[] for _ in 1:n_chunks]
-        loss_charges_chunks     = [T[] for _ in 1:n_chunks]
-        loss_vdw_chunks         = [T[] for _ in 1:n_chunks]
-        #loss_torsion_chunks = [T[] for _ in 1:n_chunks]
+        forces_intra_loss_chunks  = [T[] for _ in 1:n_chunks]
+        forces_inter_loss_chunks  = [T[] for _ in 1:n_chunks]
+        potential_loss_chunks     = [T[] for _ in 1:n_chunks]
+        charges_loss_chunks       = [T[] for _ in 1:n_chunks]
+        vdw_loss_chunks           = [T[] for _ in 1:n_chunks]
+        torsions_loss_chunks      = [T[] for _ in 1:n_chunks]
         #TODO: Add loss for GEMS dataset
-        loss_enth_vap_chunks    = [T[] for _ in 1:n_chunks]
-        loss_enth_mix_chunks    = [T[] for _ in 1:n_chunks]
+        enth_vap_loss_chunks     = [T[] for _ in 1:n_chunks]
+        enth_mix_loss_chunks     = [T[] for _ in 1:n_chunks]
         #TODO: Add loss for J couplings
         grads_chunks = [convert(Vector{Any}, fill(nothing, length(models))) for _ in 1:n_chunks]
         print_chunks = fill("", n_chunks)
@@ -142,7 +256,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
                 # Read Conformation indices
                 conf_i, conf_j, repeat_i = train_order[i]
                 mol_id = conf_train[conf_i,:mol_name]
-
+                
                 # Index dataframe for features
                 
                 feat_df = occursin("maceoff", mol_id) ? FEATURE_DATAFRAMES[2] : FEATURE_DATAFRAMES[1]
@@ -169,10 +283,76 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
 
                 grads = Zygote.gradient(models...) do models...
 
-                    force_loss_intra_sum, force_loss_inter_sum = zero(T), zero(T)
-                    energy_loss_sum, charge_loss_sum, vdW_loss_sum, reg_loss_sum = zero(T), zero(T), zero(T), zero(T)
-                    sys = mol_to_preds(mol_id, feat_df, coords_i, boundary_inf, models...)
-                    return 0 
+                    forces_intra_loss_sum, forces_inter_loss_sum = zero(T), zero(T)
+                    potential_loss_sum, charges_loss_sum, vdw_loss_sum, torsions_loss_sum, reg_loss_sum = zero(T), zero(T), zero(T), zero(T), zero(T)
+
+                    # Forward pass and feat prediction
+                    sys,
+                    forces, potential_i, charges,
+                    vdw_size, torsion_size,
+                    elements, mol_inds,
+                    forces_loss_inter, forces_loss_intra,
+                    charges_loss, vdw_loss,
+                    torsions_loss, reg_loss = fwd_and_loss(mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
+
+                    if MODEL_PARAMS["training"]["verbose"]
+                        ignore_derivatives() do 
+                            print_chunks[chunk_id] *="loss forces intra $forces_loss_intra forces inter $forces_loss_inter charge $charges_loss vdw params $vdw_loss torsion ks $torsions_loss regularisation $reg_loss\n"
+                        end
+                    end
+
+                    loss_success = loss_update(chunk_id, 
+                                               forces_intra_loss_chunks, forces_inter_loss_chunks,
+                                               potential_loss_chunks,
+                                               charges_loss_chunks, vdw_loss_chunks, torsions_loss_chunks,
+                                               forces_intra_loss_sum, forces_inter_loss_sum,
+                                               potential_loss_sum,
+                                               charges_loss_sum, vdw_loss_sum, torsions_loss_sum, reg_loss_sum,
+                                               forces_loss_intra, forces_loss_inter,
+                                               charges_loss, vdw_loss, torsions_loss, reg_loss,
+                                               false)
+                    
+                    if !loss_success
+                        return zero(T)
+                    end
+
+                    if pair_present
+
+                        # Forward pass and feat prediction
+                        sys,
+                        forces, potential_j, charges,
+                        vdw_size, torsion_size,
+                        elements, mol_inds,
+                        forces_loss_inter, forces_loss_intra,
+                        charges_loss, vdw_loss,
+                        torsions_loss, reg_loss = fwd_and_loss(mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
+                        
+
+                        pe_diff     = potential_j - potential_i
+                        dft_pe_diff = energy_j - energy_i
+
+                        loss_success = loss_update(chunk_id,
+                                                   forces_intra_loss_chunks, forces_inter_loss_chunks,
+                                                   potential_loss_chunks,
+                                                   charges_loss_chunks, vdw_loss_chunks, torsions_loss_chunks,
+                                                   forces_intra_loss_sum, forces_inter_loss_sum,
+                                                   potential_loss_sum,
+                                                   charges_loss_sum, vdw_loss_sum, torsions_loss_sum, reg_loss_sum,
+                                                   forces_loss_intra, forces_loss_inter,
+                                                   charges_loss, vdw_loss, torsions_loss, reg_loss,
+                                                   false, epoch_n, pe_diff, dft_pe_diff)
+
+                        if !loss_success
+                            return zero(T)
+                        end
+                    end
+
+                    return forces_intra_loss_sum * MODEL_PARAMS["training"]["train_on_forces_intra"] +
+                           forces_inter_loss_sum * MODEL_PARAMS["training"]["train_on_forces_inter"] +
+                           potential_loss_sum    * MODEL_PARAMS["training"]["train_on_pe"] +
+                           charges_loss_sum      * MODEL_PARAMS["training"]["train_on_charges"] +
+                           vdw_loss_sum + torsions_loss_sum + reg_loss_sum 
+                
                 end
 
             end

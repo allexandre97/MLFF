@@ -42,7 +42,7 @@ function mol_to_preds(
                         sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
     end
 
-    return forces, potential, partial_charges, vdw_size, torsion_size, elements, mol_inds
+    return sys, forces, potential, partial_charges, vdw_size, torsion_size, elements, mol_inds
 
 end
 
@@ -92,7 +92,7 @@ end
 
 @non_differentiable generate_neighbors(args...)
 
-# Can this function be non-differentiable??
+# Can this function be non-differentiable?? --> It cannot, it takes as input (args) things that the NNet is predicting!
 function build_sys(
     mol_id,
     coords,
@@ -119,7 +119,6 @@ function build_sys(
     ########## van der Waals section ##########
 
     if vdw in ("lj", "lj69", "dexp", "buff")
-        # Why all atoms have mass 1??
         σ = vdW_dict["σ"]
         ϵ = vdW_dict["ϵ"]
         atoms = [Atom(i, 1, one(T), partial_charges[i], σ[i], ϵ[i])
@@ -243,8 +242,6 @@ function build_sys(
 
 end
 
-#Flux.@non_differentiable build_sys(args...)
-
 function mol_to_system(
     mol_id::String,
     feat_df::DataFrame,
@@ -271,7 +268,7 @@ function mol_to_system(
     impropers_i, impropers_j, impropers_k, impropers_l,
     mol_inds, adj_list, n_atoms, atom_features = decode_feats(feat_df)
 
-#=     println("elements: ", size(elements))
+#=  println("elements: ", size(elements))
     println("bonds: ", size(bonds_i))
     println("angles: ", size(angles_i))
     println("coords: ", length(coords)) =#

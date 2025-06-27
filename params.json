@@ -17,14 +17,29 @@
 
         "training_sims_first_epoch":5,
 
-        "n_minibatch":256
+        "n_minibatch":256,
+
+        "loss_weight_force":1e-3,
+        "loss_weight_force_inter":20.0,
+        "loss_weight_energy":1e-2,
+        "loss_weight_energy_factor":200,
+        "loss_weight_charge":100.0,
+        "loss_weight_torsion_ks":1e-2,
+        "loss_weight_enth_vap":0.15,
+        "loss_weight_regularisation":1e-5,
+        "loss_weight_vdw_params":0.0,
+        "loss_energy_first_epoch":1,
+
+        "train_on_forces_intra":1.0,
+        "train_on_forces_inter":1.0,
+        "train_on_pe":1.0,
+        "train_on_charges":1.0
 
     },
 
     "networks":{
 
         "learning_rate":1e-4,
-
 
         "n_atom_features_in": 29,
 

@@ -12,6 +12,11 @@ inverse_sigmoid(x) = log(x / (1 - x))
 starting_weight14_vdw  = inverse_sigmoid(T(0.5))
 starting_weight14_coul = inverse_sigmoid(T(0.8333))
 
+const ATOMIC_MASSES = [
+    1.008 , 6.94        , 10.81, 12.011, 14.007 , 15.999, 18.998403163, 22.98976928, 24.305,
+    28.085, 30.973761998, 32.06, 35.45 , 39.0983, 40.078, 79.904      , 126.90447  ,
+]
+
 # Initialize some constants depending on the functional form of vdW interactions
 if vdw_functional_form in ("lj", "lj69")
     const n_vdw_atom_params = 2
