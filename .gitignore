@@ -1,2 +1,4 @@
 *.txt
 runs/
+.vscode
+mlff_env/

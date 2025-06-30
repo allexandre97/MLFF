@@ -86,3 +86,30 @@ function ChainRulesCore.rrule(::typeof(split_forces), fs, coords, molecule_inds,
     end
     return Y, split_forces_pullback
 end
+
+calc_RT(temp) = ustrip(u"kJ/mol", T(Unitful.R) * temp * u"K")
+@non_differentiable calc_RT(args...)
+
+function enthalpy_vaporization(snapshot_U_liquid, mean_U_gas, temp, n_molecules)
+    # See https://docs.openforcefield.org/projects/evaluator/en/stable/properties/properties.html
+    RT = calc_RT(temp)
+    ΔH_vap = mean_U_gas - snapshot_U_liquid / n_molecules + RT
+    return ΔH_vap
+end
+
+function calc_mean_U_gas(mol_id, feat_df, training_sim_dir, temp, models...)
+
+    frame_is = ignore_derivatives() do
+        shuffle(COND_SIM_FRAMES)[1:MODEL_PARAMS["training"]["enth_vap_gas_n_samples"]]
+    end
+    pe_sum = zero(T)
+    n = 1
+    for frame_i in frame_is
+        coords, boundary = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
+        _,_,pe,_,_,_,_,_ = mol_to_preds(mol_id, feat_df, coords, boundary, models...)
+        pe_sum += pe
+        n+=1
+    end
+
+    return pe_sum / MODEL_PARAMS["training"]["enth_vap_gas_n_samples"]
+end

@@ -13,7 +13,7 @@
 
         "train_size":0.9,
 
-        "n_epochs":20,
+        "n_epochs":2,
 
         "training_sims_first_epoch":5,
 
@@ -26,6 +26,7 @@
         "loss_weight_charge":100.0,
         "loss_weight_torsion_ks":1e-2,
         "loss_weight_enth_vap":0.15,
+        "loss_weight_enth_mixing":0.1,
         "loss_weight_regularisation":1e-5,
         "loss_weight_vdw_params":0.0,
         "loss_energy_first_epoch":1,
@@ -34,9 +35,12 @@
         "train_on_forces_inter":1.0,
         "train_on_pe":1.0,
         "train_on_charges":1.0,
+        "train_on_enth_vap":1.0,
+        "train_on_enth_mix":1.0,
+
+        "enth_vap_gas_n_samples":10,
 
         "grad_clamp_val":1e3
-
     },
 
     "networks":{

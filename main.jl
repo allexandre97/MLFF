@@ -5,21 +5,23 @@ using Flux
 using GraphNeuralNetworks
 using Zygote
 using Enzyme
+#Enzyme.Compiler.VERBOSE_ERRORS[] = true
 using ChainRulesCore
 using BSON
 
 using Random
 using Statistics
+using Polynomials
 using LinearAlgebra
 using StaticArrays
 
 using CSV
 using HDF5
 using DataFrames
-
 using Dates
 using TimerOutputs
 
+import Chemfiles
 using Molly
 
 function parse_commandline()::Dict{String, Any}
@@ -44,6 +46,7 @@ const global MODEL_PARAMS::Dict = JSON.parsefile("params.json") # Read model par
 include("./src/io/conformations.jl")
 include("./src/io/fileio.jl")
 include("./src/io/logging.jl")
+include("./src/io/simread.jl")
 
 include("./src/mol/molbuild.jl")
 
@@ -60,6 +63,7 @@ include("./src/physics/transformer.jl")
 
 const global DATASETS_PATH::String = parsed_args["db"]
 const global MACEOFF_PATH::String  = "/lmb/home/alexandrebg/Documents/QuarantineScripts/JG/typing/data_kovacs2023/water"
+const global EXP_DATA_DIR::String  = "/lmb/home/alexandrebg/Documents/QuarantineScripts/JG/typing/condensed_data/exp_data"
 const global HDF5_FILES = ("SPICE-2.0.1.hdf5",)
 
 const global SUBSET_N_REPEATS = Dict(
@@ -102,7 +106,7 @@ const global COND_MOLECULES  = Vector{Tuple{String, T, Int, Int}}()
 
 for mol_id in FEATURE_DATAFRAMES[3].MOLECULE
     mol_id in CONDENSED_TEST_SYSTEMS && continue # Skip if in test systems
-    if startswith(mol_id, "vapourisation_liquid_") && endswith(mol_id, "liquid_O") # Force to get only the data for water, remember to change this when moving to complex stuff
+    if startswith(mol_id, "vapourisation_liquid") && endswith(mol_id, "_O") # Force to get only the data for water, remember to change this when moving to complex stuff
         repeats = SUBSET_N_REPEATS["vapourisation"]
         for temp in T.(285:10:325)
             for frame_i in COND_SIM_FRAMES
@@ -129,6 +133,20 @@ for mol_id in FEATURE_DATAFRAMES[3].MOLECULE
     end 
 end
 shuffle!(COND_MOLECULES)
+
+const ENTH_VAP_EXP_DATA = Dict{String, Polynomial{Float64, :x}}()
+for mol in COND_MOLECULES
+    mol_id = mol[1]
+    if startswith(mol_id, "vapourisation_liquid_")
+        smiles = split(mol_id, "_")[end]
+        enth_vap_data_fp = joinpath(EXP_DATA_DIR, "enth_vap", "$smiles.txt")
+        # Float32 gave bad fit
+        enth_vap_exp_xs = parse.(Float64, getindex.(split.(readlines(enth_vap_data_fp)), 1))
+        enth_vap_exp_ys = parse.(Float64, getindex.(split.(readlines(enth_vap_data_fp)), 2))
+        ENTH_VAP_EXP_DATA[mol_id] = fit(enth_vap_exp_xs, enth_vap_exp_ys, 3)
+    end
+end
+
 const global COND_MOL_VAL   = COND_MOLECULES[1:MODEL_PARAMS["training"]["n_frames_val_cond"]]
 const global COND_MOL_TRAIN = COND_MOLECULES[(MODEL_PARAMS["training"]["n_frames_val_cond"]+1):end]
 
@@ -154,4 +172,4 @@ if !isnothing(out_dir) && !isdir(out_dir)
     end
 end
 
-# train!(models, optims)
+train!(models, optims)

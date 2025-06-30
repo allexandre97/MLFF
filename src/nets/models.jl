@@ -205,10 +205,16 @@ function calc_embeddings(
     adj_list::Vector{Vector{Int64}},
     atom_feats::Matrix{T},
     atom_embedding_model::GNNChain,
-    atom_features_model::Chain
+    atom_features_model::Chain,
+    n_atoms::Int, n_repeats::Int
 )
 
     if any(startswith.(mol_id, ("vapourisation_", "mixing_"))) # Condensed phase
+
+        n_atoms_rep = n_atoms ÷ n_repeats
+        molecule_graph = GNNGraph(adj_list[1:n_atoms_rep])
+        atom_embeddings = atom_embedding_model(molecule_graph, atom_feats[:, 1:n_atoms_rep])
+        atom_features = repeat(atom_features_model(atom_embeddings), 1, n_repeats)
 
     elseif startswith(mol_id, "protein") # Unused for now
     

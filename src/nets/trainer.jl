@@ -1,5 +1,8 @@
 const TO = TimerOutput()
 
+split_grad_safe(args...) = split(args...)
+Flux.@non_differentiable split_grad_safe(args...)
+
 multiply_grads(grads, x) = fmap(i -> (isnothing(i) ? nothing : i * x), grads)
 
 accum_grads(x, y) = Zygote.accum(x, y)
@@ -264,9 +267,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
                 mol_id = conf_train[conf_i,:mol_name]
                 
                 # Index dataframe for features
-                
                 feat_df = occursin("maceoff", mol_id) ? FEATURE_DATAFRAMES[2] : FEATURE_DATAFRAMES[1]
-
                 feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
 
                 # Get the relevant conformation data
@@ -373,6 +374,105 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
         time_spice  += time() - time_group
 
         time_group = time()
+
+        #=
+        TODO: Add functionality to train on GEMS dataset
+        =#
+
+        # Now train on condensed data
+        if training_sim_dir != "" && (MODEL_PARAMS["training"]["loss_weight_enth_vap"] > zero(T) || MODEL_PARAMS["training"]["loss_weight_enth_mixing"] > zero(T))
+            cond_mol_indices = collect(batch_i:n_batches_train:length(COND_MOL_TRAIN))
+            
+            @timeit TO "Condensed" #= Threads.@threads =# for chunk_id in 1:n_chunks
+                for cond_inds_i in chunk_id:n_chunks:length(cond_mol_indices)
+                    mol_i = cond_mol_indices[cond_inds_i]
+                    mol_id, temp, frame_i, repeat_i = COND_MOL_TRAIN[mol_i]
+
+                    feat_df = FEATURE_DATAFRAMES[3]
+                    feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
+                    
+                    if startswith(mol_id, "vapourisation_")
+                        train_on_weight = MODEL_PARAMS["training"]["train_on_enth_vap"]
+                        label = "ΔHvap"
+                        mol_id_gas = replace(mol_id, "vapourisation_liquid_" => "vapourisation_gas_")
+                        df_gas = FEATURE_DATAFRAMES[3]
+                        df_gas = df_gas[df_gas.MOLECULE .== mol_id_gas, :]
+
+                    else
+                        train_on_weight = MODEL_PARAMS["training"]["train_on_enth_mix"]
+                        label = "ΔHmix"
+                        _, _, smiles_1, smiles_2 = split_grad_safe(mol_id, "_")
+                        mol_id_1 = "mixing_single_$smiles_1"
+                        mol_id_2 = "mixing_single_$smiles_2"
+
+                        df_mix_1 = FEATURE_DATAFRAMES[3]
+                        df_mix_1 = df_mix_1[df_mix_1.MOLECULE .== mol_id_1, :]
+                        
+                        df_mix_2 = FEATURE_DATAFRAMES[3]
+                        df_mix_2 = df_mix_2[df_mix_2.MOLECULE .== mol_id_2, :]
+
+                    end
+
+                    if MODEL_PARAMS["training"]["verbose"]
+                        print_chunks[chunk_id] *= "$mol_id training -"
+                    end
+
+                    grads = Zygote.gradient(models...) do models...
+
+                        if label == "ΔHvap"
+
+                            coords, boundary = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
+                            
+                            _,
+                            _, potential, _,
+                            vdw_size, torsion_size, 
+                            _, mol_inds = mol_to_preds(mol_id, feat_df, coords, boundary, models...)
+
+                            mean_U_gas = calc_mean_U_gas(mol_id_gas, df_gas, training_sim_dir, temp, models...)
+
+                            cond_loss =  enth_vap_loss(potential, mean_U_gas, temp, frame_i, repeat_i, maximum(mol_inds), mol_id)
+
+                        else
+
+                            coords_1, boundary_1     = read_sim_data(mol_id_1, training_sim_dir, frame_i, temp)
+                            coords_2, boundary_2     = read_sim_data(mol_id_2, training_sim_dir, frame_i, temp)
+                            coords_com, boundary_com = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
+
+                            _,
+                            _, potential_1, _,
+                            vdw_size_1, torsion_size_1, 
+                            _, mol_inds_1 = mol_to_preds(mol_id_1, df_mix_1, coords_1, boundary_1, models...)
+
+                            _,
+                            _, potential_2, _,
+                            vdw_size_2, torsion_size_2, 
+                            _, mol_inds_2 = mol_to_preds(mol_id_2, df_mix_2, coords_2, boundary_2, models...)
+
+                            _,
+                            _, potential_com, _,
+                            vdw_size, torsion_size, 
+                            _, mol_inds_com = mol_to_preds(mol_id, feat_df, coords_com, boundary_com, models...)
+
+                            cond_loss = enth_mixing_loss(potential_com, potential_1, potential_2,
+                                                         boundary_com, boundary_1, boundary_2, 
+                                                         maximum(mol_inds_com), maximum(mol_inds_1), maximum(mol_inds_2),
+                                                         mol_id, frame_i, repeat_i)
+                        end
+
+                        vdw_loss      = vdw_params_loss(vdw_size)
+                        torsions_loss = torsion_ks_loss(torsion_size)
+                        reg_loss      = param_regularisation((models...,))
+
+                        return cond_loss * train_on_weight + 
+                               vdw_loss + torsions_loss + reg_loss
+
+                    end
+
+
+                end
+
+            end
+        end
 
         @timeit TO "Gradients" begin
             grads_minibatch = convert(Vector{Any}, fill(nothing, length(models)))

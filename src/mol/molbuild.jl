@@ -29,13 +29,13 @@ function mol_to_preds(
     sils_4_atoms = filter(il -> il isa InteractionList4Atoms, values(sys.specific_inter_lists))
     if any(startswith.(mol_id, ("vapourisation_", "mixing_", "protein_")))
         forces = nothing
-        peotential = pe_wrap(sys.atoms, sys.coords, sys.velocities, sys.boundary, sys.pairwise_inters,
-                        sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+        potential = pe_wrap(sys.atoms, sys.coords, sys.velocities, sys.boundary, sys.pairwise_inters,
+                            sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
     else
         forces = forces_wrap(sys.atoms, sys.coords, sys.velocities, sys.boundary, sys.pairwise_inters,
-                            sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+                             sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
         potential = pe_wrap(sys.atoms, sys.coords, sys.velocities, sys.boundary, sys.pairwise_inters,
-                        sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+                            sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
     end
 
     return sys, forces, potential, partial_charges, vdw_size, torsion_size, elements, mol_inds
@@ -179,16 +179,16 @@ function build_sys(
     ########## Bond Interactions section ##########
 
     if bond == "harmonic"
-        bond_inter = HarmonicBond.(bonds_dict["k"], bonds_dict["r0"])
+        bond_inter = HarmonicBond.(T.(bonds_dict["k"]), T.(bonds_dict["r0"]))
     elseif bond == "morse"
-        bond_inter = MorseBond.(bonds_dict["k"], bonds_dict["a"], bonds_dict["r0"])
+        bond_inter = MorseBond.(T.(bonds_dict["k"]), T.(bonds_dict["a"]), T.(bonds_dict["r0"]))
     end
     bonds = InteractionList2Atoms(bonds_i, bonds_j, bond_inter)
 
     ########## Angle Interactions section ##########
 
     if angle == "harmonic"
-        angle_inter = HarmonicAngle.(angles_dict["k"], angles_dict["θ0"])
+        angle_inter = HarmonicAngle.(T.(angles_dict["k"]), T.(angles_dict["θ0"]))
     elseif angle == "ub"
         # TODO: I think this is not yet defined. Check with JG and train.jl script
     end
@@ -264,7 +264,7 @@ function mol_to_system(
     impropers_i, impropers_j, impropers_k, impropers_l,
     mol_inds, adj_list, n_atoms, atom_features = decode_feats(feat_df)
 
-#=  println("elements: ", size(elements))
+#=     println("elements: ", size(elements))
     println("bonds: ", size(bonds_i))
     println("angles: ", size(angles_i))
     println("coords: ", length(coords)) =#
@@ -273,14 +273,26 @@ function mol_to_system(
     n_mols    = maximum(mol_inds)
     n_repeats = (startswith(mol_id, "mixing_combined_") ? (n_mols ÷ 2) : n_mols)
 
+    if startswith(mol_id, "vapourisation_")
+        n_bonds_rep     = length(bonds_i    ) ÷ n_repeats
+        n_angles_rep    = length(angles_i   ) ÷ n_repeats
+        n_propers_rep   = length(propers_i  ) ÷ n_repeats
+        n_impropers_rep = length(impropers_i) ÷ n_repeats
+    else
+        n_bonds_rep     = length(bonds_i    )
+        n_angles_rep    = length(angles_i   )
+        n_propers_rep   = length(propers_i  )
+        n_impropers_rep = length(impropers_i)
+    end
+
     atom_feats, atom_embeds = calc_embeddings(mol_id, adj_list, atom_features,
-                                              atom_embedding_model, atom_features_model)
+                                              atom_embedding_model, atom_features_model, n_atoms, n_repeats)
     
     bond_pool, angle_pool, proper_pool, improper_pool = embed_to_pool(atom_embeds,
-                                                                      bonds_i, bonds_j,
-                                                                      angles_i, angles_j, angles_k,
-                                                                      propers_i, propers_j, propers_k, propers_l,
-                                                                      impropers_i, impropers_j, impropers_k, impropers_l,
+                                                                      bonds_i[1:n_bonds_rep], bonds_j[1:n_bonds_rep],
+                                                                      angles_i[1:n_angles_rep], angles_j[1:n_angles_rep], angles_k[1:n_angles_rep],
+                                                                      propers_i[1:n_propers_rep], propers_j[1:n_propers_rep], propers_k[1:n_propers_rep], propers_l[1:n_propers_rep],
+                                                                      impropers_i[1:n_impropers_rep], impropers_j[1:n_impropers_rep], impropers_k[1:n_impropers_rep], impropers_l[1:n_impropers_rep],
                                                                       bond_pooling_model, 
                                                                       angle_pooling_model, 
                                                                       proper_pooling_model, 

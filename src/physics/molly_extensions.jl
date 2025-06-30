@@ -313,11 +313,172 @@ end
     end
 end
 
+########## CHAINRULE WRAPPERS FOR ZYGOTE ########## Is this really needed? Where?
+
+function ChainRulesCore.rrule(TY::Type{<:Atom}, vs...)
+    Y = TY(vs...)
+    function Atom_pullback(Ȳ)
+        return NoTangent(), NoTangent(), NoTangent(), Ȳ.mass, Ȳ.charge, Ȳ.σ, Ȳ.ϵ
+    end
+    return Y, Atom_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:BuckinghamAtom}, vs...)
+    Y = TY(vs...)
+    function BuckinghamAtom_pullback(Ȳ)
+        return NoTangent(), NoTangent(), NoTangent(), Ȳ.mass, Ȳ.charge, Ȳ.A, Ȳ.B, Ȳ.C
+    end
+    return Y, BuckinghamAtom_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:NNAtom}, vs...)
+    Y = TY(vs...)
+    function NNAtom_pullback(Ȳ)
+        return NoTangent(), NoTangent(), NoTangent(), Ȳ.mass, Ȳ.charge, Ȳ.params
+    end
+    return Y, NNAtom_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:InteractionList2Atoms}, vs...)
+    Y = TY(vs...)
+    function InteractionList2Atoms_pullback(Ȳ)
+        return NoTangent(), NoTangent(), NoTangent(), Ȳ.inters, NoTangent()
+    end
+    return Y, InteractionList2Atoms_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:InteractionList3Atoms}, vs...)
+    Y = TY(vs...)
+    function InteractionList3Atoms_pullback(Ȳ)
+        return NoTangent(), NoTangent(), NoTangent(), NoTangent(), Ȳ.inters, NoTangent()
+    end
+    return Y, InteractionList3Atoms_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:InteractionList4Atoms}, vs...)
+    Y = TY(vs...)
+    function InteractionList4Atoms_pullback(Ȳ)
+        return NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), Ȳ.inters,
+               NoTangent()
+    end
+    return Y, InteractionList4Atoms_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:HarmonicBond}, vs...)
+    Y = TY(vs...)
+    function HarmonicBond_pullback(Ȳ)
+        return NoTangent(), Ȳ.k, Ȳ.r0
+    end
+    return Y, HarmonicBond_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:MorseBond}, vs...)
+    Y = TY(vs...)
+    function MorseBond_pullback(Ȳ)
+        return NoTangent(), Ȳ.D, Ȳ.a, Ȳ.r0
+    end
+    return Y, MorseBond_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:HarmonicAngle}, vs...)
+    Y = TY(vs...)
+    function HarmonicAngle_pullback(Ȳ)
+        return NoTangent(), Ȳ.k, Ȳ.θ0
+    end
+    return Y, HarmonicAngle_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:UreyBradley}, vs...)
+    Y = TY(vs...)
+    function UreyBradley_pullback(Ȳ)
+        return NoTangent(), Ȳ.kangle, Ȳ.θ0,  Ȳ.kbond, Ȳ.r0
+    end
+    return Y, UreyBradley_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:PeriodicTorsion}, vs...)
+    Y = TY(vs...)
+    function PeriodicTorsion_pullback(Ȳ)
+        return NoTangent(), NoTangent(), Ȳ.phases, Ȳ.ks, NoTangent()
+    end
+    return Y, PeriodicTorsion_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:Coulomb}, vs...)
+    Y = TY(vs...)
+    function Coulomb_pullback(Ȳ)
+        return NoTangent(), NoTangent(), NoTangent(), Ȳ.weight_special, Ȳ.coulomb_const
+    end
+    return Y, Coulomb_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:CoulombReactionField}, vs...)
+    Y = TY(vs...)
+    function CoulombReactionField_pullback(Ȳ)
+        return NoTangent(), NoTangent(), Ȳ.solvent_dielectric, NoTangent(),
+                Ȳ.weight_special, Ȳ.coulomb_const
+    end
+    return Y, CoulombReactionField_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:LennardJones}, vs...)
+    Y = TY(vs...)
+    function LennardJones_pullback(Ȳ)
+        return NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(),
+               NoTangent(), Ȳ.weight_special
+    end
+    return Y, LennardJones_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:Mie}, vs...)
+    Y = TY(vs...)
+    function Mie_pullback(Ȳ)
+        return NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(),
+               NoTangent(), NoTangent(), Ȳ.weight_special, NoTangent()
+    end
+    return Y, Mie_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:DoubleExponential}, vs...)
+    Y = TY(vs...)
+    function DoubleExponential_pullback(Ȳ)
+        return NoTangent(), Ȳ.α, Ȳ.β, NoTangent(), NoTangent(), Ȳ.weight_special, NoTangent()
+    end
+    return Y, DoubleExponential_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:Buffered147}, vs...)
+    Y = TY(vs...)
+    function Buffered147_pullback(Ȳ)
+        return NoTangent(), Ȳ.δ, Ȳ.γ, NoTangent(), NoTangent(), Ȳ.weight_special, NoTangent()
+    end
+    return Y, Buffered147_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:Buckingham}, vs...)
+    Y = TY(vs...)
+    function Buckingham_pullback(Ȳ)
+        return NoTangent(), Ȳ.weight_special, NoTangent()
+    end
+    return Y, Buckingham_pullback
+end
+
+function ChainRulesCore.rrule(TY::Type{<:NNPairwise}, vs...)
+    Y = TY(vs...)
+    function NNPairwise_pullback(Ȳ)
+        return NoTangent(), Ȳ.params, Ȳ.weight_special, NoTangent()
+    end
+    return Y, NNPairwise_pullback
+end
+
+##########
+
 ########## WRAPPERS TO CALCULATE POTENTIAL ENERGIES ##########
 
 function pe_wrap(atoms, coords, velocities, boundary, pairwise_inters_nl,
                  sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
     pe_vec = zeros(T, 1)
+
     pe_wrap!(pe_vec, atoms, coords, velocities, boundary, pairwise_inters_nl,
              sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
     return pe_vec[1]
@@ -327,6 +488,8 @@ function pe_wrap!(pe_vec, atoms, coords, velocities, boundary, pairwise_inters_n
                   sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
     pe = Molly.pairwise_pe(atoms, coords, velocities, boundary, neighbors, NoUnits, length(atoms),
                            (), pairwise_inters_nl, T, 0)
+
+    
     pe += Molly.specific_pe(atoms, coords, velocities, boundary, NoUnits, (),
                             sils_2_atoms, sils_3_atoms, sils_4_atoms, T, 0)
     pe_vec[1] = pe
