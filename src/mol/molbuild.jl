@@ -264,11 +264,6 @@ function mol_to_system(
     impropers_i, impropers_j, impropers_k, impropers_l,
     mol_inds, adj_list, n_atoms, atom_features = decode_feats(feat_df)
 
-#=     println("elements: ", size(elements))
-    println("bonds: ", size(bonds_i))
-    println("angles: ", size(angles_i))
-    println("coords: ", length(coords)) =#
-
     # The total number of molecules in a conformation
     n_mols    = maximum(mol_inds)
     n_repeats = (startswith(mol_id, "mixing_combined_") ? (n_mols ÷ 2) : n_mols)

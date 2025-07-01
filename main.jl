@@ -24,6 +24,9 @@ using TimerOutputs
 import Chemfiles
 using Molly
 
+using CairoMakie
+
+
 function parse_commandline()::Dict{String, Any}
 
     s = ArgParseSettings()
@@ -47,6 +50,7 @@ include("./src/io/conformations.jl")
 include("./src/io/fileio.jl")
 include("./src/io/logging.jl")
 include("./src/io/simread.jl")
+include("./src/io/graphics.jl")
 
 include("./src/mol/molbuild.jl")
 
@@ -172,4 +176,4 @@ if !isnothing(out_dir) && !isdir(out_dir)
     end
 end
 
-train!(models, optims)
+models, optims = train!(models, optims)

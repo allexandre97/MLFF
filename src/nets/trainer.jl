@@ -82,7 +82,9 @@ function loss_update(
 
     epoch_n     = nothing,
     pe_diff     = nothing,
-    dft_pe_diff = nothing
+    dft_pe_diff = nothing,
+
+    test_train = "train"
 )
 
     # Catch if any of the losses is NaN
@@ -117,21 +119,37 @@ function loss_update(
             push!(torsions_loss_chunks[chunk_id], torsions_loss)
             #Why is reg loss not pushed into any array?
         end
-        # Add loss to sum of losses
-        forces_intra_loss_sum += forces_loss_intra
-        forces_inter_loss_sum += forces_loss_inter
-        if pair_present
-            potential_loss_sum += loss_pe
+        if test_train == "train"
+            # Add loss to sum of losses
+            forces_intra_loss_sum += forces_loss_intra
+            forces_inter_loss_sum += forces_loss_inter
+            if pair_present
+                potential_loss_sum += loss_pe
+            end
+            charges_loss_sum      += charges_loss
+            vdw_loss_sum          += vdw_loss
+            torsions_loss_sum     += torsions_loss
+            reg_loss_sum          += reg_loss
         end
-        charges_loss_sum      += charges_loss
-        vdw_loss_sum          += vdw_loss
-        torsions_loss_sum     += torsions_loss
-        reg_loss_sum          += reg_loss
     end
     return true
 end
 
-function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
+function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
+    epochs_mean_fs_intra_train, epochs_mean_fs_intra_val,
+    epochs_mean_fs_inter_train, epochs_mean_fs_inter_val,
+    epochs_mean_pe_train, epochs_mean_pe_val,
+    epochs_mean_charges_train, epochs_mean_charges_val,
+    epochs_mean_vdw_params_train, epochs_mean_vdw_params_val,
+    epochs_mean_torsion_ks_train, epochs_mean_torsion_ks_val,
+    #= epochs_mean_fs_intra_train_gems, epochs_mean_fs_intra_val_gems,
+    epochs_mean_fs_inter_train_gems, epochs_mean_fs_inter_val_gems, =#
+    epochs_mean_enth_vap_train, epochs_mean_enth_vap_val,
+    epochs_mean_enth_mixing_train, epochs_mean_enth_mixing_val,
+    #= epochs_mean_J_coupling_train, epochs_mean_J_coupling_val,
+    epochs_mean_chem_shift_train, epochs_mean_chem_shift_val, =#
+    epochs_loss_regularisation)
+    
     #=
     Train for a given epoch of the training loop.
     TODO: Add the logic for the the rest of the datasets (GEMS, RNA)
@@ -192,33 +210,61 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
     The commented-out lines correspond to datasets I am still not using
     =#
 
-    loss_sum_fs_intra_train, loss_sum_fs_intra_val = zero(T), zero(T)
-    loss_sum_fs_inter_train, loss_sum_fs_inter_val = zero(T), zero(T)
-    loss_sum_pe_train, loss_sum_pe_val = zero(T), zero(T)
-    loss_sum_charges_train, loss_sum_charges_val = zero(T), zero(T)
-    loss_sum_vdw_params_train, loss_sum_vdw_params_val = zero(T), zero(T)
-    #loss_sum_torsion_ks_train, loss_sum_torsion_ks_val = zero(T), zero(T)
+    forces_intra_sum_loss_train, forces_inter_sum_loss_train = zero(T), zero(T)
+    forces_intra_sum_loss_val,   forces_inter_sum_loss_val   = zero(T), zero(T)
+    
+    potential_sum_loss_train = zero(T)
+    potential_sum_loss_val   = zero(T)
+    
+    charges_sum_loss_train   = zero(T)
+    charges_sum_loss_val     = zero(T)
 
+    vdw_sum_loss_train       = zero(T)
+    vdw_sum_loss_val         = zero(T)
+
+    torsions_sum_loss_train  = zero(T)
+    torsions_sum_loss_val    = zero(T)
+
+    enth_vap_sum_loss_train  = zero(T)
+    enth_vap_sum_loss_val    = zero(T)
+
+    enth_mix_sum_loss_train  = zero(T)
+    enth_mix_sum_loss_val    = zero(T)
+
+    # TODO: Add these when the time comes
+    #loss_sum_torsion_ks_train, loss_sum_torsion_ks_val = zero(T), zero(T)
     #loss_sum_fs_intra_train_gems, loss_sum_fs_intra_val_gems = zero(T), zero(T)
     #loss_sum_fs_inter_train_gems, loss_sum_fs_inter_val_gems = zero(T), zero(T)
-    
-    loss_sum_enth_vap_train, loss_sum_enth_vap_val = zero(T), zero(T)
-    loss_sum_enth_mixing_train, loss_sum_enth_mixing_val = zero(T), zero(T)
-    
     #loss_sum_J_coupling_train, loss_sum_J_coupling_val = zero(T), zero(T)
     
-    count_confs_train, count_confs_val = 0, 0
-    count_confs_inter_train, count_confs_inter_val = 0, 0
-    count_confs_pe_train, count_confs_pe_val = 0, 0
-    count_confs_charges_train, count_confs_charges_val = 0, 0
+    count_train = 0
+    count_val   = 0
+
+    count_forces_intra_train, count_forces_inter_train = 0, 0
+    count_forces_intra_val,   count_forces_inter_val   = 0, 0
+
+    count_potential_train = 0
+    count_potential_val   = 0
+
+    count_charges_train   = 0
+    count_charges_val     = 0
+
+    count_vdw_train       = 0
+    count_vdw_val         = 0
+
+    count_torsions_train  = 0
+    count_torsions_val    = 0
+
+    count_vap_train       = 0
+    count_vap_val         = 0
+
+    count_mix_train       = 0
+    count_mix_val         = 0
+
+    # TODO: Add these when the time comes
     #count_confs_torsion_ks_train, count_confs_torsion_ks_val = 0, 0
-    
     #count_confs_train_gems, count_confs_val_gems = 0, 0
     #count_confs_inter_train_gems, count_confs_inter_val_gems = 0, 0
-    
-    count_confs_enth_vap_train, count_confs_enth_vap_val = 0, 0
-    count_confs_enth_mixing_train, count_confs_enth_mixing_val = 0, 0
-    
     #count_confs_J_coupling_train, count_confs_J_coupling_val = 0, 0
     #loss_jc = zero(T)
     #grads_jc = convert(Vector{Any}, fill(nothing, length(models)))
@@ -463,16 +509,41 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
                         torsions_loss = torsion_ks_loss(torsion_size)
                         reg_loss      = param_regularisation((models...,))
 
+                        if MODEL_PARAMS["training"]["verbose"]
+                            ignore_derivatives() do 
+                                print_chunks[chunk_id] *= "loss $label $cond_loss\n"
+                            end
+                        end
+
+                        if isnan(cond_loss) || isnan(vdw_loss) || isnan(torsions_loss) || isnan(reg_loss)
+                            return zero(T)
+                        else
+                            ignore_derivatives() do
+                                if startswith(mol_id, "vapourisation_")
+                                    push!(enth_vap_loss_chunks[chunk_id], cond_loss)
+                                else
+                                    push!(enth_mix_loss_chunks[chunk_id], cond_loss)
+                                end
+                                push!(vdw_loss_chunks[chunk_id], vdw_loss)
+                                push!(torsions_loss_chunks[chunk_id], torsions_loss)
+                            end
+                        end
                         return cond_loss * train_on_weight + 
-                               vdw_loss + torsions_loss + reg_loss
-
+                                vdw_loss + torsions_loss + reg_loss
                     end
-
-
+                    if check_no_nans(grads)
+                        grads_chunks[chunk_id] =  accum_grads.(grads_chunks[chunk_id], grads)
+                    end
                 end
-
             end
+            MODEL_PARAMS["training"]["verbose"] && foreach(report, print_chunks)
         end
+
+        time_cond += time() - time_group
+
+        time_group = time()
+
+        #TODO: Add functionality for J-coupling data for proteins
 
         @timeit TO "Gradients" begin
             grads_minibatch = convert(Vector{Any}, fill(nothing, length(models)))
@@ -488,7 +559,342 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
 
         @timeit TO "Logging" begin
             
+            log_forces_intra_loss = vcat(forces_intra_loss_chunks...)
+            log_forces_inter_loss = vcat(forces_inter_loss_chunks...)
+            log_potential_loss    = vcat(potential_loss_chunks...)
+            log_charges_loss      = vcat(charges_loss_chunks...)
+            log_vdw_loss          = vcat(vdw_loss_chunks...)
+            log_torsions_loss     = vcat(torsions_loss_chunks...)
+            log_enth_vap_loss     = vcat(enth_vap_loss_chunks...)
+            log_enth_mix_loss     = vcat(enth_mix_loss_chunks...)
+
+            if length(log_forces_intra_loss) > 0
+
+                forces_intra_sum_loss_train += sum(log_forces_intra_loss)
+                forces_inter_sum_loss_train += sum(log_forces_inter_loss)
+                potential_sum_loss_train    += sum(log_potential_loss)
+                charges_sum_loss_train      += sum(log_charges_loss)
+                vdw_sum_loss_train          += sum(log_vdw_loss)
+                torsions_sum_loss_train     += sum(log_torsions_loss)
+                enth_vap_sum_loss_train     += sum(log_enth_vap_loss)
+                enth_mix_sum_loss_train     += sum(log_enth_mix_loss)
+
+                count_train              += length(log_forces_intra_loss)
+                count_forces_intra_train += count(!iszero, log_forces_intra_loss)
+                count_forces_inter_train += count(!iszero, log_forces_inter_loss)
+                count_potential_train    += length(log_potential_loss)
+                count_charges_train      += count(!iszero, log_charges_loss)
+                count_torsions_train     += length(log_torsions_loss)
+                count_vap_train          += length(log_enth_vap_loss)
+                count_vap_train          += length(log_enth_mix_loss)
+            end
         end
+    end
+
+    Flux.testmode!(models)
+    for batch_i in 1:n_batches_val
+        
+        # TODO: This following piece of code is the same as for train mode, put into function
+        # Getting the indices for the first and last conformations of batch
+        start_i = (batch_i - 1) * MODEL_PARAMS["training"]["n_minibatch"] + 1
+        end_i   = min(start_i + MODEL_PARAMS["training"]["n_minibatch"] - 1, n_conf_pairs_val)
+
+        # Initialize vectors to store the losses of each chunk in parallel
+        forces_intra_loss_chunks  = [T[] for _ in 1:n_chunks]
+        forces_inter_loss_chunks  = [T[] for _ in 1:n_chunks]
+        potential_loss_chunks     = [T[] for _ in 1:n_chunks]
+        charges_loss_chunks       = [T[] for _ in 1:n_chunks]
+        vdw_loss_chunks           = [T[] for _ in 1:n_chunks]
+        torsions_loss_chunks      = [T[] for _ in 1:n_chunks]
+        #TODO: Add loss for GEMS dataset
+        enth_vap_loss_chunks     = [T[] for _ in 1:n_chunks]
+        enth_mix_loss_chunks     = [T[] for _ in 1:n_chunks]
+
+        print_chunks = fill("", n_chunks)
+        conf_data = read_conformation(conf_val, val_order, start_i, end_i)
+
+        Threads.@threads for chunk_id in 1:n_chunks
+            for i in (start_i-1 + chunk_id):n_chunks:end_i
+                # TODO: Again, this is the same as for the train data, refactor in a method
+                # Read Conformation indices
+                conf_i, conf_j, repeat_i = val_order[i]
+                mol_id = conf_val[conf_i,:mol_name]
+                
+                # Index dataframe for features
+                feat_df = occursin("maceoff", mol_id) ? FEATURE_DATAFRAMES[2] : FEATURE_DATAFRAMES[1]
+                feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
+
+                # Get the relevant conformation data
+                coords_i, forces_i, energy_i, 
+                charges_i, has_charges_i,
+                coords_j, forces_j, energy_j,
+                charges_j, has_charges_j,
+                exceeds_force, pair_present = conf_data[i - start_i + 1]
+
+                #TODO: Maybe it is a good idea to make logging modular
+                if MODEL_PARAMS["training"]["verbose"]
+                    print_chunks[chunk_id] *= "$mol_id conf $conf_i validation - "
+                end
+                if exceeds_force
+                    if MODEL_PARAMS["training"]["verbose"]
+                        print_chunks[chunk_id] *= "max force exceeded! \n"
+                    end
+                    continue # We break out if the structure shows too much force
+                end
+
+                # Forward pass and feat prediction
+                sys,
+                forces, potential_i, charges,
+                vdw_size, torsion_size,
+                elements, mol_inds,
+                forces_loss_inter, forces_loss_intra,
+                charges_loss, vdw_loss,
+                torsions_loss, reg_loss = fwd_and_loss(mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
+
+                if MODEL_PARAMS["training"]["verbose"]
+                    print_chunks[chunk_id] *="loss forces intra $forces_loss_intra forces inter $forces_loss_inter charge $charges_loss vdw params $vdw_loss torsion ks $torsions_loss regularisation $reg_loss\n"
+                end
+
+                loss_success = loss_update(chunk_id, 
+                                            forces_intra_loss_chunks, forces_inter_loss_chunks,
+                                            potential_loss_chunks,
+                                            charges_loss_chunks, vdw_loss_chunks, torsions_loss_chunks,
+                                            zero(T), zero(T),
+                                            zero(T),
+                                            zero(T), zero(T), zero(T), zero(T),
+                                            forces_loss_intra, forces_loss_inter,
+                                            charges_loss, vdw_loss, torsions_loss, reg_loss,
+                                            false, nothing, nothing, nothing, "test")
+                
+                if pair_present
+
+                    # Forward pass and feat prediction
+                    sys,
+                    forces, potential_j, charges,
+                    vdw_size, torsion_size,
+                    elements, mol_inds,
+                    forces_loss_inter, forces_loss_intra,
+                    charges_loss, vdw_loss,
+                    torsions_loss, reg_loss = fwd_and_loss(mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
+
+                    pe_diff     = potential_j - potential_i
+                    dft_pe_diff = energy_j - energy_i
+
+                    loss_success = loss_update(chunk_id,
+                                               forces_intra_loss_chunks, forces_inter_loss_chunks,
+                                               potential_loss_chunks,
+                                               charges_loss_chunks, vdw_loss_chunks, torsions_loss_chunks,
+                                               zero(T), zero(T),
+                                               zero(T),
+                                               zero(T), zero(T), zero(T), zero(T),
+                                               forces_loss_intra, forces_loss_inter,
+                                               charges_loss, vdw_loss, torsions_loss, reg_loss,
+                                               false, epoch_n, pe_diff, dft_pe_diff, "test")
+                end
+            end
+        end
+
+        MODEL_PARAMS["training"]["verbose"] && foreach(report, print_chunks)
+        print_chunks = fill("", n_chunks)
+
+        # TODO: Add functionality for GEMS 
+
+        if training_sim_dir != "" && (MODEL_PARAMS["training"]["loss_weight_enth_vap"] > zero(T) || MODEL_PARAMS["training"]["loss_weight_enth_mixing"] > zero(T))
+            cond_mol_indices = collect(batch_i:n_batches_val:length(COND_MOL_VAL))
+            #= Threads.@threads =# for chunk_id in 1:n_chunks
+                for cond_inds_i in chunk_id:n_chunks:length(cond_mol_indices)
+                    # TODO: This is the same as for the train loop, refactor into method
+                    mol_i = cond_mol_indices[cond_inds_i]
+                    mol_id, temp, frame_i, repeat_i = COND_MOL_TRAIN[mol_i]
+                    feat_df = FEATURE_DATAFRAMES[3]
+                    feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
+
+                    if MODEL_PARAMS["training"]["verbose"]
+                        print_chunks[chunk_id] *= "$mol_id validation -"
+                    end
+
+                    if startswith(mol_id, "vapourisation_")
+                        train_on_weight = MODEL_PARAMS["training"]["train_on_enth_vap"]
+                        label = "ΔHvap"
+                        mol_id_gas = replace(mol_id, "vapourisation_liquid_" => "vapourisation_gas_")
+                        df_gas = FEATURE_DATAFRAMES[3]
+                        df_gas = df_gas[df_gas.MOLECULE .== mol_id_gas, :]
+
+                        coords, boundary = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
+
+                        # Now this can be instantly done here as we do not need Zygote to calculate the gradients
+                        _,
+                        _, potential, _,
+                        vdw_size, torsion_size, 
+                        _, mol_inds = mol_to_preds(mol_id, feat_df, coords, boundary, models...)
+
+                        mean_U_gas = calc_mean_U_gas(mol_id_gas, df_gas, training_sim_dir, temp, models...)
+
+                        cond_loss =  enth_vap_loss(potential, mean_U_gas, temp, frame_i, repeat_i, maximum(mol_inds), mol_id)
+
+                    else
+                        train_on_weight = MODEL_PARAMS["training"]["train_on_enth_mix"]
+                        label = "ΔHmix"
+                        _, _, smiles_1, smiles_2 = split_grad_safe(mol_id, "_")
+                        mol_id_1 = "mixing_single_$smiles_1"
+                        mol_id_2 = "mixing_single_$smiles_2"
+                        df_mix_1 = FEATURE_DATAFRAMES[3]
+                        df_mix_1 = df_mix_1[df_mix_1.MOLECULE .== mol_id_1, :]
+
+                        df_mix_2 = FEATURE_DATAFRAMES[3]
+                        df_mix_2 = df_mix_2[df_mix_2.MOLECULE .== mol_id_2, :]
+
+                        # Same here, we can get the losses instantly as we do not need the gradients from Zygote
+
+                        coords_1, boundary_1     = read_sim_data(mol_id_1, training_sim_dir, frame_i, temp)
+                        coords_2, boundary_2     = read_sim_data(mol_id_2, training_sim_dir, frame_i, temp)
+                        coords_com, boundary_com = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
+
+                        _,
+                        _, potential_1, _,
+                        vdw_size_1, torsion_size_1, 
+                        _, mol_inds_1 = mol_to_preds(mol_id_1, df_mix_1, coords_1, boundary_1, models...)
+
+                        _,
+                        _, potential_2, _,
+                        vdw_size_2, torsion_size_2, 
+                        _, mol_inds_2 = mol_to_preds(mol_id_2, df_mix_2, coords_2, boundary_2, models...)
+
+                        _,
+                        _, potential_com, _,
+                        vdw_size, torsion_size, 
+                        _, mol_inds_com = mol_to_preds(mol_id, feat_df, coords_com, boundary_com, models...)
+
+                        cond_loss = enth_mixing_loss(potential_com, potential_1, potential_2,
+                                                        boundary_com, boundary_1, boundary_2, 
+                                                        maximum(mol_inds_com), maximum(mol_inds_1), maximum(mol_inds_2),
+                                                        mol_id, frame_i, repeat_i)
+
+                    end
+
+                    if MODEL_PARAMS["training"]["verbose"]
+                        print_chunks[chunk_id] *= "loss $label $cond_loss\n"
+                    end
+
+                    if !isnan(cond_loss)
+                        if label == "ΔHvap"
+                            push!(enth_vap_loss_chunks[chunk_id], cond_loss)
+                        else
+                            push!(enth_mix_loss_chunks[chunk_id], cond_loss)
+                        end
+                    end
+                end
+            end
+            MODEL_PARAMS["training"]["verbose"] && foreach(report, print_chunks)
+        end
+
+        log_forces_intra_loss = vcat(forces_intra_loss_chunks...)
+        log_forces_inter_loss = vcat(forces_inter_loss_chunks...)
+        log_potential_loss    = vcat(potential_loss_chunks...)
+        log_charges_loss      = vcat(charges_loss_chunks...)
+        log_vdw_loss          = vcat(vdw_loss_chunks...)
+        log_torsions_loss     = vcat(torsions_loss_chunks...)
+        log_enth_vap_loss     = vcat(enth_vap_loss_chunks...)
+        log_enth_mix_loss     = vcat(enth_mix_loss_chunks...)
+
+        if length(log_forces_intra_loss) > 0
+
+            forces_intra_sum_loss_val += sum(log_forces_intra_loss)
+            forces_inter_sum_loss_val += sum(log_forces_inter_loss)
+            potential_sum_loss_val    += sum(log_potential_loss)
+            charges_sum_loss_val      += sum(log_charges_loss)
+            vdw_sum_loss_val          += sum(log_vdw_loss)
+            torsions_sum_loss_val     += sum(log_torsions_loss)
+            enth_vap_sum_loss_val     += sum(log_enth_vap_loss)
+            enth_mix_sum_loss_val     += sum(log_enth_mix_loss)
+
+            count_val              += length(log_forces_intra_loss)
+            count_forces_intra_val += count(!iszero, log_forces_intra_loss)
+            count_forces_inter_val += count(!iszero, log_forces_inter_loss)
+            count_potential_val    += length(log_potential_loss)
+            count_charges_val      += count(!iszero, log_charges_loss)
+            count_torsions_val     += length(log_torsions_loss)
+            count_vap_val          += length(log_enth_vap_loss)
+            count_vap_val          += length(log_enth_mix_loss)
+        end
+    end
+
+    forces_intra_mean_loss_train = forces_intra_sum_loss_train / count_forces_intra_train
+    forces_inter_mean_loss_train = forces_inter_sum_loss_train / count_forces_inter_train
+    potential_mean_loss_train    = potential_sum_loss_train / count_potential_train
+    charges_mean_loss_train      = charges_sum_loss_train / count_charges_train
+    vdw_mean_loss_train          = vdw_sum_loss_train / count_vdw_train
+    torsions_mean_loss_train     = torsions_sum_loss_train / count_torsions_train
+    enth_vap_mean_loss_train     = enth_vap_sum_loss_train / count_vap_train
+    enth_mix_mean_loss_train     = enth_mix_sum_loss_train / count_mix_train
+
+    forces_intra_mean_loss_val = forces_intra_sum_loss_val / count_forces_intra_val
+    forces_inter_mean_loss_val = forces_inter_sum_loss_val / count_forces_inter_val
+    potential_mean_loss_val    = potential_sum_loss_val / count_potential_val
+    charges_mean_loss_val      = charges_sum_loss_val / count_charges_val
+    vdw_mean_loss_val          = vdw_sum_loss_val / count_vdw_val
+    torsions_mean_loss_val     = torsions_sum_loss_val / count_torsions_val
+    enth_vap_mean_loss_val     = enth_vap_sum_loss_val / count_vap_val
+    enth_mix_mean_loss_val     = enth_mix_sum_loss_val / count_mix_val
+
+    push!(epochs_mean_fs_intra_train     , forces_intra_mean_loss_train)
+    push!(epochs_mean_fs_intra_val       , forces_intra_mean_loss_val)
+    push!(epochs_mean_fs_inter_train     , forces_inter_mean_loss_train)
+    push!(epochs_mean_fs_inter_val       , forces_inter_mean_loss_val)
+    push!(epochs_mean_pe_train           , potential_mean_loss_train)
+    push!(epochs_mean_pe_val             , potential_mean_loss_val)
+    push!(epochs_mean_charges_train      , charges_mean_loss_train)
+    push!(epochs_mean_charges_val        , charges_mean_loss_val)
+    push!(epochs_mean_vdw_params_train   , vdw_mean_loss_train)
+    push!(epochs_mean_vdw_params_val     , vdw_mean_loss_val)
+    push!(epochs_mean_torsion_ks_train   , torsions_mean_loss_train)
+    push!(epochs_mean_torsion_ks_val     , torsions_mean_loss_val)
+    #= push!(epochs_mean_fs_intra_train_gems, loss_mean_fs_intra_train_gems)
+    push!(epochs_mean_fs_intra_val_gems  , loss_mean_fs_intra_val_gems  )
+    push!(epochs_mean_fs_inter_train_gems, loss_mean_fs_inter_train_gems)
+    push!(epochs_mean_fs_inter_val_gems  , loss_mean_fs_inter_val_gems  ) =#
+    push!(epochs_mean_enth_vap_train     , enth_vap_mean_loss_train)
+    push!(epochs_mean_enth_vap_val       , enth_vap_mean_loss_val)
+    push!(epochs_mean_enth_mixing_train  , enth_mix_mean_loss_train)
+    push!(epochs_mean_enth_mixing_val    , enth_mix_mean_loss_val)
+    #= push!(epochs_mean_J_coupling_train   , loss_mean_J_coupling_train   )
+    push!(epochs_mean_J_coupling_val     , loss_mean_J_coupling_val     )
+    push!(epochs_mean_chem_shift_train   , loss_mean_chem_shift_train   )
+    push!(epochs_mean_chem_shift_val     , loss_mean_chem_shift_val     ) =#
+
+    loss_regularisation = param_regularisation(models)
+    push!(epochs_loss_regularisation, loss_regularisation)
+
+    progress_str = ""
+    if !isnothing(out_dir)
+        for (store_id, default_str) in (
+                ("val-val", "?"),
+                ("ΔHvap"  , "ΔHvap water -, exp -, loss -"),
+                ("ΔHmix"  , "ΔHmix CCCCO_OC1=NCCC1 - (- - -), exp -, loss -"),
+            )
+            store_path = joinpath(out_dir, "store_$store_id.txt")
+            if ispath(store_path)
+                progress_str *=  " - " * only(readlines(store_path))
+            else
+                progress_str *=  " - " * default_str
+            end
+        end
+        plot_training(
+            joinpath(out_dir, "training.pdf"), models,
+            epochs_mean_fs_intra_train, epochs_mean_fs_intra_val,
+            epochs_mean_fs_inter_train, epochs_mean_fs_inter_val,
+            epochs_mean_pe_train, epochs_mean_pe_val,
+            epochs_mean_charges_train, epochs_mean_charges_val,
+            epochs_mean_vdw_params_train, epochs_mean_vdw_params_val,
+            epochs_mean_torsion_ks_train, epochs_mean_torsion_ks_val,
+            #= epochs_mean_fs_intra_train_gems, epochs_mean_fs_intra_val_gems,
+            epochs_mean_fs_inter_train_gems, epochs_mean_fs_inter_val_gems, =#
+            epochs_mean_enth_vap_train, epochs_mean_enth_vap_val,
+            epochs_mean_enth_mixing_train, epochs_mean_enth_mixing_val,
+            #= epochs_mean_J_coupling_train, epochs_mean_J_coupling_val,
+            epochs_mean_chem_shift_train, epochs_mean_chem_shift_val, =#
+            epochs_loss_regularisation, 
+        )
 
         out_fp_models = joinpath(out_dir, "model.bson")
         out_fp_optims = joinpath(out_dir, "optim.bson")
@@ -500,8 +906,21 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
             BSON.@save out_fp_models_epoch models
             BSON.@save out_fp_optims_epoch optims
         end
-
     end
+
+    time_epoch = now() - time_start
+    time_wait_sims_perc = Int(round(100 * Dates.Second(round(time_wait_sims)) / time_epoch; digits=0))
+    time_spice_perc     = Int(round(100 * Dates.Second(round(time_spice    )) / time_epoch; digits=0))
+    #time_gems_perc      = Int(round(100 * Dates.Second(round(time_gems     )) / time_epoch; digits=0))
+    time_cond_perc      = Int(round(100 * Dates.Second(round(time_cond     )) / time_epoch; digits=0))
+    #time_protein_perc   = Int(round(100 * Dates.Second(round(time_protein  )) / time_epoch; digits=0))
+    time_epoch_str = round(time_epoch, Minute)
+
+    #report("Epoch $epoch_n - mean training loss forces intra $loss_mean_fs_intra_train $loss_mean_fs_intra_train_gems force inter $loss_mean_fs_inter_train $loss_mean_fs_inter_train_gems pe $loss_mean_pe_train charge $loss_mean_charges_train vdw params $loss_mean_vdw_params_train torsion ks $loss_mean_torsion_ks_train ΔHvap $loss_mean_enth_vap_train ΔHmix $loss_mean_enth_mixing_train J-coupling $loss_mean_J_coupling_train chem shift $loss_mean_chem_shift_train regularisation $loss_regularisation - mean validation loss forces intra $loss_mean_fs_intra_val $loss_mean_fs_intra_val_gems force inter $loss_mean_fs_inter_val $loss_mean_fs_inter_val_gems pe $loss_mean_pe_val charge $loss_mean_charges_val vdw params $loss_mean_vdw_params_val torsion ks $loss_mean_torsion_ks_val ΔHvap $loss_mean_enth_vap_val ΔHmix $loss_mean_enth_mixing_val J-coupling $loss_mean_J_coupling_val chem shift $loss_mean_chem_shift_val$progress_str - $simulation_str - $time_spice_perc% SPICE, $time_gems_perc% GEMS, $time_cond_perc% condensed, $time_protein_perc% J-coupling, $time_wait_sims_perc% sim waiting - took $time_epoch_str\n")
+
+    GC.gc()
+
+    return models, optims
 end
 
 function split_vector(v::AbstractVector, p::Real; rng=Random.GLOBAL_RNG)
@@ -514,6 +933,8 @@ function split_vector(v::AbstractVector, p::Real; rng=Random.GLOBAL_RNG)
 end
 
 function train!(models, optims)
+
+    
 
     epochs_mean_fs_intra_train     , epochs_mean_fs_intra_val      = T[], T[]
     epochs_mean_fs_inter_train     , epochs_mean_fs_inter_val      = T[], T[]
@@ -601,11 +1022,18 @@ function train!(models, optims)
     end
 
     # For now simplified logic, must improve and simmilarize to JG code!
-    starting_epoch = 1
-
     for epoch_n in starting_epoch:MODEL_PARAMS["training"]["n_epochs"]
-        train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test)
+        models, optims = train_epoch!(models, optims, epoch_n, 
+        conf_train, conf_val, conf_test,
+        epochs_mean_fs_inter_train, epochs_mean_fs_intra_val,
+        epochs_mean_fs_inter_train, epochs_mean_fs_inter_val,
+        epochs_mean_pe_train, epochs_mean_pe_val,
+        epochs_mean_charges_train, epochs_mean_charges_val,
+        epochs_mean_vdw_params_train, epochs_mean_vdw_params_val,
+        epochs_mean_torsion_ks_train, epochs_mean_torsion_ks_val,
+        epochs_mean_enth_vap_train, epochs_mean_enth_vap_val,
+        epochs_mean_enth_mixing_train, epochs_mean_enth_mixing_val,
+        epochs_loss_regularisation)
     end
-
-
+    return models, optims
 end
