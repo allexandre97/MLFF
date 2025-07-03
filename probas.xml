@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ForceField>
+  <AtomTypes>
+    <Atom element="O" name="O1" class="O1" mass="15.999"/>
+    <Atom element="H" name="H1" class="H1" mass="1.008"/>
+    <Atom element="H" name="H2" class="H2" mass="1.008"/>
+  </AtomTypes>
+  <Residues/>
+</ForceField>

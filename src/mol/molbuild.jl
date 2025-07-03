@@ -16,6 +16,30 @@ end
 
 Flux.@non_differentiable build_adj_list(mol_row::DataFrame)
 
+#= function connected_components(adjacency)
+    visited = falses(length(adjacency))
+    components = []
+
+    for i in 1:length(adjacency)
+        if !visited[i]
+            queue = [i]
+            component = Int[]
+            while !isempty(queue)
+                node = popfirst!(queue)
+                if !visited[node]
+                    visited[node] = true
+                    push!(component, node)
+                    append!(queue, setdiff(adjacency[node], component))
+                end
+            end
+            push!(components, sort(component))
+        end
+    end
+    return components
+end =#
+
+#= Flux.@non_differentiable connected_components(args...) =#
+
 function mol_to_preds(
     mol_id::String,
     args...
@@ -91,6 +115,8 @@ end
 # Can this function be non-differentiable?? --> It cannot, it takes as input (args) things that the NNet is predicting!
 function build_sys(
     mol_id,
+    masses,
+    atom_types,
     coords,
     boundary,
     partial_charges,
@@ -103,7 +129,7 @@ function build_sys(
     propers_i, propers_j, propers_k, propers_l,
     impropers_i, impropers_j, impropers_k, impropers_l
 )
-    n_atoms = length(partial_charges)
+    n_atoms  = length(partial_charges)
 
     dist_nb_cutoff = T(MODEL_PARAMS["physics"]["dist_nb_cutoff"])
 
@@ -117,7 +143,7 @@ function build_sys(
     if vdw in ("lj", "lj69", "dexp", "buff")
         σ = vdW_dict["σ"]
         ϵ = vdW_dict["ϵ"]
-        atoms = [Atom(i, 1, one(T), partial_charges[i], σ[i], ϵ[i])
+        atoms = [Atom(i, T(atom_types[i]), masses[i], partial_charges[i], σ[i], ϵ[i])
                  for i in 1:n_atoms]
         if vdw == "lj"
             inter_vdw = LennardJones(DistanceCutoff(dist_nb_cutoff),
@@ -141,7 +167,7 @@ function build_sys(
         B = vdW_dict["B"]
         C = vdW_dict["C"]
 
-        atoms = [BuckinghamAtom(i, 1, one(T), partial_charges[i], A[i], B[i], C[i])
+        atoms = [BuckinghamAtom(i, T(atom_types[i]), masses[i], partial_charges[i], A[i], B[i], C[i])
                  for i in 1:n_atoms]
         
         inter_vdw = Buckingham(weight, dist_nb_cutoff)
@@ -226,12 +252,15 @@ function build_sys(
 
     velocities = zero(coords)
 
+    topo = ignore_derivatives() do
+        MolecularTopology(bonds_i, bonds_j, n_atoms)
+    end
 
     sys = System{3, Array, T, typeof(atoms), typeof(coords), typeof(boundary), typeof(velocities), typeof([]),
-                 Nothing, typeof(pairwise_inter), typeof(specific_inter_lists), typeof(()), typeof(()),
+                 typeof(topo), typeof(pairwise_inter), typeof(specific_inter_lists), typeof(()), typeof(()),
                  typeof(neighbor_finder), typeof(()), typeof(NoUnits),
                  typeof(NoUnits), T, Vector{T}, Nothing}(
-        atoms, coords, boundary, velocities, [], nothing, pairwise_inter, specific_inter_lists,
+        atoms, coords, boundary, velocities, [], topo, pairwise_inter, specific_inter_lists,
         (), (), neighbor_finder, (), 1, NoUnits, NoUnits, one(T), zeros(T, n_atoms), nothing)
 
     return sys
@@ -264,21 +293,83 @@ function mol_to_system(
     impropers_i, impropers_j, impropers_k, impropers_l,
     mol_inds, adj_list, n_atoms, atom_features = decode_feats(feat_df)
 
+    # We build a graph for the whole system
+    global_graph = build_global_graph(length(elements), [(Int(i),Int(j)) for (i, j) in zip(bonds_i, bonds_j)])
+    
+    # We split it in subgraphs where each one represents a given molecule
+    all_graphs, all_indices = extract_all_subgraphs(global_graph)
+
+    # We find unique molecule types
+    unique_graphs, unique_indices = filter_unique(all_graphs, all_indices)
+    println("Found $(length(unique_graphs)) unique molecule types.")
+
+    # for each type: find equivs, then label
+    for (t, (g, vs)) in enumerate(zip(unique_graphs, unique_indices))
+        println("\nMolecule type $t (global atoms = $(vs)):")
+        equivs = find_atom_equivalences(g, vs, elements)
+        labels = label_molecule(vs, equivs, elements)
+        println("  Labels: ", labels)
+    end
+
+
+    masses = [NAME_TO_MASS[ELEMENT_TO_NAME[e]] for e in elements]
+
     # The total number of molecules in a conformation
     n_mols    = maximum(mol_inds)
     n_repeats = (startswith(mol_id, "mixing_combined_") ? (n_mols ÷ 2) : n_mols)
 
-    if startswith(mol_id, "vapourisation_")
+    if any(startswith.(mol_id, ("vapourisation_", "mixing_")))
+
+        ignore_derivatives() do
+            if startswith(mol_id, "vapourisation")
+                name = split(mol_id, "_")[end]
+                if name == "O"
+                    mol_names = ["water"]
+                else
+                    mol_names = [name]
+                end
+            else
+                _, _, smiles = split(mol_id, "_"; limit = 3)
+                names = split(smiles, "_")
+                mol_names = [name != "water" ? name : "water" for name in names]
+            end
+        end
+
+        n_elements_rep  = length(elements   ) ÷ n_repeats
         n_bonds_rep     = length(bonds_i    ) ÷ n_repeats
         n_angles_rep    = length(angles_i   ) ÷ n_repeats
         n_propers_rep   = length(propers_i  ) ÷ n_repeats
         n_impropers_rep = length(impropers_i) ÷ n_repeats
     else
+
+        if occursin("water", mol_id)
+            mol_names = ["water"]
+        end
+
+        n_elements_rep  = length(elements   )
         n_bonds_rep     = length(bonds_i    )
         n_angles_rep    = length(angles_i   )
         n_propers_rep   = length(propers_i  )
         n_impropers_rep = length(impropers_i)
     end
+
+    atom_types = Int[]
+    element_counts = zeros(Int, length(ELEMENT_TO_NAME))
+    ignore_derivatives() do
+        for eindex in elements[1:n_elements_rep]
+            element_counts[eindex] += 1
+            ename = ELEMENT_TO_NAME[eindex]
+            typename = "$ename$(element_counts[eindex])"
+            if !(typename in ATOM_TYPES)
+                push!(ATOM_TYPES, typename)
+                push!(atom_types, length(ATOM_TYPES))
+            else
+                push!(atom_types, findfirst(x->x==typename, ATOM_TYPES))
+            end
+        end
+    end
+
+    atom_types = repeat(atom_types, n_repeats)
 
     atom_feats, atom_embeds = calc_embeddings(mol_id, adj_list, atom_features,
                                               atom_embedding_model, atom_features_model, n_atoms, n_repeats)
@@ -323,6 +414,8 @@ function mol_to_system(
     improper_feats_pad = cat(improper_feats, zeros(T, 6 - n_improper_terms, length(impropers_i)); dims = 1)
 
     molly_sys = build_sys(mol_id,
+                          masses,
+                          atom_types,
                           coords,
                           boundary,
                           partial_charges,

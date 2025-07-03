@@ -15,11 +15,16 @@ using Polynomials
 using LinearAlgebra
 using StaticArrays
 
+using DataStructures
+using OrderedCollections
 using CSV
 using HDF5
 using DataFrames
 using Dates
 using TimerOutputs
+
+using Graphs
+using Graphs.Experimental
 
 import Chemfiles
 using Molly
@@ -51,8 +56,10 @@ include("./src/io/fileio.jl")
 include("./src/io/logging.jl")
 include("./src/io/simread.jl")
 include("./src/io/graphics.jl")
+include("./src/io/forcefield.jl")
 
 include("./src/mol/molbuild.jl")
+include("./src/mol/graphs.jl")
 
 include("./src/nets/losses.jl")
 include("./src/nets/models.jl")
@@ -129,7 +136,7 @@ for mol_id in FEATURE_DATAFRAMES[3].MOLECULE
     #= elseif startswith(mol_id, "mixing_combined_")
         repeats = SUBSET_N_REPEATS["mixing"]
         for frame_i in COND_SIM_FRAMES
-            for repeat_i in 1:repeats
+            for repeat_i in 1:repeatsatoms
                 push!(COND_MOLECULES, (mol_id, T(298.15), frame_i, repeat_i))
             end
         end
@@ -176,4 +183,21 @@ if !isnothing(out_dir) && !isdir(out_dir)
     end
 end
 
+#global ATOM_TYPES = Dict{String, Dict{String, Int}}()
+global ATOM_TYPES = String[]
+
 models, optims = train!(models, optims)
+
+using PyCall
+
+ENV["PYTHON"] = "/lmb/home/alexandrebg/miniconda3/envs/rdkit/bin/python"
+
+
+begin
+    
+    cond_feats = FEATURE_DATAFRAMES[3]
+    mol_id = "vapourisation_liquid_O"
+    training_sim_dir = joinpath("/lmb/home/alexandrebg/Documents/QuarantineScripts/JG/typing/condensed_data", "trajs_gaff")
+    sys = features_to_xml("dummy", mol_id, training_sim_dir, 141, 295, cond_feats, models...)
+
+end
