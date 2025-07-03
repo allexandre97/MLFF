@@ -117,6 +117,8 @@ function build_sys(
     mol_id,
     masses,
     atom_types,
+    atom_names,
+    mol_inds,
     coords,
     boundary,
     partial_charges,
@@ -139,11 +141,10 @@ function build_sys(
     angle  = angles_dict["functional"]
 
     ########## van der Waals section ##########
-
     if vdw in ("lj", "lj69", "dexp", "buff")
         σ = vdW_dict["σ"]
         ϵ = vdW_dict["ϵ"]
-        atoms = [Atom(i, T(atom_types[i]), masses[i], partial_charges[i], σ[i], ϵ[i])
+        atoms = [Atom(i, one(T), masses[i], partial_charges[i], σ[i], ϵ[i])
                  for i in 1:n_atoms]
         if vdw == "lj"
             inter_vdw = LennardJones(DistanceCutoff(dist_nb_cutoff),
@@ -167,7 +168,7 @@ function build_sys(
         B = vdW_dict["B"]
         C = vdW_dict["C"]
 
-        atoms = [BuckinghamAtom(i, T(atom_types[i]), masses[i], partial_charges[i], A[i], B[i], C[i])
+        atoms = [BuckinghamAtom(i, one(T), masses[i], partial_charges[i], A[i], B[i], C[i])
                  for i in 1:n_atoms]
         
         inter_vdw = Buckingham(weight, dist_nb_cutoff)
@@ -256,15 +257,30 @@ function build_sys(
         MolecularTopology(bonds_i, bonds_j, n_atoms)
     end
 
-    sys = System{3, Array, T, typeof(atoms), typeof(coords), typeof(boundary), typeof(velocities), typeof([]),
+    atoms_data = [AtomData(atom_types[i], atom_names[i], mol_inds[i], split_grad_safe(atom_types[i], "_")[1], "A", "?", true) for i in 1:n_atoms]
+
+    sys = System{3, Array, T, typeof(atoms), typeof(coords), typeof(boundary), typeof(velocities), typeof(atoms_data),
                  typeof(topo), typeof(pairwise_inter), typeof(specific_inter_lists), typeof(()), typeof(()),
                  typeof(neighbor_finder), typeof(()), typeof(NoUnits),
                  typeof(NoUnits), T, Vector{T}, Nothing}(
-        atoms, coords, boundary, velocities, [], topo, pairwise_inter, specific_inter_lists,
+        atoms, coords, boundary, velocities, atoms_data, topo, pairwise_inter, specific_inter_lists,
         (), (), neighbor_finder, (), 1, NoUnits, NoUnits, one(T), zeros(T, n_atoms), nothing)
 
     return sys
 
+end
+
+function atom_names_from_elements(el_list::Vector{Int},
+                                   name_map::Vector{String})
+    counts = Dict{String,Int}() 
+    names  = String[]
+    for el in el_list
+        sym = name_map[el]
+        n   = get(counts, sym, 0) + 1
+        counts[sym] = n
+        push!(names, "$(sym)$(n)")
+    end
+    return names
 end
 
 function mol_to_system(
@@ -292,25 +308,6 @@ function mol_to_system(
     propers_i, propers_j, propers_k, propers_l,
     impropers_i, impropers_j, impropers_k, impropers_l,
     mol_inds, adj_list, n_atoms, atom_features = decode_feats(feat_df)
-
-    # We build a graph for the whole system
-    global_graph = build_global_graph(length(elements), [(Int(i),Int(j)) for (i, j) in zip(bonds_i, bonds_j)])
-    
-    # We split it in subgraphs where each one represents a given molecule
-    all_graphs, all_indices = extract_all_subgraphs(global_graph)
-
-    # We find unique molecule types
-    unique_graphs, unique_indices = filter_unique(all_graphs, all_indices)
-    println("Found $(length(unique_graphs)) unique molecule types.")
-
-    # for each type: find equivs, then label
-    for (t, (g, vs)) in enumerate(zip(unique_graphs, unique_indices))
-        println("\nMolecule type $t (global atoms = $(vs)):")
-        equivs = find_atom_equivalences(g, vs, elements)
-        labels = label_molecule(vs, equivs, elements)
-        println("  Labels: ", labels)
-    end
-
 
     masses = [NAME_TO_MASS[ELEMENT_TO_NAME[e]] for e in elements]
 
@@ -353,23 +350,27 @@ function mol_to_system(
         n_impropers_rep = length(impropers_i)
     end
 
-    atom_types = Int[]
-    element_counts = zeros(Int, length(ELEMENT_TO_NAME))
+    
+    atom_types = String[]
+    atom_names = String[]
     ignore_derivatives() do
-        for eindex in elements[1:n_elements_rep]
-            element_counts[eindex] += 1
-            ename = ELEMENT_TO_NAME[eindex]
-            typename = "$ename$(element_counts[eindex])"
-            if !(typename in ATOM_TYPES)
-                push!(ATOM_TYPES, typename)
-                push!(atom_types, length(ATOM_TYPES))
-            else
-                push!(atom_types, findfirst(x->x==typename, ATOM_TYPES))
-            end
+        # We build a graph for the whole system
+        global_graph = build_global_graph(length(elements), [(Int(i),Int(j)) for (i, j) in zip(bonds_i, bonds_j)])
+        # We split it in subgraphs where each one represents a given molecule
+        all_graphs, all_indices = extract_all_subgraphs(global_graph)
+        # We find unique molecule types
+        unique_graphs, unique_indices, counts = filter_unique(all_graphs, all_indices)
+        # for each type: find equivs, then label
+        for (t, (g, vs)) in enumerate(zip(unique_graphs, unique_indices))
+            equivs = find_atom_equivalences(g, vs, elements)
+            labels = label_molecule(vs, equivs, elements)
+            names  = atom_names_from_elements(elements[vs], ELEMENT_TO_NAME)
+            labels = repeat(["$(mol_names[t])_"*label for label in labels], counts[t])
+            names  = repeat(names, counts[t])
+            push!(atom_types, labels...)
+            push!(atom_names, names...)
         end
     end
-
-    atom_types = repeat(atom_types, n_repeats)
 
     atom_feats, atom_embeds = calc_embeddings(mol_id, adj_list, atom_features,
                                               atom_embedding_model, atom_features_model, n_atoms, n_repeats)
@@ -395,6 +396,8 @@ function mol_to_system(
                                                                           proper_features_model,
                                                                           improper_features_model)
 
+    println(bond_feats)
+
     partial_charges = atom_feats_to_charges(mol_id, n_atoms, n_mols, atom_feats, formal_charges, mol_inds)
 
     vdw_dict    = atom_feats_to_vdW(atom_feats)
@@ -416,6 +419,8 @@ function mol_to_system(
     molly_sys = build_sys(mol_id,
                           masses,
                           atom_types,
+                          atom_names,
+                          mol_inds,
                           coords,
                           boundary,
                           partial_charges,

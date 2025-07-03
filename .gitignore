@@ -1,6 +1,6 @@
 *.txt
+*.xml
 runs/
 .vscode
 mlff_env/
 probas.jl
-*xml

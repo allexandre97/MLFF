@@ -65,15 +65,15 @@ function atom_feats_to_charges(
     if any(startswith.(mol_id, ("vapourisation_", "mixing_")))
         n_atoms_mol = n_atoms ÷ n_molecules
         charge_factor = (sum(formal_charges[1:n_atoms_mol]) + sum(charge_e_inv_s[1:n_atoms_mol])) /
-                        sum(charge_inv_s[1:n_atoms_mol])
+                         sum(charge_inv_s[1:n_atoms_mol])
         charge_factors = fill(charge_factor, n_atoms)
     elseif n_molecules == 1
         charge_factor = (sum(formal_charges) + sum(charge_e_inv_s)) / sum(charge_inv_s)
         charge_factors = fill(charge_factor, n_atoms)
     else
         mol_charge_factor = multi_mol_charge_factors(charge_e_inv_s, charge_inv_s,
-                                                 formal_charges, molecule_inds,
-                                                 n_molecules)
+                                                     formal_charges, molecule_inds,
+                                                     n_molecules)
         charge_factors = [mol_charge_factor[mi] for mi in molecule_inds]
     end
 

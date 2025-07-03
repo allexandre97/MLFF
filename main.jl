@@ -183,15 +183,7 @@ if !isnothing(out_dir) && !isdir(out_dir)
     end
 end
 
-#global ATOM_TYPES = Dict{String, Dict{String, Int}}()
-global ATOM_TYPES = String[]
-
 models, optims = train!(models, optims)
-
-using PyCall
-
-ENV["PYTHON"] = "/lmb/home/alexandrebg/miniconda3/envs/rdkit/bin/python"
-
 
 begin
     
@@ -201,3 +193,46 @@ begin
     sys = features_to_xml("dummy", mol_id, training_sim_dir, 141, 295, cond_feats, models...)
 
 end
+
+mutable struct BundledAtomData
+    name::String
+    type::String
+    resname::String
+    mass::Float32
+    charge::Float32
+    σ::Float32
+    ϵ::Float32
+end
+
+import Base: ==, hash
+
+function ==(a::BundledAtomData, b::BundledAtomData)
+    return a.name == b.name &&
+           a.type == b.type &&
+           a.resname == b.resname &&
+           a.mass == b.mass &&
+           a.charge == b.charge &&
+           a.σ == b.σ &&
+           a.ϵ == b.ϵ
+end
+
+function hash(a::BundledAtomData, h::UInt)
+    return hash((a.name, a.type, a.resname, a.mass, a.charge, a.σ, a.ϵ), h)
+end
+
+
+all_atoms = BundledAtomData[]
+
+for (atom, atom_data) in zip(sys.atoms, sys.atoms_data)
+    push!(all_atoms, BundledAtomData(
+        atom_data.atom_name,
+        atom_data.atom_type,
+        atom_data.res_name,
+        atom.mass,
+        atom.charge,
+        atom.σ,
+        atom.ϵ
+    ))
+end
+
+write_openmm_xml(sys, "forcefield.xml")

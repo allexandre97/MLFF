@@ -21,17 +21,34 @@ function extract_all_subgraphs(g::SimpleGraph)
     return subgs, inds
 end
 
-# 3) Filter to unique molecule types (by isomorphism)
-function filter_unique(subgs, inds)
+# 3) Filter to unique molecule types (by isomorphism),
+#    and count how many of each type we have.
+function filter_unique(subgs::Vector{SimpleGraph{Int}},
+                       inds::Vector{Vector{Int}})
     uniq_s = SimpleGraph{Int}[]
     uniq_i = Vector{Vector{Int}}()
+    counts = Int[]
+
     for (g, vs) in zip(subgs, inds)
-        if !any(u -> has_isomorph(u, g, VF2()), uniq_s)
+        found = false
+        # check against each already-collected unique graph
+        for (k, ug) in enumerate(uniq_s)
+            if has_isomorph(ug, g, VF2())
+                counts[k] += 1
+                found = true
+                break
+            end
+        end
+
+        # if it's truly new, record it and start its count at 1
+        if !found
             push!(uniq_s, g)
             push!(uniq_i, vs)
+            push!(counts, 1)
         end
     end
-    return uniq_s, uniq_i
+
+    return uniq_s, uniq_i, counts
 end
 
 # 4) Graph‐omission helper for atom‐equivalence test
