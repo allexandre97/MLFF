@@ -1079,7 +1079,7 @@ function train!(models, optims)
     for epoch_n in starting_epoch:MODEL_PARAMS["training"]["n_epochs"]
         models, optims = train_epoch!(models, optims, epoch_n, 
                                       conf_train, conf_val, conf_test,
-                                      epochs_mean_fs_inter_train, epochs_mean_fs_intra_val,
+                                      epochs_mean_fs_intra_train, epochs_mean_fs_intra_val,
                                       epochs_mean_fs_inter_train, epochs_mean_fs_inter_val,
                                       epochs_mean_pe_train, epochs_mean_pe_val,
                                       epochs_mean_charges_train, epochs_mean_charges_val,
