@@ -1072,3 +1072,918 @@ maceoff_water_999 conf 741 training - loss forces intra 2.6895693359375 forces i
 water conf 1123 training - loss forces intra 9.709084960937501 forces inter 7.5420400390625 charge 165.68810939788818 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
 maceoff_water_1515 conf 1044 training - loss forces intra 4.25918212890625 forces inter 4.5330444335937505 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
 maceoff_water_1057 conf 698 training - loss forces intra 5.608615234375 forces inter 5.0593818359375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 654 training - loss forces intra 7.5107578125000005 forces inter 6.68372314453125 charge 167.06013679504395 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 615 training - loss forces intra 6.857365234375 forces inter 5.53115087890625 charge 163.63248825073242 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_50 conf 1140 training - loss forces intra 1.0122883300781251 forces inter 0.10044879150390625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_1539 conf 426 training - loss forces intra 4.5865234375 forces inter 4.508154296875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 462 training - loss forces intra 6.5267792968750005 forces inter 5.86757763671875 charge 162.76936531066895 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 687 training - loss forces intra 8.5594140625 forces inter 6.881017578125 charge 166.42428636550903 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_352 conf 299 training - loss forces intra 2.716178466796875 forces inter 2.33305419921875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_924 conf 456 training - loss forces intra 3.3687490234375 forces inter 1.67840380859375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_119 conf 724 training - loss forces intra 3.37052099609375 forces inter 2.63504931640625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_1017 conf 1110 training - loss forces intra 1.1672362060546875 forces inter 0.032522319793701175 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 2175 training - loss forces intra 8.201564453125 forces inter 7.519177734375 charge 164.87478017807007 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_100 conf 502 training - loss forces intra 15.375022460937501 forces inter 11.722900390625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_647 conf 241 training - loss forces intra 5.6215844726562505 forces inter 4.89057861328125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 158 training - loss forces intra 8.312244140625 forces inter 7.1390595703125 charge 164.28790092468262 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_135 conf 1650 training - loss forces intra 5.98098486328125 forces inter 4.79211083984375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_1365 conf 612 training - loss forces intra 6.73594091796875 forces inter 5.6571025390625005 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_1625 conf 107 training - loss forces intra 8.199111328125 forces inter 7.05871923828125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_121 conf 301 training - loss forces intra 3.6847802734375 forces inter 3.314752197265625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 197 training - loss forces intra 7.0506845703125 forces inter 6.6260537109375 charge 164.44950103759766 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_91 conf 1490 training - loss forces intra 2.849882568359375 forces inter 2.236685302734375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_1245 conf 1169 training - loss forces intra 1.03090771484375 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_623 conf 1806 training - loss forces intra 4.34267626953125 forces inter 3.7156767578125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 120 training - loss forces intra 7.2997138671875 forces inter 6.2026303710937505 charge 163.71428966522217 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 645 training - loss forces intra 7.05150537109375 forces inter 6.529158203125 charge 163.86089324951172 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_261 conf 1456 training - loss forces intra 16.98566015625 forces inter 11.80712109375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_192 conf 101 training - loss forces intra 6.107779296875 forces inter 5.12214501953125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 1894 training - loss forces intra 7.00223193359375 forces inter 5.71203564453125 charge 164.0038251876831 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 1154 training - loss forces intra 8.4748349609375 forces inter 6.71930810546875 charge 166.40485525131226 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 603 training - loss forces intra 6.5623466796875 forces inter 5.85255615234375 charge 163.46231698989868 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_1054 conf 1847 training - loss forces intra 7.12294287109375 forces inter 7.222853515625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_281 conf 187 training - loss forces intra 9.7536533203125 forces inter 8.6499873046875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 1556 training - loss forces intra 6.1591875 forces inter 5.42209375 charge 165.45265913009644 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_763 conf 600 training - loss forces intra 1.50485107421875 forces inter 0.021889205932617187 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 23 training - loss forces intra 8.8636650390625 forces inter 7.00456201171875 charge 166.69315099716187 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_609 conf 28 training - loss forces intra 10.4900595703125 forces inter 10.0946767578125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_242 conf 538 training - loss forces intra 7.047115234375 forces inter 6.12722900390625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 1843 training - loss forces intra 6.3375390625 forces inter 5.427939453125 charge 163.89622688293457 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_1188 conf 583 training - loss forces intra 2.302917724609375 forces inter 2.070802490234375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_745 conf 1178 training - loss forces intra 2.192830322265625 forces inter 1.69101171875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 531 training - loss forces intra 7.6641318359375 forces inter 6.30650830078125 charge 166.52618646621704 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_453 conf 752 training - loss forces intra 0.842534912109375 forces inter 0.43905169677734374 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_84 conf 584 training - loss forces intra 1.9620968017578126 forces inter 1.0354622802734375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 1702 training - loss forces intra 7.74669873046875 forces inter 6.60953662109375 charge 168.24618577957153 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_180 conf 394 training - loss forces intra 6.6425537109375 forces inter 5.8985849609375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 1734 training - loss forces intra 7.96310888671875 forces inter 7.2081977539062505 charge 164.85702991485596 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 374 training - loss forces intra 6.622888671875 forces inter 5.65230810546875 charge 165.5441164970398 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_421 conf 2005 training - loss forces intra 2.459209228515625 forces inter 1.3281070556640626 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_1473 conf 703 training - loss forces intra 1.2809698486328125 forces inter 0.11297944641113282 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 327 training - loss forces intra 7.3607988281250005 forces inter 6.41132568359375 charge 165.5360221862793 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_496 conf 245 training - loss forces intra 3.2803134765625 forces inter 2.6121533203125002 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_386 conf 816 training - loss forces intra 7.1187333984375005 forces inter 7.31386376953125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_735 conf 442 training - loss forces intra 0.6230048217773437 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_1034 conf 1066 training - loss forces intra 1.72953564453125 forces inter 0.7867145996093751 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_938 conf 321 training - loss forces intra 2.07151171875 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 1304 training - loss forces intra 8.2185634765625 forces inter 6.7135048828125 charge 164.77113962173462 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 1586 training - loss forces intra 9.142453125 forces inter 7.120208984375 charge 167.66141653060913 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_549 conf 1723 training - loss forces intra 1.202639892578125 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_760 conf 39 training - loss forces intra 5.3264111328125 forces inter 4.89766064453125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_51 conf 243 training - loss forces intra 2.186207275390625 forces inter 0.023918060302734377 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_481 conf 259 training - loss forces intra 0.918521484375 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_1123 conf 489 training - loss forces intra 6.729576171875 forces inter 6.612158203125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_1441 conf 493 training - loss forces intra 8.6271103515625 forces inter 7.0817490234375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_845 conf 623 training - loss forces intra 3.8868247070312503 forces inter 3.320681884765625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_24 conf 322 training - loss forces intra 4.44998193359375 forces inter 3.8825205078125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_336 conf 766 training - loss forces intra 4.3771572265625 forces inter 3.665041748046875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 706 training - loss forces intra 7.34895751953125 forces inter 6.203472167968751 charge 167.19521284103394 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_1526 conf 519 training - loss forces intra 1.7369842529296875 forces inter 2.04510498046875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 48 training - loss forces intra 5.6220244140625 forces inter 5.1900966796875005 charge 163.42476606369019 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_718 conf 677 training - loss forces intra 4.32297509765625 forces inter 3.1697248535156253 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_734 conf 268 training - loss forces intra 5.87519970703125 forces inter 5.477255859375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_667 conf 267 training - loss forces intra 1.6434583740234376 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 530 training - loss forces intra 9.0822353515625 forces inter 7.99652978515625 charge 166.64835214614868 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_805 conf 655 training - loss forces intra 3.592606201171875 forces inter 2.62535986328125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_1566 conf 64 training - loss forces intra 2.556448486328125 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 469 training - loss forces intra 7.1384619140625 forces inter 6.0416459960937505 charge 166.10100269317627 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_507 conf 574 training - loss forces intra 11.6276328125 forces inter 10.543783203125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 1457 training - loss forces intra 6.64304443359375 forces inter 5.88089013671875 charge 161.78696155548096 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 400 training - loss forces intra 7.32123193359375 forces inter 6.3408525390625 charge 166.20827913284302 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 651 training - loss forces intra 6.95192578125 forces inter 6.0584404296875 charge 167.2606110572815 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 640 training - loss forces intra 7.83029931640625 forces inter 6.2386103515625 charge 166.94035530090332 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_624 conf 959 training - loss forces intra 6.5011943359375 forces inter 5.83484326171875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_1521 conf 231 training - loss forces intra 3.6691044921875 forces inter 2.801232666015625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_1277 conf 725 training - loss forces intra 3.3336044921875 forces inter 2.92710595703125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 1865 training - loss forces intra 5.8224658203125 forces inter 4.61868603515625 charge 164.94510173797607 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_1121 conf 1997 training - loss forces intra 2.1503984375000003 forces inter 1.1071441650390625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_114 conf 76 training - loss forces intra 0.6441037597656251 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_295 conf 145 training - loss forces intra 1.4562445068359375 forces inter 0.3044060974121094 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 1617 training - loss forces intra 5.63352001953125 forces inter 4.6909794921875 charge 163.48834037780762 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_239 conf 631 training - loss forces intra 4.629232421875 forces inter 4.3038974609375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 581 training - loss forces intra 8.095358886718751 forces inter 7.15582568359375 charge 167.47392416000366 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 516 training - loss forces intra 7.3307578125 forces inter 5.8840708007812506 charge 164.35809135437012 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_919 conf 597 training - loss forces intra 2.735994384765625 forces inter 2.38093115234375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_563 conf 1605 training - loss forces intra 6.53744287109375 forces inter 5.80935205078125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 92 training - loss forces intra 8.083631835937501 forces inter 6.48000341796875 charge 165.69483280181885 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+water conf 389 training - loss forces intra 7.02478955078125 forces inter 7.15504443359375 charge 164.23556804656982 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+maceoff_water_650 conf 284 training - loss forces intra 4.98405517578125 forces inter 4.32354443359375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.027629619140625002
+vapourisation_liquid_O training -loss ΔHvap 63.755218505859375
+vapourisation_liquid_O training -loss ΔHvap 60.57827453613281
+vapourisation_liquid_O training -loss ΔHvap 61.72966918945312
+vapourisation_liquid_O training -loss ΔHvap 65.32187347412109
+vapourisation_liquid_O training -loss ΔHvap 68.04967346191405
+vapourisation_liquid_O training -loss ΔHvap 63.78870849609375
+vapourisation_liquid_O training -loss ΔHvap 67.79987182617187
+vapourisation_liquid_O training -loss ΔHvap 62.310937499999994
+vapourisation_liquid_O training -loss ΔHvap 69.01205291748046
+vapourisation_liquid_O training -loss ΔHvap 64.50392303466796
+vapourisation_liquid_O training -loss ΔHvap 64.92723083496094
+vapourisation_liquid_O training -loss ΔHvap 61.787924194335936
+vapourisation_liquid_O training -loss ΔHvap 69.73733825683594
+vapourisation_liquid_O training -loss ΔHvap 66.90227508544922
+vapourisation_liquid_O training -loss ΔHvap 69.21995544433594
+vapourisation_liquid_O training -loss ΔHvap 63.51316680908203
+vapourisation_liquid_O training -loss ΔHvap 66.70228729248046
+vapourisation_liquid_O training -loss ΔHvap 67.86913146972655
+vapourisation_liquid_O training -loss ΔHvap 60.389323425292964
+vapourisation_liquid_O training -loss ΔHvap 66.22925262451172
+vapourisation_liquid_O training -loss ΔHvap 69.6212173461914
+vapourisation_liquid_O training -loss ΔHvap 60.49572601318359
+vapourisation_liquid_O training -loss ΔHvap 64.1086669921875
+vapourisation_liquid_O training -loss ΔHvap 63.53057098388672
+vapourisation_liquid_O training -loss ΔHvap 67.25561370849609
+vapourisation_liquid_O training -loss ΔHvap 67.92157287597657
+vapourisation_liquid_O training -loss ΔHvap 61.59629974365234
+vapourisation_liquid_O training -loss ΔHvap 65.20872802734375
+vapourisation_liquid_O training -loss ΔHvap 61.68476257324218
+vapourisation_liquid_O training -loss ΔHvap 63.3385986328125
+vapourisation_liquid_O training -loss ΔHvap 67.02949676513671
+vapourisation_liquid_O training -loss ΔHvap 61.0077163696289
+vapourisation_liquid_O training -loss ΔHvap 65.62776489257813
+vapourisation_liquid_O training -loss ΔHvap 66.78821411132812
+vapourisation_liquid_O training -loss ΔHvap 61.909881591796875
+vapourisation_liquid_O training -loss ΔHvap 67.88943328857421
+vapourisation_liquid_O training -loss ΔHvap 62.84534912109375
+vapourisation_liquid_O training -loss ΔHvap 65.92327880859375
+vapourisation_liquid_O training -loss ΔHvap 62.6573501586914
+vapourisation_liquid_O training -loss ΔHvap 63.31805419921875
+vapourisation_liquid_O training -loss ΔHvap 67.19731292724609
+vapourisation_liquid_O training -loss ΔHvap 63.945831298828125
+vapourisation_liquid_O training -loss ΔHvap 62.058082580566406
+vapourisation_liquid_O training -loss ΔHvap 62.597644042968746
+vapourisation_liquid_O training -loss ΔHvap 66.9907470703125
+vapourisation_liquid_O training -loss ΔHvap 63.335934448242185
+vapourisation_liquid_O training -loss ΔHvap 65.75635070800782
+vapourisation_liquid_O training -loss ΔHvap 63.74920806884765
+vapourisation_liquid_O training -loss ΔHvap 68.27659149169922
+vapourisation_liquid_O training -loss ΔHvap 63.91205749511718
+vapourisation_liquid_O training -loss ΔHvap 60.22651062011718
+vapourisation_liquid_O training -loss ΔHvap 65.20872802734375
+vapourisation_liquid_O training -loss ΔHvap 66.08016357421874
+vapourisation_liquid_O training -loss ΔHvap 69.21995544433594
+vapourisation_liquid_O training -loss ΔHvap 62.501802062988276
+vapourisation_liquid_O training -loss ΔHvap 66.47271881103515
+vapourisation_liquid_O training -loss ΔHvap 67.70146179199219
+vapourisation_liquid_O training -loss ΔHvap 63.18888702392578
+vapourisation_liquid_O training -loss ΔHvap 67.88943328857421
+vapourisation_liquid_O training -loss ΔHvap 66.90238494873047
+vapourisation_liquid_O training -loss ΔHvap 64.74789276123046
+vapourisation_liquid_O training -loss ΔHvap 63.22728424072265
+vapourisation_liquid_O training -loss ΔHvap 65.6914077758789
+vapourisation_liquid_O training -loss ΔHvap 63.41922454833984
+vapourisation_liquid_O training -loss ΔHvap 59.078956604003906
+vapourisation_liquid_O training -loss ΔHvap 62.46323089599609
+vapourisation_liquid_O training -loss ΔHvap 63.85824279785156
+vapourisation_liquid_O training -loss ΔHvap 66.44853515625
+vapourisation_liquid_O training -loss ΔHvap 60.192283630371094
+vapourisation_liquid_O training -loss ΔHvap 66.10259857177734
+vapourisation_liquid_O training -loss ΔHvap 63.38577117919922
+vapourisation_liquid_O training -loss ΔHvap 63.02037963867187
+vapourisation_liquid_O training -loss ΔHvap 68.21712341308593
+vapourisation_liquid_O training -loss ΔHvap 66.66368865966797
+vapourisation_liquid_O training -loss ΔHvap 62.99750061035156
+vapourisation_liquid_O training -loss ΔHvap 65.67291412353515
+vapourisation_liquid_O training -loss ΔHvap 58.87681274414062
+vapourisation_liquid_O training -loss ΔHvap 65.92738494873046
+vapourisation_liquid_O training -loss ΔHvap 61.200750732421874
+vapourisation_liquid_O training -loss ΔHvap 63.750041198730464
+vapourisation_liquid_O training -loss ΔHvap 60.91319732666015
+vapourisation_liquid_O training -loss ΔHvap 65.66998901367187
+vapourisation_liquid_O training -loss ΔHvap 60.647319030761714
+vapourisation_liquid_O training -loss ΔHvap 64.1522964477539
+vapourisation_liquid_O training -loss ΔHvap 62.04073791503906
+vapourisation_liquid_O training -loss ΔHvap 61.98853454589843
+vapourisation_liquid_O training -loss ΔHvap 61.02837524414062
+vapourisation_liquid_O training -loss ΔHvap 65.47131042480468
+vapourisation_liquid_O training -loss ΔHvap 70.45128021240234
+vapourisation_liquid_O training -loss ΔHvap 65.3208251953125
+vapourisation_liquid_O training -loss ΔHvap 64.81671295166015
+vapourisation_liquid_O training -loss ΔHvap 65.6715087890625
+vapourisation_liquid_O training -loss ΔHvap 60.3968765258789
+vapourisation_liquid_O training -loss ΔHvap 64.64610443115234
+vapourisation_liquid_O training -loss ΔHvap 61.36594848632812
+vapourisation_liquid_O training -loss ΔHvap 63.187261962890624
+vapourisation_liquid_O training -loss ΔHvap 63.28839111328125
+vapourisation_liquid_O training -loss ΔHvap 62.46668243408203
+vapourisation_liquid_O training -loss ΔHvap 61.34225921630859
+vapourisation_liquid_O training -loss ΔHvap 61.0077163696289
+vapourisation_liquid_O training -loss ΔHvap 64.13221435546875
+vapourisation_liquid_O training -loss ΔHvap 63.89581604003906
+vapourisation_liquid_O training -loss ΔHvap 62.58877258300781
+vapourisation_liquid_O training -loss ΔHvap 61.98853454589843
+vapourisation_liquid_O training -loss ΔHvap 62.763574218749994
+vapourisation_liquid_O training -loss ΔHvap 67.2994400024414
+vapourisation_liquid_O training -loss ΔHvap 63.354286193847656
+vapourisation_liquid_O training -loss ΔHvap 65.91485595703125
+vapourisation_liquid_O training -loss ΔHvap 69.73733825683594
+vapourisation_liquid_O training -loss ΔHvap 63.14983520507812
+vapourisation_liquid_O training -loss ΔHvap 64.4329330444336
+vapourisation_liquid_O training -loss ΔHvap 60.01829681396484
+vapourisation_liquid_O training -loss ΔHvap 60.983953857421874
+vapourisation_liquid_O training -loss ΔHvap 61.887780761718744
+vapourisation_liquid_O training -loss ΔHvap 64.83635101318359
+vapourisation_liquid_O training -loss ΔHvap 59.82170104980469
+vapourisation_liquid_O training -loss ΔHvap 66.00563507080078
+vapourisation_liquid_O training -loss ΔHvap 59.86286315917968
+vapourisation_liquid_O training -loss ΔHvap 63.134779357910155
+vapourisation_liquid_O training -loss ΔHvap 63.50165863037109
+vapourisation_liquid_O training -loss ΔHvap 60.33107299804687
+vapourisation_liquid_O training -loss ΔHvap 65.73218994140625
+vapourisation_liquid_O training -loss ΔHvap 61.961874389648436
+vapourisation_liquid_O training -loss ΔHvap 66.50443725585937
+vapourisation_liquid_O training -loss ΔHvap 66.33166809082032
+vapourisation_liquid_O training -loss ΔHvap 60.485192871093744
+vapourisation_liquid_O training -loss ΔHvap 68.10762176513671
+vapourisation_liquid_O training -loss ΔHvap 62.093014526367185
+vapourisation_liquid_O training -loss ΔHvap 61.408749389648435
+vapourisation_liquid_O training -loss ΔHvap 59.86286315917968
+vapourisation_liquid_O training -loss ΔHvap 65.75278930664062
+vapourisation_liquid_O training -loss ΔHvap 62.765560913085935
+vapourisation_liquid_O training -loss ΔHvap 62.82648468017578
+vapourisation_liquid_O training -loss ΔHvap 61.6376953125
+vapourisation_liquid_O training -loss ΔHvap 62.5529296875
+vapourisation_liquid_O training -loss ΔHvap 62.28206176757812
+vapourisation_liquid_O training -loss ΔHvap 65.26253814697266
+vapourisation_liquid_O training -loss ΔHvap 58.949913024902344
+vapourisation_liquid_O training -loss ΔHvap 65.3144760131836
+vapourisation_liquid_O training -loss ΔHvap 61.961874389648436
+vapourisation_liquid_O training -loss ΔHvap 64.0466079711914
+vapourisation_liquid_O training -loss ΔHvap 65.34077453613281
+vapourisation_liquid_O training -loss ΔHvap 69.24212951660157
+vapourisation_liquid_O training -loss ΔHvap 66.06681518554687
+vapourisation_liquid_O training -loss ΔHvap 67.36288604736328
+vapourisation_liquid_O training -loss ΔHvap 62.85056762695312
+vapourisation_liquid_O training -loss ΔHvap 69.71407470703124
+vapourisation_liquid_O training -loss ΔHvap 59.47938995361328
+vapourisation_liquid_O training -loss ΔHvap 62.35487365722656
+vapourisation_liquid_O training -loss ΔHvap 67.96077575683593
+vapourisation_liquid_O training -loss ΔHvap 68.18178405761718
+vapourisation_liquid_O training -loss ΔHvap 63.78870849609375
+vapourisation_liquid_O training -loss ΔHvap 62.538249206542964
+vapourisation_liquid_O training -loss ΔHvap 63.463952636718744
+vapourisation_liquid_O training -loss ΔHvap 67.53150787353515
+vapourisation_liquid_O training -loss ΔHvap 64.58721313476562
+vapourisation_liquid_O training -loss ΔHvap 66.94268646240234
+vapourisation_liquid_O training -loss ΔHvap 65.40868835449218
+vapourisation_liquid_O training -loss ΔHvap 65.42767639160157
+vapourisation_liquid_O training -loss ΔHvap 66.80199279785155
+vapourisation_liquid_O training -loss ΔHvap 66.86529235839843
+vapourisation_liquid_O training -loss ΔHvap 65.4368408203125
+vapourisation_liquid_O training -loss ΔHvap 66.47271881103515
+vapourisation_liquid_O training -loss ΔHvap 67.75589904785156
+vapourisation_liquid_O training -loss ΔHvap 63.70773010253906
+vapourisation_liquid_O training -loss ΔHvap 66.31244201660157
+vapourisation_liquid_O training -loss ΔHvap 59.327494812011714
+vapourisation_liquid_O training -loss ΔHvap 68.07637481689453
+vapourisation_liquid_O training -loss ΔHvap 62.85056762695312
+vapourisation_liquid_O training -loss ΔHvap 65.95657196044921
+vapourisation_liquid_O training -loss ΔHvap 60.14775695800781
+vapourisation_liquid_O training -loss ΔHvap 64.65819854736328
+vapourisation_liquid_O training -loss ΔHvap 60.544125366210935
+vapourisation_liquid_O training -loss ΔHvap 67.98097686767578
+vapourisation_liquid_O training -loss ΔHvap 60.65414886474609
+vapourisation_liquid_O training -loss ΔHvap 64.83079833984375
+vapourisation_liquid_O training -loss ΔHvap 60.983953857421874
+vapourisation_liquid_O training -loss ΔHvap 63.726759338378905
+vapourisation_liquid_O training -loss ΔHvap 67.29797973632812
+vapourisation_liquid_O training -loss ΔHvap 64.00414581298828
+vapourisation_liquid_O training -loss ΔHvap 66.3958236694336
+vapourisation_liquid_O training -loss ΔHvap 62.336874389648436
+vapourisation_liquid_O training -loss ΔHvap 64.8720703125
+vapourisation_liquid_O training -loss ΔHvap 66.56333770751952
+vapourisation_liquid_O training -loss ΔHvap 61.45426940917969
+vapourisation_liquid_O training -loss ΔHvap 62.350241088867186
+vapourisation_liquid_O training -loss ΔHvap 60.68616027832031
+vapourisation_liquid_O training -loss ΔHvap 62.60640106201171
+vapourisation_liquid_O training -loss ΔHvap 66.74912567138672
+vapourisation_liquid_O training -loss ΔHvap 63.68309783935547
+vapourisation_liquid_O training -loss ΔHvap 60.988929748535156
+vapourisation_liquid_O training -loss ΔHvap 66.23307495117187
+vapourisation_liquid_O training -loss ΔHvap 65.49205169677734
+vapourisation_liquid_O training -loss ΔHvap 69.56396026611328
+vapourisation_liquid_O training -loss ΔHvap 64.64090423583984
+vapourisation_liquid_O training -loss ΔHvap 63.96971282958984
+vapourisation_liquid_O training -loss ΔHvap 63.75824890136718
+vapourisation_liquid_O training -loss ΔHvap 65.84288635253905
+vapourisation_liquid_O training -loss ΔHvap 61.073272705078125
+vapourisation_liquid_O training -loss ΔHvap 65.98016510009765
+water conf 888 training - loss forces intra 8.156236328125 forces inter 6.89092236328125 charge 169.58482265472412 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1467 training - loss forces intra 6.01522509765625 forces inter 5.3228369140625 charge 169.7656273841858 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_811 conf 157 training - loss forces intra 4.9021108398437505 forces inter 3.5967617187500003 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_275 conf 247 training - loss forces intra 1.4725496826171875 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 271 training - loss forces intra 5.5864404296875 forces inter 5.57857861328125 charge 170.61365842819214 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_362 conf 2 training - loss forces intra 6.05548828125 forces inter 5.6924130859375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_524 conf 660 training - loss forces intra 3.8413972167968753 forces inter 3.686050537109375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_93 conf 758 training - loss forces intra 3.48917529296875 forces inter 2.450822509765625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1479 conf 648 training - loss forces intra 2.7418923339843753 forces inter 0.8175962524414062 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_526 conf 719 training - loss forces intra 6.5761826171875 forces inter 5.275353515625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_439 conf 783 training - loss forces intra 2.101878173828125 forces inter 1.8650413818359375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_408 conf 657 training - loss forces intra 8.85071484375 forces inter 8.278052734375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1387 conf 13 training - loss forces intra 7.97132958984375 forces inter 7.8274990234375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_696 conf 1531 training - loss forces intra 3.0057275390625002 forces inter 1.7642083740234376 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 610 training - loss forces intra 4.65495703125 forces inter 4.3621279296875 charge 168.26733350753784 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1565 conf 787 training - loss forces intra 2.82576171875 forces inter 2.27531591796875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1428 conf 1673 training - loss forces intra 0.839281005859375 forces inter 0.2246338348388672 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 607 training - loss forces intra 5.7466923828125 forces inter 4.458673828125 charge 172.29598760604858 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 641 training - loss forces intra 5.790484375 forces inter 4.73987109375 charge 170.62182426452637 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_571 conf 427 training - loss forces intra 2.330242431640625 forces inter 0.682500732421875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1670 conf 1061 training - loss forces intra 3.9221826171875 forces inter 3.4647353515625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_260 conf 198 training - loss forces intra 3.61917431640625 forces inter 2.566798583984375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 311 training - loss forces intra 5.84785205078125 forces inter 5.193087890625 charge 169.04332637786865 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1056 conf 80 training - loss forces intra 2.812730712890625 forces inter 2.356090087890625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1291 training - loss forces intra 5.48598828125 forces inter 4.54748486328125 charge 170.20845413208008 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1126 conf 192 training - loss forces intra 3.826634521484375 forces inter 3.197153076171875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_328 conf 1726 training - loss forces intra 4.5912500000000005 forces inter 3.630661376953125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 179 training - loss forces intra 5.4069458007812505 forces inter 4.589359375 charge 168.08778047561646 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1131 conf 757 training - loss forces intra 2.980307373046875 forces inter 2.24455029296875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_902 conf 132 training - loss forces intra 0.7155275268554687 forces inter 0.011133196830749512 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1547 conf 1146 training - loss forces intra 1.072831787109375 forces inter 0.04156287384033203 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1633 conf 734 training - loss forces intra 5.52614208984375 forces inter 4.074289794921875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1009 training - loss forces intra 5.34781396484375 forces inter 4.5613349609375 charge 171.27455472946167 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_64 conf 105 training - loss forces intra 1.920949462890625 forces inter 1.0713975830078126 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_766 conf 709 training - loss forces intra 3.453537841796875 forces inter 3.0413830566406252 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_38 conf 1424 training - loss forces intra 2.359467041015625 forces inter 1.719236328125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 679 training - loss forces intra 5.93282373046875 forces inter 4.9483642578125 charge 170.94181776046753 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_383 conf 216 training - loss forces intra 9.527837890625 forces inter 8.228223632812501 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 297 training - loss forces intra 5.05922314453125 forces inter 4.023754150390625 charge 168.21253299713135 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1599 conf 181 training - loss forces intra 3.163232666015625 forces inter 2.216109375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_648 conf 1215 training - loss forces intra 3.084479736328125 forces inter 2.702081298828125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 634 training - loss forces intra 6.7780522460937505 forces inter 6.41904638671875 charge 169.5792317390442 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1120 training - loss forces intra 5.62697607421875 forces inter 4.455669921875 charge 169.4088101387024 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_117 conf 115 training - loss forces intra 2.881451904296875 forces inter 2.409114990234375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1662 conf 642 training - loss forces intra 0.8457297973632812 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1385 conf 316 training - loss forces intra 3.6595185546875 forces inter 3.3249931640625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 353 training - loss forces intra 6.9910849609375 forces inter 5.299697265625 charge 172.15982675552368 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_5 conf 131 training - loss forces intra 7.20607666015625 forces inter 7.22266845703125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1254 conf 960 training - loss forces intra 4.40828759765625 forces inter 3.6178759765625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_256 conf 262 training - loss forces intra 1.0411607666015625 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 339 training - loss forces intra 6.37619384765625 forces inter 5.71719873046875 charge 167.56901741027832 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_401 conf 527 training - loss forces intra 5.06662890625 forces inter 4.89415771484375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_473 conf 318 training - loss forces intra 5.9333896484375 forces inter 6.0666240234375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 200 training - loss forces intra 6.27121923828125 forces inter 4.9463046875000005 charge 173.0486512184143 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1411 conf 665 training - loss forces intra 3.145674072265625 forces inter 2.576290283203125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 938 training - loss forces intra 5.34420361328125 forces inter 4.60618798828125 charge 171.27549648284912 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_690 conf 1013 training - loss forces intra 4.55044921875 forces inter 3.251568115234375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_598 conf 95 training - loss forces intra 8.60890625 forces inter 7.70286669921875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1274 conf 525 training - loss forces intra 2.108513671875 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_657 conf 1442 training - loss forces intra 1.22315185546875 forces inter 0.09378349304199218 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 189 training - loss forces intra 4.567298828125 forces inter 3.75495458984375 charge 172.71454334259033 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 697 training - loss forces intra 5.2503828125 forces inter 4.51046826171875 charge 168.92619132995605 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1133 conf 459 training - loss forces intra 7.739951171875 forces inter 7.89246923828125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_665 conf 998 training - loss forces intra 2.026729736328125 forces inter 1.174814208984375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1601 training - loss forces intra 7.43032861328125 forces inter 5.43926123046875 charge 169.22873258590698 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 2295 training - loss forces intra 7.0472431640625 forces inter 6.3291694335937505 charge 168.16816329956055 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 478 training - loss forces intra 6.30927099609375 forces inter 5.2409956054687505 charge 168.4385895729065 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1128 training - loss forces intra 7.11834375 forces inter 6.50990087890625 charge 172.07692861557007 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1622 conf 300 training - loss forces intra 4.19881494140625 forces inter 3.2359697265625003 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 491 training - loss forces intra 6.24016796875 forces inter 4.88018505859375 charge 170.8635449409485 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1046 conf 495 training - loss forces intra 7.581478515625 forces inter 7.3598505859375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1103 training - loss forces intra 6.9364692382812505 forces inter 6.00374462890625 charge 170.67062854766846 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 912 training - loss forces intra 5.9672880859375 forces inter 4.92744091796875 charge 170.75963020324707 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_56 conf 71 training - loss forces intra 2.7667380371093753 forces inter 2.3728408203125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1057 training - loss forces intra 6.88539501953125 forces inter 5.70893798828125 charge 172.38521575927734 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_983 conf 876 training - loss forces intra 3.480415283203125 forces inter 2.87843310546875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 482 training - loss forces intra 5.7602236328125 forces inter 4.78978076171875 charge 169.25666332244873 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_795 conf 1981 training - loss forces intra 1.7792939453125 forces inter 0.4857542724609375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1171 conf 753 training - loss forces intra 3.689009521484375 forces inter 4.017154541015625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_193 conf 620 training - loss forces intra 0.677729736328125 forces inter 0.06075605773925782 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 572 training - loss forces intra 6.23523828125 forces inter 5.5344189453125 charge 173.0029582977295 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 555 training - loss forces intra 6.11582421875 forces inter 5.06024072265625 charge 168.10749769210815 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_460 conf 332 training - loss forces intra 4.461697265625 forces inter 3.830020751953125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1094 conf 570 training - loss forces intra 3.402779541015625 forces inter 2.858111328125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1134 conf 942 training - loss forces intra 5.70197314453125 forces inter 5.0304589843750005 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_701 conf 59 training - loss forces intra 2.2603076171875 forces inter 1.40578759765625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1500 conf 644 training - loss forces intra 1.5963839111328126 forces inter 1.43962255859375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_926 conf 1963 training - loss forces intra 3.486411376953125 forces inter 2.7855302734375003 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1228 training - loss forces intra 5.76266064453125 forces inter 4.67709326171875 charge 172.40668535232544 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1250 conf 256 training - loss forces intra 2.303020751953125 forces inter 1.2805069580078126 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_612 conf 545 training - loss forces intra 6.8395703125 forces inter 5.36540869140625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 658 training - loss forces intra 5.1199287109375 forces inter 4.89259423828125 charge 168.95959377288818 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1527 conf 62 training - loss forces intra 2.2203293457031252 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1531 conf 460 training - loss forces intra 4.83414208984375 forces inter 4.4180844726562505 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1705 training - loss forces intra 5.184173828125 forces inter 4.01212744140625 charge 169.30474042892456 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1609 conf 16 training - loss forces intra 1.4522412109375 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 830 training - loss forces intra 5.64820751953125 forces inter 4.87736474609375 charge 171.56531810760498 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_322 conf 737 training - loss forces intra 1.828134521484375 forces inter 0.9012130737304688 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 735 training - loss forces intra 6.027833984375 forces inter 5.2817392578125 charge 168.78751516342163 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_215 conf 167 training - loss forces intra 3.4364560546875 forces inter 2.427662841796875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 260 training - loss forces intra 4.74862939453125 forces inter 3.87754443359375 charge 168.3991551399231 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_312 conf 40 training - loss forces intra 3.5691494140625 forces inter 2.8992099609375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 9 training - loss forces intra 5.224330078125 forces inter 4.25549658203125 charge 168.4619665145874 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 840 training - loss forces intra 5.9052744140625 forces inter 4.87027685546875 charge 170.80414295196533 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_738 conf 17 training - loss forces intra 5.720333984375 forces inter 4.5735322265625005 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1576 conf 375 training - loss forces intra 1.51305517578125 forces inter 1.5317520751953124 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_53 conf 536 training - loss forces intra 1.4801119384765626 forces inter 0.05470196533203125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1251 conf 1050 training - loss forces intra 5.63791064453125 forces inter 5.164646484375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1507 conf 1733 training - loss forces intra 5.44637158203125 forces inter 4.74129833984375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1100 conf 925 training - loss forces intra 6.4933134765625 forces inter 5.95424072265625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_438 conf 1346 training - loss forces intra 3.2693779296875 forces inter 3.133253173828125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 435 training - loss forces intra 4.22776123046875 forces inter 3.659852783203125 charge 168.90584230422974 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 471 training - loss forces intra 5.80115673828125 forces inter 4.90836474609375 charge 171.3037610054016 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_245 conf 1043 training - loss forces intra 3.110143310546875 forces inter 1.9210167236328126 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1216 conf 323 training - loss forces intra 2.757119873046875 forces inter 2.5019609375000003 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1574 conf 413 training - loss forces intra 8.0953916015625 forces inter 6.4370966796875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1115 conf 1051 training - loss forces intra 7.87325537109375 forces inter 6.28852197265625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1083 training - loss forces intra 5.64963525390625 forces inter 4.9861123046875 charge 169.37822103500366 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1564 conf 1455 training - loss forces intra 3.160585693359375 forces inter 2.68128564453125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_479 conf 1523 training - loss forces intra 4.338888671875 forces inter 3.4728701171875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_531 conf 1618 training - loss forces intra 1.1803779296875 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 461 training - loss forces intra 4.65368701171875 forces inter 3.70413671875 charge 169.97660398483276 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 444 training - loss forces intra 5.7446225585937505 forces inter 4.9681484375 charge 169.38862800598145 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_886 conf 1394 training - loss forces intra 5.6158857421875 forces inter 4.1758916015625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_858 conf 89 training - loss forces intra 3.574118896484375 forces inter 3.43483251953125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 858 training - loss forces intra 5.1494296875000005 forces inter 4.0368806152343755 charge 169.53099966049194 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1417 training - loss forces intra 5.03954638671875 forces inter 4.4859814453125 charge 172.29890823364258 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_818 conf 364 training - loss forces intra 5.0005302734375 forces inter 3.71843359375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1007 conf 974 training - loss forces intra 1.9757220458984375 forces inter 1.5774755859375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_340 conf 818 training - loss forces intra 3.178697998046875 forces inter 3.011298828125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 163 training - loss forces intra 6.02638134765625 forces inter 5.1292099609375 charge 172.48237133026123 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1286 conf 1987 training - loss forces intra 2.7418212890625 forces inter 1.9268382568359375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1090 conf 1817 training - loss forces intra 2.1813583984375002 forces inter 1.4962506103515625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1869 training - loss forces intra 6.4950478515625 forces inter 5.01321826171875 charge 172.8930950164795 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_381 conf 232 training - loss forces intra 7.1316206054687505 forces inter 5.556361328125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 599 training - loss forces intra 5.05135205078125 forces inter 4.24665673828125 charge 171.2534785270691 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1354 conf 1046 training - loss forces intra 3.445014892578125 forces inter 1.800013671875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1137 conf 1320 training - loss forces intra 4.7549501953125 forces inter 4.39783203125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1932 training - loss forces intra 6.6322841796875 forces inter 5.5824970703125 charge 171.20802402496338 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 358 training - loss forces intra 6.5357910156250005 forces inter 5.57786083984375 charge 171.15932703018188 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1497 training - loss forces intra 6.0132890625 forces inter 4.8130908203125005 charge 170.49587965011597 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1569 conf 234 training - loss forces intra 1.82945703125 forces inter 0.9782188110351563 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_488 conf 1368 training - loss forces intra 2.4791904296875003 forces inter 2.10959765625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_730 conf 630 training - loss forces intra 1.1887923583984374 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_49 conf 448 training - loss forces intra 11.0661748046875 forces inter 9.2599248046875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_510 conf 421 training - loss forces intra 6.57574755859375 forces inter 6.12241455078125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_47 conf 488 training - loss forces intra 1.896145263671875 forces inter 1.248122802734375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 359 training - loss forces intra 7.03288134765625 forces inter 5.7296469726562504 charge 169.37973499298096 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 726 training - loss forces intra 6.32873974609375 forces inter 5.21969580078125 charge 171.88596725463867 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1085 conf 802 training - loss forces intra 5.77757763671875 forces inter 4.246568359375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 373 training - loss forces intra 5.19380859375 forces inter 4.042637451171875 charge 172.43865728378296 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 582 training - loss forces intra 6.0626787109375 forces inter 5.199087890625 charge 171.66707515716553 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_185 conf 2007 training - loss forces intra 5.8163876953125 forces inter 5.39984521484375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_952 conf 85 training - loss forces intra 0.3954444274902344 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1148 conf 319 training - loss forces intra 4.117671875 forces inter 2.956376953125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1246 conf 1458 training - loss forces intra 4.17464111328125 forces inter 2.93882373046875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1533 conf 714 training - loss forces intra 6.63191552734375 forces inter 5.4060595703125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1305 conf 2065 training - loss forces intra 3.216600341796875 forces inter 2.14080810546875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1191 training - loss forces intra 6.03066064453125 forces inter 5.15663720703125 charge 170.1653003692627 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 258 training - loss forces intra 7.5737470703125 forces inter 6.77163671875 charge 170.19668817520142 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1239 conf 357 training - loss forces intra 1.2172720947265625 forces inter 0.05106017684936524 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_839 conf 30 training - loss forces intra 7.67867578125 forces inter 7.167708984375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 305 training - loss forces intra 6.030279296875 forces inter 4.8738339843750005 charge 171.99466228485107 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 782 training - loss forces intra 7.2061279296875 forces inter 7.18544384765625 charge 168.71297359466553 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1284 conf 663 training - loss forces intra 5.9040771484375005 forces inter 5.87225439453125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_431 conf 1773 training - loss forces intra 3.049513671875 forces inter 2.22903515625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_44 conf 1354 training - loss forces intra 1.6464647216796875 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1022 conf 116 training - loss forces intra 0.8387939453125001 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1281 conf 750 training - loss forces intra 2.952279296875 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1195 conf 511 training - loss forces intra 2.310631103515625 forces inter 1.6301044921875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 380 training - loss forces intra 4.9079404296875 forces inter 4.34802685546875 charge 171.52421474456787 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_817 conf 1452 training - loss forces intra 17.058283203125 forces inter 15.64849609375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1398 conf 1035 training - loss forces intra 4.42940869140625 forces inter 3.200289794921875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_671 conf 1853 training - loss forces intra 6.81076611328125 forces inter 6.70113232421875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1376 conf 140 training - loss forces intra 5.51047802734375 forces inter 4.60350732421875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1592 conf 727 training - loss forces intra 3.43257177734375 forces inter 2.459756591796875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_819 conf 171 training - loss forces intra 0.5189454345703125 forces inter 0.5279746704101562 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_103 conf 432 training - loss forces intra 2.5114082031250002 forces inter 2.16749462890625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_11 conf 588 training - loss forces intra 2.5217995605468753 forces inter 1.6078785400390625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1315 training - loss forces intra 6.61658935546875 forces inter 5.72033642578125 charge 171.02725505828857 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_856 conf 850 training - loss forces intra 2.938361572265625 forces inter 1.855100341796875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_778 conf 173 training - loss forces intra 0.790526123046875 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_74 conf 294 training - loss forces intra 4.8699887695312505 forces inter 5.54203125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_881 conf 263 training - loss forces intra 7.762078125 forces inter 6.03832080078125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1572 conf 715 training - loss forces intra 1.289736572265625 forces inter 0.32089761352539065 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_736 conf 32 training - loss forces intra 3.874294189453125 forces inter 2.263822265625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_327 conf 159 training - loss forces intra 3.19247265625 forces inter 2.817965576171875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 774 training - loss forces intra 6.8292695312500005 forces inter 6.26732275390625 charge 171.41715288162231 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_537 conf 450 training - loss forces intra 5.41969873046875 forces inter 5.3711225585937505 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1349 conf 643 training - loss forces intra 3.545977294921875 forces inter 2.7845322265625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_681 conf 177 training - loss forces intra 3.0879619140625 forces inter 2.665408447265625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_941 conf 195 training - loss forces intra 4.34491455078125 forces inter 4.49615087890625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_683 conf 1065 training - loss forces intra 1.3254534912109375 forces inter 0.3631817626953125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1535 training - loss forces intra 5.3265849609375 forces inter 4.4440712890625 charge 172.69549369812012 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 718 training - loss forces intra 6.2851201171875 forces inter 5.3122353515625 charge 170.99566459655762 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 277 training - loss forces intra 5.6067661132812505 forces inter 4.8893671875 charge 169.84630823135376 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 506 training - loss forces intra 4.9538984375 forces inter 4.11637646484375 charge 166.74940586090088 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1502 training - loss forces intra 4.89446044921875 forces inter 4.4088681640625005 charge 169.88362073898315 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1109 conf 280 training - loss forces intra 5.60630859375 forces inter 5.09328662109375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1129 conf 343 training - loss forces intra 2.9011286621093753 forces inter 2.56898095703125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1481 conf 1081 training - loss forces intra 2.645704345703125 forces inter 1.656183349609375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1536 training - loss forces intra 4.497185546875 forces inter 3.9460898437500003 charge 169.67507600784302 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1478 conf 1243 training - loss forces intra 4.678681640625 forces inter 4.9686728515625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1563 training - loss forces intra 4.7150639648437505 forces inter 3.855446533203125 charge 171.88720703125 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_694 conf 382 training - loss forces intra 4.063348388671875 forces inter 3.549292724609375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_152 conf 1522 training - loss forces intra 2.540578125 forces inter 1.32115576171875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 35 training - loss forces intra 5.9322216796875 forces inter 4.61946630859375 charge 169.9199914932251 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_270 conf 1525 training - loss forces intra 4.1263681640625 forces inter 4.4481171875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1629 conf 2067 training - loss forces intra 1.8589337158203125 forces inter 0.15030479431152344 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1147 training - loss forces intra 6.19758935546875 forces inter 5.2554462890625 charge 172.41030931472778 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 866 training - loss forces intra 5.7742490234375 forces inter 5.0341962890625 charge 171.60394191741943 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_331 conf 749 training - loss forces intra 1.88107275390625 forces inter 1.2484412841796875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 857 training - loss forces intra 6.20052294921875 forces inter 4.9008769531250005 charge 170.96171379089355 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 227 training - loss forces intra 8.15084375 forces inter 6.97195068359375 charge 171.39174938201904 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_162 conf 2127 training - loss forces intra 3.260935546875 forces inter 2.851736572265625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_631 conf 193 training - loss forces intra 2.738226806640625 forces inter 1.8876365966796875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_607 conf 1378 training - loss forces intra 2.187136962890625 forces inter 1.0048778686523439 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1318 conf 208 training - loss forces intra 6.907458984375 forces inter 6.42666162109375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1198 conf 422 training - loss forces intra 3.71954443359375 forces inter 3.502899658203125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_443 conf 122 training - loss forces intra 1.1965162353515626 forces inter 0.5168576049804687 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 52 training - loss forces intra 6.06848046875 forces inter 5.1551884765625005 charge 169.67504024505615 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1176 conf 1891 training - loss forces intra 2.9158310546875 forces inter 2.12692578125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_165 conf 784 training - loss forces intra 2.409325927734375 forces inter 1.4904388427734376 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_990 conf 521 training - loss forces intra 3.20059814453125 forces inter 2.837337890625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_585 conf 1198 training - loss forces intra 2.37497900390625 forces inter 1.1196224365234375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 161 training - loss forces intra 5.534548828125 forces inter 4.82298388671875 charge 168.51696968078613 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_82 conf 1206 training - loss forces intra 4.2768232421875 forces inter 3.4794802246093752 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_973 conf 451 training - loss forces intra 0.8520813598632813 forces inter 0.04834626388549805 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1014 training - loss forces intra 5.47527392578125 forces inter 4.5361699218750005 charge 171.51100635528564 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1596 conf 1187 training - loss forces intra 6.6182197265625 forces inter 5.31001708984375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 372 training - loss forces intra 6.0015751953125 forces inter 4.7315810546875 charge 172.95624017715454 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_140 conf 1942 training - loss forces intra 4.28315380859375 forces inter 3.526110107421875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 585 training - loss forces intra 6.97267236328125 forces inter 6.01540576171875 charge 169.88461017608643 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 407 training - loss forces intra 4.068404541015625 forces inter 3.767744384765625 charge 167.81291961669922 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_432 conf 1327 training - loss forces intra 5.39877490234375 forces inter 4.7222182617187505 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_366 conf 964 training - loss forces intra 1.24366357421875 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 266 training - loss forces intra 5.78376611328125 forces inter 4.499 charge 173.0763554573059 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1356 conf 1080 training - loss forces intra 1.5009710693359375 forces inter 0.4031778564453125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1259 training - loss forces intra 6.149521484375001 forces inter 5.35372216796875 charge 170.6357479095459 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 819 training - loss forces intra 5.98307763671875 forces inter 5.10956103515625 charge 170.67115306854248 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 978 training - loss forces intra 5.9384047851562505 forces inter 4.75474267578125 charge 170.28098106384277 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1029 conf 656 training - loss forces intra 1.3857155761718751 forces inter 0.2875541687011719 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 295 training - loss forces intra 6.4176845703125 forces inter 4.77456103515625 charge 171.48462533950806 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1341 training - loss forces intra 5.615064453125 forces inter 4.9887543945312505 charge 171.5260624885559 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 559 training - loss forces intra 6.64983837890625 forces inter 6.0430791015625 charge 171.18582725524902 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_823 conf 498 training - loss forces intra 3.392870849609375 forces inter 2.98252392578125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1912 training - loss forces intra 5.88729150390625 forces inter 4.52612646484375 charge 171.67009115219116 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 2003 training - loss forces intra 7.25503271484375 forces inter 6.150271484375 charge 171.73446416854858 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_931 conf 37 training - loss forces intra 5.4773544921875 forces inter 4.780791015625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 743 training - loss forces intra 6.79948828125 forces inter 5.40575 charge 172.68437147140503 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1210 conf 44 training - loss forces intra 3.558666748046875 forces inter 2.42950439453125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_853 conf 711 training - loss forces intra 2.56758837890625 forces inter 1.9548538818359376 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1555 conf 383 training - loss forces intra 5.0507353515625 forces inter 4.69117578125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1112 training - loss forces intra 6.04726953125 forces inter 4.94817138671875 charge 172.00480699539185 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+water conf 1786 training - loss forces intra 7.37493896484375 forces inter 5.7155742187500005 charge 174.54432249069214 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+maceoff_water_1504 conf 429 training - loss forces intra 4.329443359375 forces inter 3.952451416015625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.02759435546875
+vapourisation_liquid_O training -loss ΔHvap 45.952990722656246
+vapourisation_liquid_O training -loss ΔHvap 52.374472045898436
+vapourisation_liquid_O training -loss ΔHvap 47.647796630859375
+vapourisation_liquid_O training -loss ΔHvap 50.799119567871095
+vapourisation_liquid_O training -loss ΔHvap 51.65724334716797
+vapourisation_liquid_O training -loss ΔHvap 51.0625259399414
+vapourisation_liquid_O training -loss ΔHvap 47.94438171386719
+vapourisation_liquid_O training -loss ΔHvap 45.98104248046875
+vapourisation_liquid_O training -loss ΔHvap 49.295214843749996
+vapourisation_liquid_O training -loss ΔHvap 50.612310791015624
+vapourisation_liquid_O training -loss ΔHvap 51.11891326904297
+vapourisation_liquid_O training -loss ΔHvap 50.01388092041015
+vapourisation_liquid_O training -loss ΔHvap 47.05935516357422
+vapourisation_liquid_O training -loss ΔHvap 53.26587982177734
+vapourisation_liquid_O training -loss ΔHvap 46.11535491943359
+vapourisation_liquid_O training -loss ΔHvap 49.05596923828125
+vapourisation_liquid_O training -loss ΔHvap 50.560290527343746
+vapourisation_liquid_O training -loss ΔHvap 49.475843811035155
+vapourisation_liquid_O training -loss ΔHvap 46.440687561035155
+vapourisation_liquid_O training -loss ΔHvap 45.81936950683593
+vapourisation_liquid_O training -loss ΔHvap 49.0679214477539
+vapourisation_liquid_O training -loss ΔHvap 48.84647827148437
+vapourisation_liquid_O training -loss ΔHvap 49.13540954589843
+vapourisation_liquid_O training -loss ΔHvap 47.85742950439453
+vapourisation_liquid_O training -loss ΔHvap 50.56863098144531
+vapourisation_liquid_O training -loss ΔHvap 48.719522094726564
+vapourisation_liquid_O training -loss ΔHvap 48.29285888671875
+vapourisation_liquid_O training -loss ΔHvap 45.631507873535156
+vapourisation_liquid_O training -loss ΔHvap 46.89500427246094
+vapourisation_liquid_O training -loss ΔHvap 49.689701843261716
+vapourisation_liquid_O training -loss ΔHvap 46.55830535888672
+vapourisation_liquid_O training -loss ΔHvap 51.14422760009766
+vapourisation_liquid_O training -loss ΔHvap 53.09155426025391
+vapourisation_liquid_O training -loss ΔHvap 52.96245574951172
+vapourisation_liquid_O training -loss ΔHvap 48.01533508300781
+vapourisation_liquid_O training -loss ΔHvap 46.23798522949219
+vapourisation_liquid_O training -loss ΔHvap 46.32960205078125
+vapourisation_liquid_O training -loss ΔHvap 52.06207580566406
+vapourisation_liquid_O training -loss ΔHvap 47.33507537841797
+vapourisation_liquid_O training -loss ΔHvap 49.7978759765625
+vapourisation_liquid_O training -loss ΔHvap 44.957263183593746
+vapourisation_liquid_O training -loss ΔHvap 50.627952575683594
+vapourisation_liquid_O training -loss ΔHvap 50.627952575683594
+vapourisation_liquid_O training -loss ΔHvap 49.15821075439453
+vapourisation_liquid_O training -loss ΔHvap 48.55557861328125
+vapourisation_liquid_O training -loss ΔHvap 49.378701782226564
+vapourisation_liquid_O training -loss ΔHvap 47.851629638671874
+vapourisation_liquid_O training -loss ΔHvap 51.60853729248047
+vapourisation_liquid_O training -loss ΔHvap 51.3631851196289
+vapourisation_liquid_O training -loss ΔHvap 48.89755096435547
+vapourisation_liquid_O training -loss ΔHvap 46.02432403564453
+vapourisation_liquid_O training -loss ΔHvap 53.91645355224609
+vapourisation_liquid_O training -loss ΔHvap 50.91361083984375
+vapourisation_liquid_O training -loss ΔHvap 47.20822448730468
+vapourisation_liquid_O training -loss ΔHvap 48.41928405761718
+vapourisation_liquid_O training -loss ΔHvap 45.46141662597656
+vapourisation_liquid_O training -loss ΔHvap 46.728048706054686
+vapourisation_liquid_O training -loss ΔHvap 49.790478515625
+vapourisation_liquid_O training -loss ΔHvap 49.393002319335935
+vapourisation_liquid_O training -loss ΔHvap 47.32569122314453
+vapourisation_liquid_O training -loss ΔHvap 48.35657958984375
+vapourisation_liquid_O training -loss ΔHvap 50.83399658203125
+vapourisation_liquid_O training -loss ΔHvap 50.55796508789062
+vapourisation_liquid_O training -loss ΔHvap 48.13851470947265
+vapourisation_liquid_O training -loss ΔHvap 51.883355712890626
+vapourisation_liquid_O training -loss ΔHvap 50.70222930908203
+vapourisation_liquid_O training -loss ΔHvap 50.65820159912109
+vapourisation_liquid_O training -loss ΔHvap 50.565051269531246
+vapourisation_liquid_O training -loss ΔHvap 51.235775756835935
+vapourisation_liquid_O training -loss ΔHvap 50.36563568115234
+vapourisation_liquid_O training -loss ΔHvap 51.82177276611328
+vapourisation_liquid_O training -loss ΔHvap 49.10474395751953
+vapourisation_liquid_O training -loss ΔHvap 49.780078124999996
+vapourisation_liquid_O training -loss ΔHvap 48.07762756347656
+vapourisation_liquid_O training -loss ΔHvap 49.02522583007812
+vapourisation_liquid_O training -loss ΔHvap 48.89387054443359
+vapourisation_liquid_O training -loss ΔHvap 51.62513122558594
+vapourisation_liquid_O training -loss ΔHvap 51.43645477294922
+vapourisation_liquid_O training -loss ΔHvap 47.38324127197266
+vapourisation_liquid_O training -loss ΔHvap 47.92732543945312
+vapourisation_liquid_O training -loss ΔHvap 46.025926208496095
+vapourisation_liquid_O training -loss ΔHvap 49.12521514892578
+vapourisation_liquid_O training -loss ΔHvap 51.98903045654297
+vapourisation_liquid_O training -loss ΔHvap 51.43645477294922
+vapourisation_liquid_O training -loss ΔHvap 47.158200073242185
+vapourisation_liquid_O training -loss ΔHvap 50.41827392578125
+vapourisation_liquid_O training -loss ΔHvap 52.875970458984376
+vapourisation_liquid_O training -loss ΔHvap 50.584222412109376
+vapourisation_liquid_O training -loss ΔHvap 52.072608947753906
+vapourisation_liquid_O training -loss ΔHvap 47.05935516357422
+vapourisation_liquid_O training -loss ΔHvap 47.39082641601562
+vapourisation_liquid_O training -loss ΔHvap 51.94342346191406
+vapourisation_liquid_O training -loss ΔHvap 50.24851684570312
+vapourisation_liquid_O training -loss ΔHvap 50.376713562011716
+vapourisation_liquid_O training -loss ΔHvap 47.99410400390625
+vapourisation_liquid_O training -loss ΔHvap 51.0855972290039
+vapourisation_liquid_O training -loss ΔHvap 47.25201416015625
+vapourisation_liquid_O training -loss ΔHvap 46.67979125976562
+vapourisation_liquid_O training -loss ΔHvap 45.99700927734375
+vapourisation_liquid_O training -loss ΔHvap 48.37213897705078
+vapourisation_liquid_O training -loss ΔHvap 49.8858901977539
+vapourisation_liquid_O training -loss ΔHvap 48.792938232421875
+vapourisation_liquid_O training -loss ΔHvap 46.92871398925781
+vapourisation_liquid_O training -loss ΔHvap 48.00513610839844
+vapourisation_liquid_O training -loss ΔHvap 47.74494323730469
+vapourisation_liquid_O training -loss ΔHvap 50.50445709228516
+vapourisation_liquid_O training -loss ΔHvap 49.732337951660156
+vapourisation_liquid_O training -loss ΔHvap 44.511515808105464
+vapourisation_liquid_O training -loss ΔHvap 51.166186523437496
+vapourisation_liquid_O training -loss ΔHvap 45.33734436035156
+vapourisation_liquid_O training -loss ΔHvap 51.09119567871094
+vapourisation_liquid_O training -loss ΔHvap 52.43253936767578
+vapourisation_liquid_O training -loss ΔHvap 49.882077026367185
+vapourisation_liquid_O training -loss ΔHvap 49.66072082519531
+vapourisation_liquid_O training -loss ΔHvap 49.45108337402343
+vapourisation_liquid_O training -loss ΔHvap 49.412210083007814
+vapourisation_liquid_O training -loss ΔHvap 50.49221649169922
+vapourisation_liquid_O training -loss ΔHvap 47.59253997802734
+vapourisation_liquid_O training -loss ΔHvap 50.149191284179686
+vapourisation_liquid_O training -loss ΔHvap 49.63756256103515
+vapourisation_liquid_O training -loss ΔHvap 50.61856384277343
+vapourisation_liquid_O training -loss ΔHvap 46.631694030761714
+vapourisation_liquid_O training -loss ΔHvap 50.04633636474609
+vapourisation_liquid_O training -loss ΔHvap 46.83537139892578
+vapourisation_liquid_O training -loss ΔHvap 51.26670684814453
+vapourisation_liquid_O training -loss ΔHvap 46.66467590332031
+vapourisation_liquid_O training -loss ΔHvap 46.67979125976562
+vapourisation_liquid_O training -loss ΔHvap 48.74460296630859
+vapourisation_liquid_O training -loss ΔHvap 50.94313201904297
+vapourisation_liquid_O training -loss ΔHvap 48.63190612792969
+vapourisation_liquid_O training -loss ΔHvap 50.3397720336914
+vapourisation_liquid_O training -loss ΔHvap 46.664991760253905
+vapourisation_liquid_O training -loss ΔHvap 44.79225311279297
+vapourisation_liquid_O training -loss ΔHvap 46.85840606689453
+vapourisation_liquid_O training -loss ΔHvap 49.29036254882812
+vapourisation_liquid_O training -loss ΔHvap 47.02630462646484
+vapourisation_liquid_O training -loss ΔHvap 50.01829376220703
+vapourisation_liquid_O training -loss ΔHvap 50.16031036376953
+vapourisation_liquid_O training -loss ΔHvap 49.219418334960935
+vapourisation_liquid_O training -loss ΔHvap 50.01388092041015
+vapourisation_liquid_O training -loss ΔHvap 49.9865982055664
+vapourisation_liquid_O training -loss ΔHvap 47.03519897460937
+vapourisation_liquid_O training -loss ΔHvap 49.746647644042966
+vapourisation_liquid_O training -loss ΔHvap 47.74494323730469
+vapourisation_liquid_O training -loss ΔHvap 50.23109893798828
+vapourisation_liquid_O training -loss ΔHvap 47.246195983886714
+vapourisation_liquid_O training -loss ΔHvap 47.690771484375
+vapourisation_liquid_O training -loss ΔHvap 48.21015930175781
+vapourisation_liquid_O training -loss ΔHvap 51.03929901123047
+vapourisation_liquid_O training -loss ΔHvap 48.87747802734375
+vapourisation_liquid_O training -loss ΔHvap 48.54784698486328
+vapourisation_liquid_O training -loss ΔHvap 45.785902404785155
+vapourisation_liquid_O training -loss ΔHvap 48.39136962890625
+vapourisation_liquid_O training -loss ΔHvap 46.8195556640625
+vapourisation_liquid_O training -loss ΔHvap 50.61833953857422
+vapourisation_liquid_O training -loss ΔHvap 48.24403839111328
+vapourisation_liquid_O training -loss ΔHvap 53.18497009277343
+vapourisation_liquid_O training -loss ΔHvap 49.587094116210935
+vapourisation_liquid_O training -loss ΔHvap 50.01658630371094
+vapourisation_liquid_O training -loss ΔHvap 50.91510772705078
+vapourisation_liquid_O training -loss ΔHvap 47.7472183227539
+vapourisation_liquid_O training -loss ΔHvap 48.665428161621094
+vapourisation_liquid_O training -loss ΔHvap 50.07201232910156
+vapourisation_liquid_O training -loss ΔHvap 51.526991271972655
+vapourisation_liquid_O training -loss ΔHvap 51.75482482910156
+vapourisation_liquid_O training -loss ΔHvap 49.96678161621094
+vapourisation_liquid_O training -loss ΔHvap 48.918095397949216
+vapourisation_liquid_O training -loss ΔHvap 47.77555847167969
+vapourisation_liquid_O training -loss ΔHvap 49.15821075439453
+vapourisation_liquid_O training -loss ΔHvap 47.39263000488281
+vapourisation_liquid_O training -loss ΔHvap 49.45108337402343
+vapourisation_liquid_O training -loss ΔHvap 49.202563476562496
+vapourisation_liquid_O training -loss ΔHvap 49.16557159423828
+vapourisation_liquid_O training -loss ΔHvap 48.35657958984375
+vapourisation_liquid_O training -loss ΔHvap 50.96319580078125
+vapourisation_liquid_O training -loss ΔHvap 48.57519836425781
+vapourisation_liquid_O training -loss ΔHvap 48.04341430664062
+vapourisation_liquid_O training -loss ΔHvap 48.35412139892578
+vapourisation_liquid_O training -loss ΔHvap 49.45032806396484
+vapourisation_liquid_O training -loss ΔHvap 50.803001403808594
+vapourisation_liquid_O training -loss ΔHvap 50.92947235107422
+vapourisation_liquid_O training -loss ΔHvap 48.82430877685547
+vapourisation_liquid_O training -loss ΔHvap 49.23029479980469
+vapourisation_liquid_O training -loss ΔHvap 47.470880126953126
+vapourisation_liquid_O training -loss ΔHvap 48.96777191162109
+vapourisation_liquid_O training -loss ΔHvap 52.15765686035156
+vapourisation_liquid_O training -loss ΔHvap 50.49221649169922
+vapourisation_liquid_O training -loss ΔHvap 47.52922668457031
+vapourisation_liquid_O training -loss ΔHvap 49.4411865234375
+vapourisation_liquid_O training -loss ΔHvap 48.44892425537109
+vapourisation_liquid_O training -loss ΔHvap 49.746647644042966
+vapourisation_liquid_O training -loss ΔHvap 52.827703857421874
+vapourisation_liquid_O training -loss ΔHvap 47.57497100830078
+vapourisation_liquid_O training -loss ΔHvap 50.96668395996094
+vapourisation_liquid_O training -loss ΔHvap 46.76443634033203
+vapourisation_liquid_O training -loss ΔHvap 47.540025329589845
+vapourisation_liquid_O training -loss ΔHvap 49.530679321289064
+vapourisation_liquid_O training -loss ΔHvap 49.50867004394531
+vapourisation_liquid_O training -loss ΔHvap 47.38424377441406
+vapourisation_liquid_O training -loss ΔHvap 48.95226287841797
+maceoff_water_1027 conf 1625 training - loss forces intra 2.9154414062500003 forces inter 2.377989501953125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_615 conf 1568 training - loss forces intra 0.965259765625 forces inter 0.09266741180419923 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_812 conf 283 training - loss forces intra 3.52730224609375 forces inter 2.95238818359375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1252 conf 1317 training - loss forces intra 4.869068359375 forces inter 4.14258203125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_246 conf 1136 training - loss forces intra 4.02222216796875 forces inter 2.754188232421875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1155 training - loss forces intra 5.355875 forces inter 4.6906748046875 charge 179.95054721832275 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_962 conf 692 training - loss forces intra 6.05542333984375 forces inter 5.7868203125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 930 training - loss forces intra 3.82797998046875 forces inter 3.52119482421875 charge 173.9161491394043 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1266 conf 771 training - loss forces intra 0.756173828125 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_912 conf 1976 training - loss forces intra 3.617024658203125 forces inter 3.1711374511718753 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1411 training - loss forces intra 5.32600341796875 forces inter 4.5818935546875 charge 179.32116985321045 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_928 conf 191 training - loss forces intra 4.65591162109375 forces inter 4.2087236328125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1464 conf 1302 training - loss forces intra 1.8202081298828126 forces inter 0.022054487228393555 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1449 training - loss forces intra 4.770673828125 forces inter 3.817718017578125 charge 176.59578323364258 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1324 conf 423 training - loss forces intra 1.8222020263671876 forces inter 1.548365234375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_70 conf 501 training - loss forces intra 1.5282957763671876 forces inter 0.715692626953125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 887 training - loss forces intra 4.6165517578125 forces inter 3.9573603515625 charge 178.72793674468994 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_28 conf 287 training - loss forces intra 5.57706298828125 forces inter 4.58088916015625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_533 conf 1351 training - loss forces intra 3.768618896484375 forces inter 2.219052734375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1498 conf 1254 training - loss forces intra 1.1336197509765624 forces inter 0.5407134399414063 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 8 training - loss forces intra 5.08039990234375 forces inter 4.3139873046875 charge 177.56067514419556 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_206 conf 821 training - loss forces intra 4.2038544921875 forces inter 3.216688720703125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_568 conf 934 training - loss forces intra 3.8260749511718752 forces inter 3.30542529296875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 780 training - loss forces intra 4.39672900390625 forces inter 3.944260009765625 charge 178.51943969726562 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 148 training - loss forces intra 4.943578125 forces inter 4.4847626953125 charge 176.80797576904297 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 779 training - loss forces intra 4.4152636718750005 forces inter 3.5874865722656253 charge 176.21203660964966 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 135 training - loss forces intra 5.43625634765625 forces inter 4.31874365234375 charge 178.2238245010376 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 955 training - loss forces intra 4.7324326171875 forces inter 4.019758056640625 charge 179.31904792785645 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 526 training - loss forces intra 4.9495419921875 forces inter 4.23281884765625 charge 176.98849439620972 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1018 conf 1559 training - loss forces intra 4.34635546875 forces inter 3.444355712890625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_620 conf 129 training - loss forces intra 1.087685791015625 forces inter 0.16025132751464843 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_505 conf 1064 training - loss forces intra 1.2899063720703126 forces inter 0.034467960357666014 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1474 conf 1451 training - loss forces intra 1.5604068603515626 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_859 conf 972 training - loss forces intra 1.8016561279296874 forces inter 1.7312462158203126 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1510 conf 675 training - loss forces intra 1.4427965087890626 forces inter 0.31543865966796875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_732 conf 1644 training - loss forces intra 2.9403569335937503 forces inter 2.5246669921875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1382 conf 1185 training - loss forces intra 2.363958740234375 forces inter 1.6597056884765626 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 84 training - loss forces intra 4.20451318359375 forces inter 3.2670166015625 charge 176.86454057693481 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1179 conf 602 training - loss forces intra 5.96282568359375 forces inter 5.1226088867187505 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_52 conf 5 training - loss forces intra 3.233283447265625 forces inter 3.0330703125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 468 training - loss forces intra 3.59402001953125 forces inter 3.02425 charge 177.60671377182007 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1461 conf 252 training - loss forces intra 1.81191796875 forces inter 0.0335595703125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_465 conf 557 training - loss forces intra 4.27552734375 forces inter 3.466971435546875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_34 conf 520 training - loss forces intra 2.597421875 forces inter 1.5222760009765626 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_207 conf 376 training - loss forces intra 3.3234658203125003 forces inter 2.9277802734375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_956 conf 454 training - loss forces intra 5.13248828125 forces inter 4.49674169921875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 761 training - loss forces intra 4.29304736328125 forces inter 3.8435354003906252 charge 177.67322063446045 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 46 training - loss forces intra 4.320720703125 forces inter 3.411024658203125 charge 177.60053873062134 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_635 conf 88 training - loss forces intra 2.760006103515625 forces inter 1.7320987548828126 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1021 conf 285 training - loss forces intra 0.907197265625 forces inter 0.06954678344726563 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_419 conf 2343 training - loss forces intra 2.64691162109375 forces inter 1.5062205810546876 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1163 training - loss forces intra 5.07756103515625 forces inter 4.14607373046875 charge 176.28647089004517 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 312 training - loss forces intra 4.55699755859375 forces inter 3.355205810546875 charge 176.50848627090454 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 65 training - loss forces intra 5.6077099609375 forces inter 5.427146484375 charge 178.89831066131592 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_791 conf 420 training - loss forces intra 2.692283935546875 forces inter 2.2975458984375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 988 training - loss forces intra 4.02470556640625 forces inter 3.589735107421875 charge 177.0807385444641 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_935 conf 418 training - loss forces intra 1.5892015380859374 forces inter 0.5369371948242188 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_508 conf 1610 training - loss forces intra 3.6559697265625 forces inter 3.45118603515625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1308 training - loss forces intra 4.6430297851562505 forces inter 3.7359851074218753 charge 177.2947072982788 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_210 conf 875 training - loss forces intra 7.9028115234375 forces inter 6.0261572265625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_349 conf 940 training - loss forces intra 4.0447497558593755 forces inter 3.65422998046875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_695 conf 699 training - loss forces intra 1.6368800048828125 forces inter 0.07592829132080078 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 571 training - loss forces intra 4.4044169921875005 forces inter 3.463631591796875 charge 178.35242748260498 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 674 training - loss forces intra 4.025558349609375 forces inter 3.48409765625 charge 176.1327624320984 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_226 conf 324 training - loss forces intra 3.5921513671875003 forces inter 2.8013671875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1567 conf 897 training - loss forces intra 3.647749267578125 forces inter 3.4334228515625003 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 812 training - loss forces intra 3.651458984375 forces inter 2.854979736328125 charge 175.28972625732422 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1506 conf 1294 training - loss forces intra 2.37114697265625 forces inter 1.34529052734375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 249 training - loss forces intra 5.04939892578125 forces inter 3.6851318359375003 charge 179.5198678970337 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1269 conf 1086 training - loss forces intra 1.0266748046875 forces inter 0.542122802734375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 486 training - loss forces intra 5.060251953125 forces inter 4.26555615234375 charge 177.18853950500488 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 537 training - loss forces intra 5.00519287109375 forces inter 4.13625830078125 charge 176.60017013549805 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_925 conf 1323 training - loss forces intra 2.39727001953125 forces inter 2.077625244140625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_80 conf 2197 training - loss forces intra 2.915295654296875 forces inter 2.53872998046875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1242 conf 613 training - loss forces intra 4.82066162109375 forces inter 3.8711408691406253 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1336 training - loss forces intra 5.10131787109375 forces inter 4.2804638671875 charge 176.58543586730957 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_355 conf 1693 training - loss forces intra 2.550673095703125 forces inter 1.872369140625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_120 conf 1388 training - loss forces intra 2.32669287109375 forces inter 1.64011865234375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 479 training - loss forces intra 4.32453564453125 forces inter 3.7893776855468753 charge 178.11989784240723 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1641 conf 261 training - loss forces intra 2.671756103515625 forces inter 1.85167724609375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_740 conf 1526 training - loss forces intra 2.99429150390625 forces inter 2.748199462890625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_749 conf 671 training - loss forces intra 2.212142822265625 forces inter 1.8815606689453126 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_198 conf 104 training - loss forces intra 1.5871556396484376 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1007 training - loss forces intra 4.79032861328125 forces inter 3.53781591796875 charge 179.60518598556519 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 6 training - loss forces intra 3.937546142578125 forces inter 3.3437041015625 charge 177.03005075454712 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1643 training - loss forces intra 4.46562353515625 forces inter 3.588823974609375 charge 177.67937183380127 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_477 conf 739 training - loss forces intra 3.555745361328125 forces inter 2.813512939453125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_155 conf 99 training - loss forces intra 3.74476513671875 forces inter 3.041072509765625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1082 conf 333 training - loss forces intra 3.5305234375 forces inter 2.60875537109375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1101 training - loss forces intra 4.21089599609375 forces inter 3.5299677734375 charge 177.10769176483154 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 614 training - loss forces intra 4.75948388671875 forces inter 4.173326171875 charge 177.46111154556274 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_23 conf 744 training - loss forces intra 0.368390625 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_506 conf 20 training - loss forces intra 3.5224833984375 forces inter 2.9847902832031252 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_659 conf 785 training - loss forces intra 3.3559375 forces inter 2.47350048828125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1517 conf 969 training - loss forces intra 2.561810546875 forces inter 1.7109741210937501 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_291 conf 211 training - loss forces intra 1.938009033203125 forces inter 1.0143414306640626 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1316 training - loss forces intra 4.71902880859375 forces inter 3.823435791015625 charge 176.46808624267578 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1637 conf 98 training - loss forces intra 2.9874189453125 forces inter 2.2855224609375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 915 training - loss forces intra 5.10299755859375 forces inter 4.0037802734375 charge 179.19753789901733 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1664 conf 1592 training - loss forces intra 1.5137576904296874 forces inter 0.3309816589355469 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1290 conf 1106 training - loss forces intra 3.1294240722656252 forces inter 3.027221435546875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_759 conf 1897 training - loss forces intra 4.46107666015625 forces inter 3.51372802734375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_626 conf 1771 training - loss forces intra 5.3516875 forces inter 4.3083823242187504 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 342 training - loss forces intra 5.37590966796875 forces inter 4.5738701171875 charge 179.31135892868042 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_921 conf 1657 training - loss forces intra 4.35523388671875 forces inter 3.907208740234375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_753 conf 1397 training - loss forces intra 1.8089361572265625 forces inter 0.15014326477050782 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_955 conf 892 training - loss forces intra 2.899111083984375 forces inter 2.332154296875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 618 training - loss forces intra 4.2262265625 forces inter 3.823059814453125 charge 176.65839195251465 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1162 conf 127 training - loss forces intra 1.50498828125 forces inter 1.0921583251953124 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1438 conf 879 training - loss forces intra 2.114727783203125 forces inter 1.8123328857421874 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 439 training - loss forces intra 4.947427734375 forces inter 4.2838378906250005 charge 178.94861698150635 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1538 conf 183 training - loss forces intra 2.2162177734375 forces inter 1.2760404052734375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1069 conf 809 training - loss forces intra 3.2450793457031253 forces inter 2.560284912109375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1186 training - loss forces intra 4.9938193359375 forces inter 3.72880078125 charge 176.62060260772705 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 883 training - loss forces intra 3.7156416015625 forces inter 3.140131591796875 charge 176.8151879310608 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 693 training - loss forces intra 4.4046259765625 forces inter 3.57359130859375 charge 175.9648323059082 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1233 training - loss forces intra 5.3190078125 forces inter 4.1066352539062505 charge 177.0017147064209 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1304 conf 991 training - loss forces intra 2.31052294921875 forces inter 2.0966044921875002 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_54 conf 994 training - loss forces intra 2.113091552734375 forces inter 1.4850568847656251 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 549 training - loss forces intra 4.5817109375000005 forces inter 3.64327978515625 charge 177.22058296203613 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_175 conf 240 training - loss forces intra 5.2451718750000005 forces inter 5.22677685546875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_208 conf 1383 training - loss forces intra 1.10701953125 forces inter 0.029725555419921876 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1444 conf 292 training - loss forces intra 3.259517822265625 forces inter 2.654897216796875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_503 conf 138 training - loss forces intra 2.51052294921875 forces inter 1.6025673828125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1294 conf 125 training - loss forces intra 1.2210589599609376 forces inter 0.03598115921020508 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1630 conf 1708 training - loss forces intra 1.0195816040039063 forces inter 0.045735824584960935 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_203 conf 1614 training - loss forces intra 1.1011048583984375 forces inter 0.32723953247070314 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_554 conf 1335 training - loss forces intra 1.64767919921875 forces inter 1.4516092529296876 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_179 conf 141 training - loss forces intra 4.009016845703125 forces inter 3.94160888671875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1357 training - loss forces intra 4.405423828125 forces inter 3.423746826171875 charge 176.36362314224243 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_670 conf 1392 training - loss forces intra 6.44627783203125 forces inter 5.76858837890625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1039 training - loss forces intra 4.2577407226562505 forces inter 3.777384033203125 charge 178.08220386505127 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_104 conf 1173 training - loss forces intra 2.453018798828125 forces inter 1.92845849609375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 763 training - loss forces intra 5.32574755859375 forces inter 4.086898681640625 charge 181.12692832946777 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 264 training - loss forces intra 4.9722578125000005 forces inter 3.791018310546875 charge 178.56645584106445 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1214 conf 428 training - loss forces intra 5.1860332031250005 forces inter 4.0409746093750005 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_628 conf 296 training - loss forces intra 5.27257958984375 forces inter 4.50283740234375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_314 conf 649 training - loss forces intra 5.3031552734375005 forces inter 4.5564755859375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1637 training - loss forces intra 5.3977080078125 forces inter 4.6607421875 charge 177.22023725509644 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_995 conf 399 training - loss forces intra 1.6481895751953126 forces inter 1.0347264404296874 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1956 training - loss forces intra 5.1340302734375 forces inter 4.220556640625 charge 177.98569202423096 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1140 conf 458 training - loss forces intra 1.3878218994140625 forces inter 0.31880917358398436 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_457 conf 2002 training - loss forces intra 2.183071044921875 forces inter 0.85171240234375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_14 conf 2139 training - loss forces intra 6.48025927734375 forces inter 5.5091826171875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_927 conf 1512 training - loss forces intra 0.8705634765625 forces inter 0.0 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1406 conf 42 training - loss forces intra 4.31056494140625 forces inter 3.49831982421875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 302 training - loss forces intra 3.8115576171875 forces inter 3.073630859375 charge 174.82256889343262 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1594 conf 45 training - loss forces intra 3.934766845703125 forces inter 3.503088623046875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1665 training - loss forces intra 5.3813828125 forces inter 4.26425439453125 charge 175.69663524627686 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1111 training - loss forces intra 5.0157001953125 forces inter 3.962931640625 charge 181.0654878616333 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1628 conf 704 training - loss forces intra 1.82787890625 forces inter 1.63080615234375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_131 conf 546 training - loss forces intra 2.6237880859375 forces inter 2.4283176269531253 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 257 training - loss forces intra 4.83348876953125 forces inter 4.00591455078125 charge 173.7597107887268 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1096 training - loss forces intra 5.1797265625 forces inter 4.13576123046875 charge 176.200532913208 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 499 training - loss forces intra 4.896119140625 forces inter 4.34104345703125 charge 178.66007089614868 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1814 training - loss forces intra 4.665462890625 forces inter 4.10198291015625 charge 179.00739908218384 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_156 conf 436 training - loss forces intra 2.942041259765625 forces inter 2.462500244140625 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_391 conf 1021 training - loss forces intra 4.29678857421875 forces inter 3.279088623046875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1308 conf 1028 training - loss forces intra 2.185738037109375 forces inter 1.6427559814453125 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+water conf 1359 training - loss forces intra 4.9135185546875 forces inter 4.12668212890625 charge 177.05214023590088 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_673 conf 1068 training - loss forces intra 3.0042666015625 forces inter 2.287959716796875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_35 conf 504 training - loss forces intra 4.00050439453125 forces inter 2.74474365234375 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875
+maceoff_water_1450 conf 662 training - loss forces intra 2.7345654296875 forces inter 2.30153466796875 charge 0.0 vdw params -0.0 torsion ks 0.0 regularisation 0.0275591357421875

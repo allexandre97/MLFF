@@ -2,8 +2,8 @@
 *.xml
 *.py
 *.sh
-cacolas*
 runs/
 .vscode
 mlff_env/
+logs/
 probas.jl
