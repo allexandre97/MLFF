@@ -77,7 +77,7 @@ function atom_feats_to_charges(
         charge_factors = [mol_charge_factor[mi] for mi in molecule_inds]
     end
 
-    return -charge_e_inv_s .+ charge_inv_s .* charge_factors
+    return T(-1)*(-charge_e_inv_s .+ charge_inv_s .* charge_factors)
 
 end
 

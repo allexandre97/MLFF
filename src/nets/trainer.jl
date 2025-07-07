@@ -208,9 +208,6 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
         training_sim_dir = joinpath(MODEL_PARAMS["paths"]["out_dir"],
                                     "training_sims", "epoch_$use_epoch")
         done_file        = joinpath(training_sim_dir, "done.txt")
-        # pick a representative trajectory file to double-check
-        dcd_file         = joinpath(training_sim_dir,
-                                    "vapourisation_liquid", "O_295K.dcd")
 
         # b) Wait (with timeout) for done.txt to appear
         poll_interval = 10.0                # seconds
@@ -223,7 +220,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
         end
 
         # c) Decide which data to use
-        if isfile(done_file) && isfile(dcd_file)
+        if isfile(done_file)
             time_wait_sims += time() - time_group
             simulation_str   = "used simulations from end of epoch $use_epoch"
         else
@@ -477,7 +474,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
         if training_sim_dir != "" && (MODEL_PARAMS["training"]["loss_weight_enth_vap"] > zero(T) || MODEL_PARAMS["training"]["loss_weight_enth_mixing"] > zero(T))
             cond_mol_indices = collect(batch_i:n_batches_train:length(COND_MOL_TRAIN))
             
-            @timeit TO "Condensed" #= Threads.@threads =# for chunk_id in 1:n_chunks
+            @timeit TO "Condensed" Threads.@threads for chunk_id in 1:n_chunks
                 for cond_inds_i in chunk_id:n_chunks:length(cond_mol_indices)
                     mol_i = cond_mol_indices[cond_inds_i]
                     mol_id, temp, frame_i, repeat_i = COND_MOL_TRAIN[mol_i]
