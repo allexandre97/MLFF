@@ -3,6 +3,7 @@
 Writes an OpenMM-compatible XML for the given system.
 """
 function write_openmm_xml(sys::Molly.System, filename::String)
+
     all_atoms = collect_atoms(sys)
     canonical_molecules = find_canonical_molecules(all_atoms, sys.topology.atom_molecule_inds)
     atomtypes_list = extract_unique_types(all_atoms)
@@ -62,7 +63,7 @@ function extract_unique_types(all_atoms)
     for atom in all_atoms
         if !(atom.type in seen)
             push!(seen, atom.type)
-            elem = replace(atom.name, r"\\d+" => "")
+            elem = replace(atom.name, r"\d+" => "")
             push!(types, (atom.type, elem, atom.mass))
         end
     end
@@ -127,7 +128,7 @@ function build_bond_forces(root, all_atoms, canon_mols, sys)
     bonds = sys.specific_inter_lists[1]
     pairs = zip(bonds.is, bonds.js, bonds.inters)
 
-    harm = ElementNode("HarmonicBondForce")
+    harm   = ElementNode("HarmonicBondForce")
     custom = ElementNode("CustomBondForce")
     has_harm, has_morse = false, false
     seen = Set{Tuple{String,String}}()
@@ -254,17 +255,21 @@ function build_nonbonded_force(root, atomtypes_list, unique_atoms)
     nb = ElementNode("NonbondedForce")
     link!(nb, AttributeNode("coulomb14scale", "0.833333"))
     link!(nb, AttributeNode("lj14scale", "0.5"))
-    link!(nb, ElementNode("UseAttributeFromResidue", AttributeNode("name", "charge")))
-    for typ in atomtypes_list
-        sigma = typ[2]  # placeholder: actual sigma lookup required
-        epsilon = typ[3]
-        atom = unique_atoms[typ[1]]
-        node = ElementNode("Atom")
-        link!(node, AttributeNode("type", typ[1]))
-        link!(node, AttributeNode("sigma", string(sigma)))
-        link!(node, AttributeNode("epsilon", string(epsilon)))
-        link!(nb, node)
+
+    # Properly create and attach the UseAttributeFromResidue node with its attribute
+    use_charge = ElementNode("UseAttributeFromResidue")
+    link!(use_charge, AttributeNode("name", "charge"))
+    link!(nb, use_charge)
+
+    for (typ, _, _) in atomtypes_list
+        atom = unique_atoms[typ]
+        nb_atom = ElementNode("Atom")
+        link!(nb_atom, AttributeNode("type", typ))
+        link!(nb_atom, AttributeNode("sigma", string(atom.σ)))
+        link!(nb_atom, AttributeNode("epsilon", string(atom.ϵ)))
+        link!(nb, nb_atom)
     end
+
     link!(root, nb)
 end
 
@@ -277,9 +282,6 @@ function unique_all_atoms(all_atoms)
     return dict
 end
 
-
-
-
 function features_to_ff_xml(out_fp::AbstractString, args...)
     open(out_fp, "w") do of
         features_to_ff_xml(of, args...)
@@ -288,17 +290,19 @@ end
 
 function features_to_xml(io, 
     mol_id::String,
-    training_sim_dir,
     frame_i,
     temp,
     feat_df::DataFrame,
     models...)
 
-    coords, boundary = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
+
+    cond_sim_dir = joinpath(DATASETS_PATH, "condensed_data", "trajs_gaff")
+
+    coords, boundary = read_sim_data(mol_id, cond_sim_dir, frame_i, temp)
     feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
 
-    sys, partial_charges, vdw_size, torsion_size, elements, mol_inds = mol_to_system(mol_id, feat_df, coords, boundary, models...)
+    sys, _, _, _, _, _ = mol_to_system(mol_id, feat_df, coords, boundary, models...)
 
-    return sys
+    write_openmm_xml(sys, io)
 
 end

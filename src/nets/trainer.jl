@@ -168,42 +168,91 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
     train_order_cond, val_order_cond = shuffle(COND_MOL_TRAIN), shuffle(COND_MOL_VAL)
     time_wait_sims, time_spice, time_cond = zero(T), zero(T), zero(T)
 
-    # Submits MD simulations given the FF prediction
-    if !iszero(MODEL_PARAMS["training"]["training_sims_first_epoch"]) && epoch_n >= (MODEL_PARAMS["training"]["training_sims_first_epoch"] - 1)
-        submit_dir  = joinpath(MODEL_PARAMS["paths"]["out_dir"], "training_sims", "epoch_$(epoch_n-1)")
-        log_path    = joinpath(MODEL_PARAMS["paths"]["out_dir"], "training_sims", "epoch_$(epoch_n-1).log")
-        ff_xml_path = joinpath(MODEL_PARAMS["paths"]["out_dir"], "ff_xml", "epoch_$(epoch_n-1).xml")
-        # feats_to_xml method call
-        # submit_sims method call
+    # shorthand for your config value
+    first_epoch = MODEL_PARAMS["training"]["training_sims_first_epoch"]
+
+    # ─── 1) Submit sims every epoch ≥ first_epoch ───────────────────────────
+    if !iszero(first_epoch) && epoch_n ≥ first_epoch
+        submit_epoch = epoch_n - 1
+        submit_dir   = joinpath(MODEL_PARAMS["paths"]["out_dir"],
+                                "training_sims", "epoch_$submit_epoch")
+        log_path     = joinpath(MODEL_PARAMS["paths"]["out_dir"],
+                                "training_sims", "epoch_$submit_epoch.log")
+        ff_xml_path  = joinpath(MODEL_PARAMS["paths"]["out_dir"],
+                                "ff_xml", "epoch_$submit_epoch.xml")
+
+        unique_mols = unique(val[1] for val in COND_MOL_TRAIN)
+        feats       = FEATURE_DATAFRAMES[3]
+
+        for mol in unique_mols
+            _ = features_to_xml(ff_xml_path, mol,
+                                141, 295, feats, models...)
+            run(`sbatch --partition=agpu --gres=gpu:1 --time=4:0:0 \
+                --output=$log_path --job-name=sim$epoch_n \
+                --wrap="/lmb/home/alexandrebg/miniconda3/envs/rdkit/bin/python \
+                        sim_training.py $submit_dir $ff_xml_path"`)
+        end
     end
 
-    #=
-    TODO: Is this the best way of keeping track of how simulations are running?? 
-    =#
-    if !iszero(MODEL_PARAMS["training"]["training_sims_first_epoch"]) && epoch_n >= MODEL_PARAMS["training"]["training_sims_first_epoch"]
-        if epoch_n >= (MODEL_PARAMS["training"]["training_sims_first_epoch"] + 1)
-            rm(joinpath(MODEL_PARAMS["paths"]["out_dir"], "epoch_$(epoch_n-3)"); recursive = true)
+    # ─── 2) Pick which simulations to use ─────────────────────────────────────────
+    if !iszero(first_epoch) && epoch_n > first_epoch
+        # a) Remove very-old folders once we’re safely past them
+        if epoch_n ≥ first_epoch + 2
+            old_epoch = epoch_n - 3
+            rm(joinpath(MODEL_PARAMS["paths"]["out_dir"],
+                        "training_sims", "epoch_$old_epoch");
+            recursive=true)
         end
-        training_sim_dir = joinpath(MODEL_PARAMS["paths"]["out_dir"], "training_sims", "epoch_$(epoch_n-2)")
-        training_sims_complete = false
-        time_group = time()
-        while !training_sims_complete
-            if isfile(joinpath(training_sim_dir, "done.txt"))
-                training_sims_complete = true
+
+        use_epoch       = epoch_n - 2
+        training_sim_dir = joinpath(MODEL_PARAMS["paths"]["out_dir"],
+                                    "training_sims", "epoch_$use_epoch")
+        done_file        = joinpath(training_sim_dir, "done.txt")
+        # pick a representative trajectory file to double-check
+        dcd_file         = joinpath(training_sim_dir,
+                                    "vapourisation_liquid", "O_295K.dcd")
+
+        # b) Wait (with timeout) for done.txt to appear
+        poll_interval = 10.0                # seconds
+        max_wait      = 100              
+        elapsed       = 0.0
+        time_group    = time()
+        while !isfile(done_file) && elapsed < max_wait
+            sleep(poll_interval)
+            elapsed += poll_interval
+        end
+
+        # c) Decide which data to use
+        if isfile(done_file) && isfile(dcd_file)
+            time_wait_sims += time() - time_group
+            simulation_str   = "used simulations from end of epoch $use_epoch"
+        else
+            if MODEL_PARAMS["training"]["use_gaff_simulations"]
+                gaff_dir = joinpath(DATASETS_PATH, "condensed_data/trajs_gaff")
+                gaff_dcd = joinpath(gaff_dir, "vapourisation_liquid", "O_295K.dcd")
+                if isfile(gaff_dcd)
+                    training_sim_dir = gaff_dir
+                    simulation_str   = "fallback to GAFF/TIP3P simulations"
+                else
+                    training_sim_dir = ""
+                    simulation_str   = "GAFF fallback requested but no GAFF sims found"
+                end
             else
-                sleep(10)
+                training_sim_dir = ""
+                simulation_str   = "no simulations available"
             end
         end
-        time_wait_sims += time() - time_group
-        simulation_str = "used simulations from end of epoch $(epoch_n-2)"
 
+    # ─── 3) Before any sims kick in, optionally use GAFF ────────────────────
     elseif MODEL_PARAMS["training"]["use_gaff_simulations"]
-        training_sim_dir = joinpath("/lmb/home/alexandrebg/Documents/QuarantineScripts/JG/typing/condensed_data", "trajs_gaff")
-        simulation_str = "used simulations from GAFF/TIP3P"
+        training_sim_dir = joinpath(DATASETS_PATH,
+                                    "condensed_data", "trajs_gaff")
+        simulation_str   = "used GAFF/TIP3P simulations (pre‐epoch $first_epoch)"
 
+    # ─── 4) Finally, nothing to run or fall back on ───────────────────────────────
     else
         training_sim_dir = ""
-        simulation_str = "did not use simulations"
+        simulation_str   = "did not use simulations"
     end
 
     #=
@@ -262,7 +311,6 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
     count_mix_val         = 0
 
     # TODO: Add these when the time comes
-    #count_confs_torsion_ks_train, count_confs_torsion_ks_val = 0, 0
     #count_confs_train_gems, count_confs_val_gems = 0, 0
     #count_confs_inter_train_gems, count_confs_inter_val_gems = 0, 0
     #count_confs_J_coupling_train, count_confs_J_coupling_val = 0, 0
@@ -916,7 +964,9 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
     #time_protein_perc   = Int(round(100 * Dates.Second(round(time_protein  )) / time_epoch; digits=0))
     time_epoch_str = round(time_epoch, Minute)
 
-    #report("Epoch $epoch_n - mean training loss forces intra $loss_mean_fs_intra_train $loss_mean_fs_intra_train_gems force inter $loss_mean_fs_inter_train $loss_mean_fs_inter_train_gems pe $loss_mean_pe_train charge $loss_mean_charges_train vdw params $loss_mean_vdw_params_train torsion ks $loss_mean_torsion_ks_train ΔHvap $loss_mean_enth_vap_train ΔHmix $loss_mean_enth_mixing_train J-coupling $loss_mean_J_coupling_train chem shift $loss_mean_chem_shift_train regularisation $loss_regularisation - mean validation loss forces intra $loss_mean_fs_intra_val $loss_mean_fs_intra_val_gems force inter $loss_mean_fs_inter_val $loss_mean_fs_inter_val_gems pe $loss_mean_pe_val charge $loss_mean_charges_val vdw params $loss_mean_vdw_params_val torsion ks $loss_mean_torsion_ks_val ΔHvap $loss_mean_enth_vap_val ΔHmix $loss_mean_enth_mixing_val J-coupling $loss_mean_J_coupling_val chem shift $loss_mean_chem_shift_val$progress_str - $simulation_str - $time_spice_perc% SPICE, $time_gems_perc% GEMS, $time_cond_perc% condensed, $time_protein_perc% J-coupling, $time_wait_sims_perc% sim waiting - took $time_epoch_str\n")
+    forces
+
+    report("Epoch $epoch_n - mean training loss forces intra $forces_intra_mean_loss_train force inter $forces_inter_mean_loss_train pe $potential_mean_loss_train charge $charges_mean_loss_train vdw params $vdw_mean_loss_train torsion ks $torsions_mean_loss_train ΔHvap $enth_vap_mean_loss_train ΔHmix $enth_mix_mean_loss_train - mean validation loss forces intra $forces_intra_mean_loss_val force inter $forces_inter_mean_loss_val pe $potential_mean_loss_val charge $charges_mean_loss_val vdw params $vdw_mean_loss_val torsion ks $torsions_mean_loss_val ΔHvap $enth_vap_mean_loss_val ΔHmix $enth_vap_mean_loss_val $progress_str - $simulation_str - $time_spice_perc% SPICE, $time_cond_perc% condensed, $time_wait_sims_perc% sim waiting - took $time_epoch_str\n")
 
     GC.gc()
 
@@ -934,19 +984,17 @@ end
 
 function train!(models, optims)
 
-    
-
     epochs_mean_fs_intra_train     , epochs_mean_fs_intra_val      = T[], T[]
     epochs_mean_fs_inter_train     , epochs_mean_fs_inter_val      = T[], T[]
     epochs_mean_pe_train           , epochs_mean_pe_val            = T[], T[]
     epochs_mean_charges_train      , epochs_mean_charges_val       = T[], T[]
     epochs_mean_vdw_params_train   , epochs_mean_vdw_params_val    = T[], T[]
     epochs_mean_torsion_ks_train   , epochs_mean_torsion_ks_val    = T[], T[]
-    epochs_mean_fs_intra_train_gems, epochs_mean_fs_intra_val_gems = T[], T[]
-    epochs_mean_fs_inter_train_gems, epochs_mean_fs_inter_val_gems = T[], T[]
+    #epochs_mean_fs_intra_train_gems, epochs_mean_fs_intra_val_gems = T[], T[]
+    #epochs_mean_fs_inter_train_gems, epochs_mean_fs_inter_val_gems = T[], T[]
     epochs_mean_enth_vap_train     , epochs_mean_enth_vap_val      = T[], T[]
     epochs_mean_enth_mixing_train  , epochs_mean_enth_mixing_val   = T[], T[]
-    epochs_mean_J_coupling_train   , epochs_mean_J_coupling_val    = T[], T[]
+    #epochs_mean_J_coupling_train   , epochs_mean_J_coupling_val    = T[], T[]
     epochs_loss_regularisation = T[]
 
     #=
@@ -979,34 +1027,36 @@ function train!(models, optims)
     out_dir = MODEL_PARAMS["paths"]["out_dir"]
 
     if !isnothing(out_dir) && isfile(joinpath(out_dir, "training.log"))
+        println("ABCD")
         for line in readlines(joinpath(out_dir, "training.log"))
             if startswith(line, "Epoch")
+                # TODO: This needs a good refactoring
                 cols = split(line)
                 push!(epochs_mean_fs_intra_train     , parse(T, cols[9 ]))
-                push!(epochs_mean_fs_inter_train     , parse(T, cols[13]))
-                push!(epochs_mean_pe_train           , parse(T, cols[16]))
-                push!(epochs_mean_charges_train      , parse(T, cols[18]))
-                push!(epochs_mean_vdw_params_train   , parse(T, cols[21]))
-                push!(epochs_mean_torsion_ks_train   , parse(T, cols[24]))
-                push!(epochs_mean_fs_intra_train_gems, parse(T, cols[10]))
-                push!(epochs_mean_fs_inter_train_gems, parse(T, cols[14]))
-                push!(epochs_mean_enth_vap_train     , parse(T, cols[26]))
-                push!(epochs_mean_enth_mixing_train  , parse(T, cols[28]))
-                push!(epochs_mean_J_coupling_train   , parse(T, cols[30]))
-                push!(epochs_mean_chem_shift_train   , parse(T, cols[33]))
-                push!(epochs_loss_regularisation     , parse(T, cols[35]))
-                push!(epochs_mean_fs_intra_val       , parse(T, cols[42]))
-                push!(epochs_mean_fs_inter_val       , parse(T, cols[46]))
-                push!(epochs_mean_pe_val             , parse(T, cols[49]))
-                push!(epochs_mean_charges_val        , parse(T, cols[51]))
-                push!(epochs_mean_vdw_params_val     , parse(T, cols[54]))
-                push!(epochs_mean_torsion_ks_val     , parse(T, cols[57]))
-                push!(epochs_mean_fs_intra_val_gems  , parse(T, cols[43]))
-                push!(epochs_mean_fs_inter_val_gems  , parse(T, cols[47]))
-                push!(epochs_mean_enth_vap_val       , parse(T, cols[59]))
-                push!(epochs_mean_enth_mixing_val    , parse(T, cols[61]))
-                push!(epochs_mean_J_coupling_val     , parse(T, cols[63]))
-                push!(epochs_mean_chem_shift_val     , parse(T, cols[66]))
+                push!(epochs_mean_fs_inter_train     , parse(T, cols[12]))
+                push!(epochs_mean_pe_train           , parse(T, cols[14]))
+                push!(epochs_mean_charges_train      , parse(T, cols[16]))
+                push!(epochs_mean_vdw_params_train   , parse(T, cols[19]))
+                push!(epochs_mean_torsion_ks_train   , parse(T, cols[22]))
+                #push!(epochs_mean_fs_intra_train_gems, parse(T, cols[10]))
+                #push!(epochs_mean_fs_inter_train_gems, parse(T, cols[14]))
+                push!(epochs_mean_enth_vap_train     , parse(T, cols[24]))
+                push!(epochs_mean_enth_mixing_train  , parse(T, cols[26]))
+                #push!(epochs_mean_J_coupling_train   , parse(T, cols[30]))
+                #push!(epochs_mean_chem_shift_train   , parse(T, cols[33]))
+                #push!(epochs_loss_regularisation     , parse(T, cols[28]))
+                push!(epochs_mean_fs_intra_val       , parse(T, cols[33]))
+                push!(epochs_mean_fs_inter_val       , parse(T, cols[36]))
+                push!(epochs_mean_pe_val             , parse(T, cols[38]))
+                push!(epochs_mean_charges_val        , parse(T, cols[40]))
+                push!(epochs_mean_vdw_params_val     , parse(T, cols[43]))
+                push!(epochs_mean_torsion_ks_val     , parse(T, cols[46]))
+                #push!(epochs_mean_fs_intra_val_gems  , parse(T, cols[43]))
+                #push!(epochs_mean_fs_inter_val_gems  , parse(T, cols[47]))
+                push!(epochs_mean_enth_vap_val       , parse(T, cols[48]))
+                push!(epochs_mean_enth_mixing_val    , parse(T, cols[50]))
+                #push!(epochs_mean_J_coupling_val     , parse(T, cols[63]))
+                #push!(epochs_mean_chem_shift_val     , parse(T, cols[66]))
             end
         end
         starting_epoch = length(epochs_mean_fs_intra_train) + 1
@@ -1021,19 +1071,18 @@ function train!(models, optims)
         report("Starting training on ", Threads.nthreads(), " thread(s)\n")
     end
 
-    # For now simplified logic, must improve and simmilarize to JG code!
     for epoch_n in starting_epoch:MODEL_PARAMS["training"]["n_epochs"]
         models, optims = train_epoch!(models, optims, epoch_n, 
-        conf_train, conf_val, conf_test,
-        epochs_mean_fs_inter_train, epochs_mean_fs_intra_val,
-        epochs_mean_fs_inter_train, epochs_mean_fs_inter_val,
-        epochs_mean_pe_train, epochs_mean_pe_val,
-        epochs_mean_charges_train, epochs_mean_charges_val,
-        epochs_mean_vdw_params_train, epochs_mean_vdw_params_val,
-        epochs_mean_torsion_ks_train, epochs_mean_torsion_ks_val,
-        epochs_mean_enth_vap_train, epochs_mean_enth_vap_val,
-        epochs_mean_enth_mixing_train, epochs_mean_enth_mixing_val,
-        epochs_loss_regularisation)
+                                      conf_train, conf_val, conf_test,
+                                      epochs_mean_fs_inter_train, epochs_mean_fs_intra_val,
+                                      epochs_mean_fs_inter_train, epochs_mean_fs_inter_val,
+                                      epochs_mean_pe_train, epochs_mean_pe_val,
+                                      epochs_mean_charges_train, epochs_mean_charges_val,
+                                      epochs_mean_vdw_params_train, epochs_mean_vdw_params_val,
+                                      epochs_mean_torsion_ks_train, epochs_mean_torsion_ks_val,
+                                      epochs_mean_enth_vap_train, epochs_mean_enth_vap_val,
+                                      epochs_mean_enth_mixing_train, epochs_mean_enth_mixing_val,
+                                      epochs_loss_regularisation)
     end
     return models, optims
 end

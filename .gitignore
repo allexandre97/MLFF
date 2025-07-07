@@ -1,5 +1,8 @@
 *.txt
 *.xml
+*.py
+*.sh
+cacolas*
 runs/
 .vscode
 mlff_env/

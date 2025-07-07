@@ -396,8 +396,6 @@ function mol_to_system(
                                                                           proper_features_model,
                                                                           improper_features_model)
 
-    println(bond_feats)
-
     partial_charges = atom_feats_to_charges(mol_id, n_atoms, n_mols, atom_feats, formal_charges, mol_inds)
 
     vdw_dict    = atom_feats_to_vdW(atom_feats)

@@ -1,5 +1,6 @@
 using ArgParse
 using JSON
+using EzXML
 
 using Flux
 using GraphNeuralNetworks
@@ -60,6 +61,7 @@ include("./src/io/forcefield.jl")
 
 include("./src/mol/molbuild.jl")
 include("./src/mol/graphs.jl")
+include("./src/mol/newtypes.jl")
 
 include("./src/nets/losses.jl")
 include("./src/nets/models.jl")
@@ -73,8 +75,8 @@ include("./src/physics/transformer.jl")
 ############### MAIN LOGIC ###############
 
 const global DATASETS_PATH::String = parsed_args["db"]
-const global MACEOFF_PATH::String  = "/lmb/home/alexandrebg/Documents/QuarantineScripts/JG/typing/data_kovacs2023/water"
-const global EXP_DATA_DIR::String  = "/lmb/home/alexandrebg/Documents/QuarantineScripts/JG/typing/condensed_data/exp_data"
+const global MACEOFF_PATH::String  = joinpath(DATASETS_PATH, "data_kovacs2023/water")
+const global EXP_DATA_DIR::String  = joinpath(DATASETS_PATH, "condensed_data/exp_data")
 const global HDF5_FILES = ("SPICE-2.0.1.hdf5",)
 
 const global SUBSET_N_REPEATS = Dict(
@@ -185,54 +187,11 @@ end
 
 models, optims = train!(models, optims)
 
-begin
+#= begin
     
     cond_feats = FEATURE_DATAFRAMES[3]
     mol_id = "vapourisation_liquid_O"
     training_sim_dir = joinpath("/lmb/home/alexandrebg/Documents/QuarantineScripts/JG/typing/condensed_data", "trajs_gaff")
-    sys = features_to_xml("dummy", mol_id, training_sim_dir, 141, 295, cond_feats, models...)
+    features_to_xml("dummy", mol_id, training_sim_dir, 141, 295, cond_feats, models...)
 
-end
-
-mutable struct BundledAtomData
-    name::String
-    type::String
-    resname::String
-    mass::Float32
-    charge::Float32
-    σ::Float32
-    ϵ::Float32
-end
-
-import Base: ==, hash
-
-function ==(a::BundledAtomData, b::BundledAtomData)
-    return a.name == b.name &&
-           a.type == b.type &&
-           a.resname == b.resname &&
-           a.mass == b.mass &&
-           a.charge == b.charge &&
-           a.σ == b.σ &&
-           a.ϵ == b.ϵ
-end
-
-function hash(a::BundledAtomData, h::UInt)
-    return hash((a.name, a.type, a.resname, a.mass, a.charge, a.σ, a.ϵ), h)
-end
-
-
-all_atoms = BundledAtomData[]
-
-for (atom, atom_data) in zip(sys.atoms, sys.atoms_data)
-    push!(all_atoms, BundledAtomData(
-        atom_data.atom_name,
-        atom_data.atom_type,
-        atom_data.res_name,
-        atom.mass,
-        atom.charge,
-        atom.σ,
-        atom.ϵ
-    ))
-end
-
-write_openmm_xml(sys, "forcefield.xml")
+end =#
