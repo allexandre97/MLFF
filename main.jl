@@ -176,7 +176,6 @@ const global save_every_epoch = true
 
 if !isnothing(out_dir) && !isdir(out_dir)
     mkdir(out_dir)
-    #cp("train.jl", joinpath(out_dir, "train.jl"))
     mkdir(joinpath(out_dir, "ff_xml"))
     mkdir(joinpath(out_dir, "training_sims"))
     if save_every_epoch
@@ -186,12 +185,3 @@ if !isnothing(out_dir) && !isdir(out_dir)
 end
 
 models, optims = train!(models, optims)
-
-#= begin
-    
-    cond_feats = FEATURE_DATAFRAMES[3]
-    mol_id = "vapourisation_liquid_O"
-    training_sim_dir = joinpath("/lmb/home/alexandrebg/Documents/QuarantineScripts/JG/typing/condensed_data", "trajs_gaff")
-    features_to_xml("dummy", mol_id, training_sim_dir, 141, 295, cond_feats, models...)
-
-end =#
