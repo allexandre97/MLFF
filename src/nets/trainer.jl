@@ -253,30 +253,49 @@ function make_chunk_containers(
 
 end
 
+function get_batch_indices(batch_i::Int, total_size::Int, batch_size::Int)
+    start_i = (batch_i - 1) * batch_size + 1
+    end_i   = min(start_i + batch_size - 1, total_size)
+    return start_i:end_i
+end
+
 function process_batch(
     batch_i::Int,
-    conf_train, train_order,
+    loss_keys,
+    conf_train,
+    train_order,
 )
+    total_pairs = length(train_order)
+    batch_size  = MODEL_PARAMS["training"]["n_minibatch"]
 
-    n_conf_pairs_train = length(train_order)
+    # compute batch range
+    batch_range = get_batch_indices(batch_i, total_pairs, batch_size)
+    start_i, end_i = first(batch_range), last(batch_range)
 
-    # Getting the indices for the first and last conformations of batch
-    start_i = (batch_i - 1) * MODEL_PARAMS["training"]["n_minibatch"] + 1
-    end_i   = min(start_i + MODEL_PARAMS["training"]["n_minibatch"] - 1, n_conf_pairs_train)
-
+    # re-init containers
     loss_chunks = make_chunk_containers(n_chunks, loss_keys)
-
-    #TODO: Add loss for J couplings
     grads_chunks = [convert(Vector{Any}, fill(nothing, length(models))) for _ in 1:n_chunks]
     print_chunks = fill("", n_chunks)
+
+    # read only this slice of conformations
     conf_data = read_conformation(conf_train, train_order, start_i, end_i)
 
-    process_SPICE(start_i, end_i)
+    # hand off to the chunked SPICE logic
+    process_SPICE(start_i, end_i, train_order, conf_train, conf_data, loss_chunks, loss_keys, print_chunks)
+
+    return grads_chunks, print_chunks
 
 end
 
 function process_SPICE(
-    start_i::Int, end_i::Int
+    start_i::Int, end_i::Int,
+    train_order,
+    conf_train, conf_data,
+
+    loss_keys,
+    loss_chunks,
+    print_chunks
+
 )
 
     time_group = time()
@@ -328,10 +347,10 @@ function process_SPICE(
                 end
 
                 loss_success = loss_update(chunk_id, 
-                                            loss_chunks,
-                                            loss_sum,
-                                            losses,
-                                            false)
+                                           loss_chunks,
+                                           loss_sum,
+                                           losses,
+                                           false)
                 
                 if !loss_success
                     return zero(T)
@@ -477,13 +496,6 @@ function train_epoch!(
     count_mix_train       = 0
     count_mix_val         = 0
 
-    # TODO: Add these when the time comes
-    #count_confs_train_gems, count_confs_val_gems = 0, 0
-    #count_confs_inter_train_gems, count_confs_inter_val_gems = 0, 0
-    #count_confs_J_coupling_train, count_confs_J_coupling_val = 0, 0
-    #loss_jc = zero(T)
-    #grads_jc = convert(Vector{Any}, fill(nothing, length(models)))
-
     global n_chunks = Threads.nthreads()
 
     if !isnothing(MODEL_PARAMS["paths"]["out_dir"])
@@ -505,306 +517,14 @@ function train_epoch!(
     Flux.trainmode!(models)
     for batch_i in 1:n_batches_train
 
-        process_batch(batch_i,
-                      conf_train, train_order)
-
-        continue
-        
-        # Getting the indices for the first and last conformations of batch
-        start_i = (batch_i - 1) * MODEL_PARAMS["training"]["n_minibatch"] + 1
-        end_i   = min(start_i + MODEL_PARAMS["training"]["n_minibatch"] - 1, n_conf_pairs_train)
-
-        loss_chunks = make_chunk_containers(n_chunks, loss_keys)
-
-        #TODO: Add loss for J couplings
-        grads_chunks = [convert(Vector{Any}, fill(nothing, length(models))) for _ in 1:n_chunks]
-        print_chunks = fill("", n_chunks)
-        conf_data = read_conformation(conf_train, train_order, start_i, end_i)
-
-        #=
-        Then we separate each batch into several chunks. Each chunk is worked
-        on in parallel threads. This loop does just that.
-        =#
-
-        time_group = time()
-        # The features for the SPICE dataset
-        @timeit TO "SPICE" Threads.@threads for chunk_id in 1:n_chunks
-            for i in (start_i - 1 + chunk_id):n_chunks:end_i
-
-                # Read Conformation indices
-                conf_i, conf_j, repeat_i = train_order[i]
-                mol_id = conf_train[conf_i,:mol_name]
-                
-                # Index dataframe for features
-                feat_df = occursin("maceoff", mol_id) ? FEATURE_DATAFRAMES[2] : FEATURE_DATAFRAMES[1]
-                feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
-
-                # Get the relevant conformation data
-                coords_i, forces_i, energy_i, 
-                charges_i, has_charges_i,
-                coords_j, forces_j, energy_j,
-                charges_j, has_charges_j,
-                exceeds_force, pair_present = conf_data[i - start_i + 1]
-
-                #TODO: Maybe it is a good idea to make logging modular
-                if MODEL_PARAMS["training"]["verbose"]
-                    print_chunks[chunk_id] *= "$mol_id conf $conf_i training - "
-                end
-                if exceeds_force
-                    if MODEL_PARAMS["training"]["verbose"]
-                        print_chunks[chunk_id] *= "max force exceeded! \n"
-                    end
-                    continue # We break out if the structure shows too much force
-                end
-
-                grads = Zygote.gradient(models...) do models...
-
-                    loss_sum = Dict(k => zero(T) for k in loss_keys)
-
-                    # Forward pass and feat prediction
-                    sys,
-                    forces, potential_i, charges,
-                    vdw_size, torsion_size,
-                    elements, mol_inds,
-                    losses = fwd_and_loss(mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
-
-                    if MODEL_PARAMS["training"]["verbose"]
-                        ignore_derivatives() do 
-                            print_chunks[chunk_id] *="loss forces intra $(losses[:forces_intra]) forces inter $(losses[:forces_inter]) charge $(losses[:charges]) vdw params $(losses[:vdw]) torsion ks $(losses[:torsions]) regularisation $(losses[:regularisation])\n"
-                        end
-                    end
-
-                    loss_success = loss_update(chunk_id, 
-                                               loss_chunks,
-                                               loss_sum,
-                                               losses,
-                                               false)
-                    
-                    if !loss_success
-                        return zero(T)
-                    end
-
-                    if pair_present
-
-                        # Forward pass and feat prediction
-                        sys,
-                        forces, potential_j, charges,
-                        vdw_size, torsion_size,
-                        elements, mol_inds,
-                        losses = fwd_and_loss(mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
-                        
-
-                        pe_diff     = potential_j - potential_i
-                        dft_pe_diff = energy_j - energy_i
-
-                        loss_success = loss_update(chunk_id,
-                                                   loss_chunks,
-                                                   loss_sum,
-                                                   losses,
-                                                   false, epoch_n, pe_diff, dft_pe_diff)
-
-                        if !loss_success
-                            return zero(T)
-                        end
-                    end
-
-                    return loss_sum[:forces_intra] * MODEL_PARAMS["training"]["train_on_forces_intra"] +
-                           loss_sum[:forces_inter] * MODEL_PARAMS["training"]["train_on_forces_inter"] +
-                           loss_sum[:potential]    * MODEL_PARAMS["training"]["train_on_pe"] +
-                           loss_sum[:charges]      * MODEL_PARAMS["training"]["train_on_charges"] +
-                           loss_sum[:vdw] + loss_sum[:torsions] + loss_sum[:regularisation] 
-                end
-
-                if check_no_nans(grads)
-                    grads_chunks[chunk_id] = accum_grads.(grads_chunks[chunk_id], grads)
-                end
-            end
-        end
-
-        MODEL_PARAMS["training"]["verbose"] && foreach(report, print_chunks)
-
-        print_chunks = fill("", n_chunks)
-        time_spice  += time() - time_group
-
-        time_group = time()
-
-        #=
-        TODO: Add functionality to train on GEMS dataset
-        =#
-
-        # Now train on condensed data
-        if training_sim_dir != "" && (MODEL_PARAMS["training"]["loss_weight_enth_vap"] > zero(T) || MODEL_PARAMS["training"]["loss_weight_enth_mixing"] > zero(T))
-            cond_mol_indices = collect(batch_i:n_batches_train:length(COND_MOL_TRAIN))
-            
-            @timeit TO "Condensed" #= Threads.@threads =# for chunk_id in 1:n_chunks
-                for cond_inds_i in chunk_id:n_chunks:length(cond_mol_indices)
-                    mol_i = cond_mol_indices[cond_inds_i]
-                    mol_id, temp, frame_i, repeat_i = COND_MOL_TRAIN[mol_i]
-
-                    feat_df = FEATURE_DATAFRAMES[3]
-                    feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
-                    
-                    if startswith(mol_id, "vapourisation_")
-                        train_on_weight = MODEL_PARAMS["training"]["train_on_enth_vap"]
-                        label = "ΔHvap"
-                        mol_id_gas = replace(mol_id, "vapourisation_liquid_" => "vapourisation_gas_")
-                        df_gas = FEATURE_DATAFRAMES[3]
-                        df_gas = df_gas[df_gas.MOLECULE .== mol_id_gas, :]
-
-                    else
-                        train_on_weight = MODEL_PARAMS["training"]["train_on_enth_mix"]
-                        label = "ΔHmix"
-                        _, _, smiles_1, smiles_2 = split_grad_safe(mol_id, "_")
-                        mol_id_1 = "mixing_single_$smiles_1"
-                        mol_id_2 = "mixing_single_$smiles_2"
-
-                        df_mix_1 = FEATURE_DATAFRAMES[3]
-                        df_mix_1 = df_mix_1[df_mix_1.MOLECULE .== mol_id_1, :]
-                        
-                        df_mix_2 = FEATURE_DATAFRAMES[3]
-                        df_mix_2 = df_mix_2[df_mix_2.MOLECULE .== mol_id_2, :]
-
-                    end
-
-                    if MODEL_PARAMS["training"]["verbose"]
-                        print_chunks[chunk_id] *= "$mol_id training -"
-                    end
-
-                    grads = Zygote.gradient(models...) do models...
-
-                        if label == "ΔHvap"
-
-                            coords, boundary = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
-                            
-                            _,
-                            _, potential, _,
-                            vdw_size, torsion_size, 
-                            _, mol_inds = mol_to_preds(mol_id, feat_df, coords, boundary, models...)
-
-                            mean_U_gas = calc_mean_U_gas(mol_id_gas, df_gas, training_sim_dir, temp, models...)
-
-                            cond_loss =  enth_vap_loss(potential, mean_U_gas, temp, frame_i, repeat_i, maximum(mol_inds), mol_id)
-
-                        else
-
-                            coords_1, boundary_1     = read_sim_data(mol_id_1, training_sim_dir, frame_i, temp)
-                            coords_2, boundary_2     = read_sim_data(mol_id_2, training_sim_dir, frame_i, temp)
-                            coords_com, boundary_com = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
-
-                            _,
-                            _, potential_1, _,
-                            vdw_size_1, torsion_size_1, 
-                            _, mol_inds_1 = mol_to_preds(mol_id_1, df_mix_1, coords_1, boundary_1, models...)
-
-                            _,
-                            _, potential_2, _,
-                            vdw_size_2, torsion_size_2, 
-                            _, mol_inds_2 = mol_to_preds(mol_id_2, df_mix_2, coords_2, boundary_2, models...)
-
-                            _,
-                            _, potential_com, _,
-                            vdw_size, torsion_size, 
-                            _, mol_inds_com = mol_to_preds(mol_id, feat_df, coords_com, boundary_com, models...)
-
-                            cond_loss = enth_mixing_loss(potential_com, potential_1, potential_2,
-                                                         boundary_com, boundary_1, boundary_2, 
-                                                         maximum(mol_inds_com), maximum(mol_inds_1), maximum(mol_inds_2),
-                                                         mol_id, frame_i, repeat_i)
-                        end
-
-                        vdw_loss      = vdw_params_loss(vdw_size)
-                        torsions_loss = torsion_ks_loss(torsion_size)
-                        reg_loss      = param_regularisation((models...,))
-
-                        if MODEL_PARAMS["training"]["verbose"]
-                            ignore_derivatives() do 
-                                print_chunks[chunk_id] *= "loss $label $cond_loss\n"
-                            end
-                        end
-
-                        if isnan(cond_loss) || isnan(vdw_loss) || isnan(torsions_loss) || isnan(reg_loss)
-                            return zero(T)
-                        else
-                            ignore_derivatives() do
-                                if startswith(mol_id, "vapourisation_")
-                                    push!(loss_chunks[:enth_vap][chunk_id], cond_loss)
-                                else
-                                    push!(loss_chunks[:enth_mix][chunk_id], cond_loss)
-                                end
-                                push!(loss_chunks[:vdw][chunk_id], vdw_loss)
-                                push!(loss_chunks[:torsions][chunk_id], torsions_loss)
-                            end
-                        end
-                        return cond_loss * train_on_weight + 
-                                vdw_loss + torsions_loss + reg_loss
-                    end
-                    if check_no_nans(grads)
-                        grads_chunks[chunk_id] =  accum_grads.(grads_chunks[chunk_id], grads)
-                    end
-                end
-            end
-            MODEL_PARAMS["training"]["verbose"] && foreach(report, print_chunks)
-        end
-
-        time_cond += time() - time_group
-
-        time_group = time()
-
-        #TODO: Add functionality for J-coupling data for proteins
-
-        @timeit TO "Gradients" begin
-            grads_minibatch = convert(Vector{Any}, fill(nothing, length(models)))
-            for chunk_id in 1:n_chunks
-                grads_minibatch = accum_grads.(grads_minibatch, grads_chunks[chunk_id])
-            end
-            grad_vals, restructure = Flux.destructure(grads_minibatch)
-            grads_clamp = restructure(clamp.(grad_vals, -MODEL_PARAMS["training"]["grad_clamp_val"], MODEL_PARAMS["training"]["grad_clamp_val"]))
-            for model_i in eachindex(models)
-                Flux.update!(optims[model_i], models[model_i], grads_clamp[model_i])
-            end
-        end
-
-        @timeit TO "Logging" begin
-            
-            log_forces_intra_loss = vcat(loss_chunks[:forces_intra]...)
-            log_forces_inter_loss = vcat(loss_chunks[:forces_inter]...)
-            log_potential_loss    = vcat(loss_chunks[:potential]...)
-            log_charges_loss      = vcat(loss_chunks[:charges]...)
-            log_vdw_loss          = vcat(loss_chunks[:vdw]...)
-            log_torsions_loss     = vcat(loss_chunks[:torsions]...)
-            log_enth_vap_loss     = vcat(loss_chunks[:enth_vap]...)
-            log_enth_mix_loss     = vcat(loss_chunks[:enth_mix]...)
-
-            if length(log_forces_intra_loss) > 0
-
-                forces_intra_sum_loss_train += sum(log_forces_intra_loss)
-                forces_inter_sum_loss_train += sum(log_forces_inter_loss)
-                potential_sum_loss_train    += sum(log_potential_loss)
-                charges_sum_loss_train      += sum(log_charges_loss)
-                vdw_sum_loss_train          += sum(log_vdw_loss)
-                torsions_sum_loss_train     += sum(log_torsions_loss)
-                enth_vap_sum_loss_train     += sum(log_enth_vap_loss)
-                enth_mix_sum_loss_train     += sum(log_enth_mix_loss)
-
-                count_train              += length(log_forces_intra_loss)
-                count_forces_intra_train += count(!iszero, log_forces_intra_loss)
-                count_forces_inter_train += count(!iszero, log_forces_inter_loss)
-                count_potential_train    += length(log_potential_loss)
-                count_charges_train      += count(!iszero, log_charges_loss)
-                count_torsions_train     += length(log_torsions_loss)
-                count_vap_train          += length(log_enth_vap_loss)
-                count_vap_train          += length(log_enth_mix_loss)
-            end
-        end
+        # delegate all work (incl. reading, chunking, grads, logging)
+        grads_chunks, print_chunks = process_batch(batch_i, loss_keys, conf_train, train_order)
     end
 
     Flux.testmode!(models)
     for batch_i in 1:n_batches_val
         
-        # TODO: This following piece of code is the same as for train mode, put into function
-        # Getting the indices for the first and last conformations of batch
-        start_i = (batch_i - 1) * MODEL_PARAMS["training"]["n_minibatch"] + 1
-        end_i   = min(start_i + MODEL_PARAMS["training"]["n_minibatch"] - 1, n_conf_pairs_val)
+        start_i, end_i = get_batch_indices(batch_i, n_conf_pairs_val, MODEL_PARAMS["training"]["n_minibatch"])
 
         # Initialize vectors to store the losses of each chunk in parallel
         loss_chunks = make_chunk_containers(n_chunks, loss_keys)

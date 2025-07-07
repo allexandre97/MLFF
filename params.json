@@ -20,7 +20,7 @@
         "n_minibatch":256,
 
         "loss_weight_force":1e-3,
-        "loss_weight_force_inter":20.0,
+        "loss_weight_force_inter":20.0, 
         "loss_weight_energy":1e-2,
         "loss_weight_energy_factor":200,
         "loss_weight_charge":100.0,
