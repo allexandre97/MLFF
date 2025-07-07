@@ -208,14 +208,19 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
         training_sim_dir = joinpath(MODEL_PARAMS["paths"]["out_dir"],
                                     "training_sims", "epoch_$use_epoch")
         done_file        = joinpath(training_sim_dir, "done.txt")
+        error_file        = joinpath(training_sim_dir, "error.txt")
 
         # b) Wait (with timeout) for done.txt to appear
         poll_interval = 10.0                # seconds
         max_wait      = 100              
         elapsed       = 0.0
         time_group    = time()
+        
         while !isfile(done_file) && elapsed < max_wait
             sleep(poll_interval)
+            if isfile(error_file)
+                break
+            end
             elapsed += poll_interval
         end
 
@@ -367,6 +372,9 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                 coords_j, forces_j, energy_j,
                 charges_j, has_charges_j,
                 exceeds_force, pair_present = conf_data[i - start_i + 1]
+
+                occursin("maceoff", mol_id) ? "" : println(charges_i)
+
 
                 #TODO: Maybe it is a good idea to make logging modular
                 if MODEL_PARAMS["training"]["verbose"]
