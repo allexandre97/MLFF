@@ -186,12 +186,3 @@ if !isnothing(out_dir) && !isdir(out_dir)
 end
 
 models, optims = train!(models, optims)
-
-#= begin
-    
-    cond_feats = FEATURE_DATAFRAMES[3]
-    mol_id = "vapourisation_liquid_O"
-    training_sim_dir = joinpath("/lmb/home/alexandrebg/Documents/QuarantineScripts/JG/typing/condensed_data", "trajs_gaff")
-    features_to_xml("dummy", mol_id, training_sim_dir, 141, 295, cond_feats, models...)
-
-end =#

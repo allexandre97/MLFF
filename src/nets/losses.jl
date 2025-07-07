@@ -1,5 +1,5 @@
 abs2_vec(x) = abs2.(x)
-force_loss(fs, dft_fs)            = MODEL_PARAMS["training"]["loss_weight_force"] * mean(sqrt.(sum.(abs2_vec.(fs .- dft_fs))))
+force_loss(fs, dft_fs)            = MODEL_PARAMS["training"]["loss_weight_force"]  * mean(sqrt.(sum.(abs2_vec.(fs .- dft_fs))))
 charge_loss(charges, dft_charges) = MODEL_PARAMS["training"]["loss_weight_charge"] * mean(abs2.(charges .- dft_charges))
 vdw_params_loss(vdw_params_size)  = MODEL_PARAMS["training"]["loss_weight_vdw_params"] * -vdw_params_size
 torsion_ks_loss(torsion_ks_size)  = MODEL_PARAMS["training"]["loss_weight_torsion_ks"] * torsion_ks_size

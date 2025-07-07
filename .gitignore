@@ -6,5 +6,6 @@ runs/
 .vscode
 mlff_env/
 cacolas/
+probas/
 logs/
 probas.jl
