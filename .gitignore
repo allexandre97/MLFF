@@ -2,6 +2,7 @@
 *.xml
 *.py
 *.sh
+*.bson
 runs/
 .vscode
 mlff_env/

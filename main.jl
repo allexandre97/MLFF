@@ -170,7 +170,10 @@ const global COND_MOL_TRAIN = COND_MOLECULES[(MODEL_PARAMS["training"]["n_frames
 # Molly Constants. TODO: How can I pack these in a json?
 const global boundary_inf = CubicBoundary(T(Inf))
 
-models, optims     = build_models()
+#models, optims     = build_models()
+
+BSON.@load "init_models.bson" models
+BSON.@load "init_optims.bson" optims
 
 @non_differentiable Molly.find_neighbors(args...)
 
@@ -188,4 +191,20 @@ if !isnothing(out_dir) && !isdir(out_dir)
     end
 end
 
-models, optims = train!(models, optims)
+#models, optims = train!(models, optims)
+
+begin
+
+    mol_id = "water"
+    
+    feat_df = FEATURE_DATAFRAMES[1]
+    feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
+
+    coords_i, forces_i, energy_i,
+    charges_i, has_charges_i,
+    coords_j, forces_j, energy_j,
+    charges_j, has_charges_j = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)[1]
+
+    sys, charges, vdw, torsions, elements, mol_inds = mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
+
+end

@@ -16,30 +16,6 @@ end
 
 Flux.@non_differentiable build_adj_list(mol_row::DataFrame)
 
-#= function connected_components(adjacency)
-    visited = falses(length(adjacency))
-    components = []
-
-    for i in 1:length(adjacency)
-        if !visited[i]
-            queue = [i]
-            component = Int[]
-            while !isempty(queue)
-                node = popfirst!(queue)
-                if !visited[node]
-                    visited[node] = true
-                    push!(component, node)
-                    append!(queue, setdiff(adjacency[node], component))
-                end
-            end
-            push!(components, sort(component))
-        end
-    end
-    return components
-end =#
-
-#= Flux.@non_differentiable connected_components(args...) =#
-
 function mol_to_preds(
     mol_id::String,
     args...
@@ -311,9 +287,8 @@ function mol_to_system(
 
     masses = [NAME_TO_MASS[ELEMENT_TO_NAME[e]] for e in elements]
 
-    # The total number of molecules in a conformation
-    n_mols    = maximum(mol_inds)
-    n_repeats = (startswith(mol_id, "mixing_combined_") ? (n_mols ÷ 2) : n_mols)
+    n_mols = maximum(mol_inds)
+    n_repeats = startswith(mol_id, "mixing_combined_") ? n_mols ÷ 2 : n_mols
 
     if any(startswith.(mol_id, ("vapourisation_", "mixing_")))
 
@@ -350,94 +325,102 @@ function mol_to_system(
         n_impropers_rep = length(impropers_i)
     end
 
+
+    labels_templates::Vector{Vector{String}} = []
+    mol_type   = Vector{Int}(undef, length(elements))
+    atom_types = Vector{String}(undef, length(elements))
+    atom_names = Vector{String}(undef, length(elements))
     
-    atom_types = String[]
-    atom_names = String[]
     ignore_derivatives() do
-        # We build a graph for the whole system
-        global_graph = build_global_graph(length(elements), [(Int(i),Int(j)) for (i, j) in zip(bonds_i, bonds_j)])
-        # We split it in subgraphs where each one represents a given molecule
+        global_graph = build_global_graph(length(elements), [(Int(i), Int(j)) for (i, j) in zip(bonds_i, bonds_j)])
         all_graphs, all_indices = extract_all_subgraphs(global_graph)
-        # We find unique molecule types
         unique_graphs, unique_indices, counts = filter_unique(all_graphs, all_indices)
-        # for each type: find equivs, then label
-        for (t, (g, vs)) in enumerate(zip(unique_graphs, unique_indices))
-            equivs = find_atom_equivalences(g, vs, elements)
-            labels = label_molecule(vs, equivs, elements)
-            names  = atom_names_from_elements(elements[vs], ELEMENT_TO_NAME)
-            labels = repeat(["$(mol_names[t])_"*label for label in labels], counts[t])
-            names  = repeat(names, counts[t])
-            push!(atom_types, labels...)
-            push!(atom_names, names...)
+    
+        for (t, (g, vs_template)) in enumerate(zip(unique_graphs, unique_indices))
+            equivs_template = find_atom_equivalences(g, vs_template, elements)
+            labels_template = label_molecule(vs_template, equivs_template, elements)
+            names_template  = atom_names_from_elements(elements[vs_template], ELEMENT_TO_NAME)
+            
+            labels_template = ["$(mol_names[t])_" * l for l in labels_template]
+            push!(labels_templates, labels_template)
+
+            # For each actual instance of this molecule type, assign the labels/names
+            n_done = 0
+            for (g2, vs_instance) in zip(all_graphs, all_indices)
+                if has_isomorph(g, g2, VF2())
+                    for (local_i, global_i) in enumerate(vs_instance)
+                        atom_types[global_i] = labels_template[local_i]
+                        atom_names[global_i] = names_template[local_i]
+                        mol_type[global_i]   = t
+                    end
+                    n_done += 1
+                    if n_done == counts[t]
+                        break
+                    end
+                end
+            end
         end
     end
 
-    atom_feats, atom_embeds = calc_embeddings(mol_id, adj_list, atom_features,
-                                              atom_embedding_model, atom_features_model, n_atoms, n_repeats)
-    
-    bond_pool, angle_pool, proper_pool, improper_pool = embed_to_pool(atom_embeds,
-                                                                      bonds_i[1:n_bonds_rep], bonds_j[1:n_bonds_rep],
-                                                                      angles_i[1:n_angles_rep], angles_j[1:n_angles_rep], angles_k[1:n_angles_rep],
-                                                                      propers_i[1:n_propers_rep], propers_j[1:n_propers_rep], propers_k[1:n_propers_rep], propers_l[1:n_propers_rep],
-                                                                      impropers_i[1:n_impropers_rep], impropers_j[1:n_impropers_rep], impropers_k[1:n_impropers_rep], impropers_l[1:n_impropers_rep],
-                                                                      bond_pooling_model, 
-                                                                      angle_pooling_model, 
-                                                                      proper_pooling_model, 
-                                                                      improper_pooling_model)
+    label_index = Vector{Int}(undef, n_atoms)
+    for (i, (type, mid)) in enumerate(zip(atom_types, mol_type))
+        label_index[i] = findfirst(x->x==type, labels_templates[mid])
+    end
 
-    bond_feats, angle_feats, proper_feats, improper_feats = pool_to_feats(mol_id,
-                                                                          n_repeats,
-                                                                          bond_pool,
-                                                                          angle_pool,
-                                                                          proper_pool,
-                                                                          improper_pool,
-                                                                          bond_features_model,
-                                                                          angle_features_model,
-                                                                          proper_features_model,
-                                                                          improper_features_model)
+    unique_label_bonds::Vector{Tuple{Int, Int}} = []
+    for (bi, bj) in zip(bonds_i, bonds_j)
+        push!(unique_label_bonds, (label_index[bi], label_index[bj]))
+    end
+
+    unique_label_angles::Vector{Tuple{Int, Int, Int}} = []
+    for (ai, aj, ak) in zip(angles_i, angles_j, angles_k)
+        push!(unique_label_angles, (label_index[ai], label_index[aj], label_index[ak]))
+    end
+
+    unique_bonds = []
+    for bond in unique(unique_label_bonds)
+        idx = findfirst(x->x==bond, unique_label_bonds)
+        push!(unique_bonds, (bonds_i[idx], bonds_j[idx]))
+    end
+
+    println(unique_bonds)
+
+    atom_feats, atom_embeds = calc_embeddings(
+        mol_id, adj_list, atom_features,
+        atom_embedding_model, atom_features_model,
+        n_atoms, n_repeats)
+
+    bond_pool, angle_pool, proper_pool, improper_pool = embed_to_pool(atom_embeds,
+        bonds_i[1:n_bonds_rep], bonds_j[1:n_bonds_rep],
+        angles_i[1:n_angles_rep], angles_j[1:n_angles_rep], angles_k[1:n_angles_rep],
+        propers_i[1:n_propers_rep], propers_j[1:n_propers_rep], propers_k[1:n_propers_rep], propers_l[1:n_propers_rep],
+        impropers_i[1:n_impropers_rep], impropers_j[1:n_impropers_rep], impropers_k[1:n_impropers_rep], impropers_l[1:n_impropers_rep],
+        bond_pooling_model, angle_pooling_model, proper_pooling_model, improper_pooling_model)
+
+    bond_feats, angle_feats, proper_feats, improper_feats = pool_to_feats(
+        mol_id, n_repeats, bond_pool, angle_pool, proper_pool, improper_pool,
+        bond_features_model, angle_features_model, proper_features_model, improper_features_model
+    )
 
     partial_charges = atom_feats_to_charges(mol_id, n_atoms, n_mols, atom_feats, formal_charges, mol_inds)
-
-    vdw_dict    = atom_feats_to_vdW(atom_feats)
-    bonds_dict  = feats_to_bonds(bond_feats)
+    vdw_dict = atom_feats_to_vdW(atom_feats)
+    bonds_dict = feats_to_bonds(bond_feats)
     angles_dict = feats_to_angles(angle_feats)
 
     torsion_ks_size = zero(T)
-    if length(proper_feats) > 0
-        torsion_ks_size += mean(abs, proper_feats)
-    end
-    if length(improper_feats) > 0
-        torsion_ks_size += mean(abs, improper_feats)
-    end
+    torsion_ks_size += !isempty(proper_feats)   ? mean(abs, proper_feats)   : zero(T)
+    torsion_ks_size += !isempty(improper_feats) ? mean(abs, improper_feats) : zero(T)
 
-    # Why is this padding needed?
-    proper_feats_pad   = cat(proper_feats, zeros(T, 6 - n_proper_terms, length(propers_i)); dims = 1)
-    improper_feats_pad = cat(improper_feats, zeros(T, 6 - n_improper_terms, length(impropers_i)); dims = 1)
+    proper_feats_pad   = cat(proper_feats,   zeros(T, 6 - n_proper_terms,   length(propers_i));   dims=1)
+    improper_feats_pad = cat(improper_feats, zeros(T, 6 - n_improper_terms, length(impropers_i)); dims=1)
 
-    molly_sys = build_sys(mol_id,
-                          masses,
-                          atom_types,
-                          atom_names,
-                          mol_inds,
-                          coords,
-                          boundary,
-                          partial_charges,
-                          vdw_dict,
-                          bonds_dict, 
-                          angles_dict, 
+    molly_sys = build_sys(mol_id, masses, atom_types, atom_names, mol_inds, coords, boundary,
+                          partial_charges, vdw_dict, bonds_dict, angles_dict,
                           bonds_i, bonds_j,
                           angles_i, angles_j, angles_k,
                           proper_feats_pad, improper_feats_pad,
                           propers_i, propers_j, propers_k, propers_l,
                           impropers_i, impropers_j, impropers_k, impropers_l)
 
-    return (
-        molly_sys,
-        partial_charges, 
-        vdw_dict["params_size"],
-        torsion_ks_size,
-        elements,
-        mol_inds
-    )
-
+    return molly_sys, partial_charges, vdw_dict["params_size"], torsion_ks_size, elements, mol_inds
 end
