@@ -41,6 +41,10 @@ function parse_commandline()::Dict{String, Any}
             help    = "Path to where datasets are found"
             default = "/lmb/home/alexandrebg/Documents/QuarantineScripts/JG/typing"
             arg_type = String
+        "--json"
+            help    = "Path to where the hyperparam json file is found"
+            default = "./params.json"
+            arg_type = String
     end
 
     return parse_args(s)
@@ -50,7 +54,7 @@ end
 const T = Float32
 
 parsed_args::Dict{String, Any} = parse_commandline() # Read args from cli
-const global MODEL_PARAMS::Dict = JSON.parsefile("params.json") # Read model parameters from JSON file
+const global MODEL_PARAMS::Dict = JSON.parsefile(parsed_args["json"]) # Read model parameters from JSON file
 
 include("./src/io/conformations.jl")
 include("./src/io/fileio.jl")

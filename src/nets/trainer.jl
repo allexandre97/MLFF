@@ -216,7 +216,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
         elapsed       = 0.0
         time_group    = time()
         
-        while !isfile(done_file) && elapsed < max_wait
+        while !isfile(done_file) #&& elapsed < max_wait
             sleep(poll_interval)
             if isfile(error_file)
                 break
@@ -1026,7 +1026,7 @@ function train!(models, optims)
     vt_dataset_ids = 1:size(conf_val_test)[1]
     val_ids, test_ids = split_vector(vt_dataset_ids, 0.5)
 
-    conf_val = conf_val_test[val_ids,:]
+    conf_val  = conf_val_test[val_ids,:]
     conf_test = conf_val_test[test_ids,:]
 
     out_dir = MODEL_PARAMS["paths"]["out_dir"]
@@ -1079,8 +1079,8 @@ function train!(models, optims)
     for epoch_n in starting_epoch:MODEL_PARAMS["training"]["n_epochs"]
         models, optims = train_epoch!(models, optims, epoch_n, 
                                       conf_train, conf_val, conf_test,
-                                      epochs_mean_fs_intra_train, epochs_mean_fs_intra_val,
-                                      epochs_mean_fs_inter_train, epochs_mean_fs_inter_val,
+                                      epochs_mean_fs_inter_train, epochs_mean_fs_intra_val,
+                                      epochs_mean_fs_intra_train, epochs_mean_fs_inter_val,
                                       epochs_mean_pe_train, epochs_mean_pe_val,
                                       epochs_mean_charges_train, epochs_mean_charges_val,
                                       epochs_mean_vdw_params_train, epochs_mean_vdw_params_val,
