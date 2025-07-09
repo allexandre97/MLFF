@@ -65,7 +65,7 @@
 
     "physics":{
 
-        "vdw_functional_form":"dexp",
+        "vdw_functional_form":"lj",
         "mixing_function":"lb",
         "dist_nb_cutoff":1.0,
         "bond_functional_form":"harmonic",

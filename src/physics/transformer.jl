@@ -49,37 +49,15 @@ function ChainRulesCore.rrule(::typeof(multi_mol_charge_factors), charge_e_inv_s
     return Y, multi_mol_charge_factors_pullback
 end
 
-function atom_feats_to_charges(
-    mol_id::String,
-    n_atoms::Int,
-    n_molecules::Int,
-    atom_features,
-    formal_charges,
-    molecule_inds
-)
+function atom_feats_to_charges(atom_feats::Matrix{T}, formal_charges::Vector{Int}) where T
+    e       = atom_feats[1, :]
+    inv_s   = inv.(atom_feats[2, :])
+    e_over_s = e .* inv_s
 
-    charge_e = atom_features[1, :]
-    charge_inv_s = inv.(atom_features[2, :])
-    charge_e_inv_s = charge_e .* charge_inv_s
-
-    if any(startswith.(mol_id, ("vapourisation_", "mixing_")))
-        n_atoms_mol = n_atoms ÷ n_molecules
-        charge_factor = (sum(formal_charges[1:n_atoms_mol]) + sum(charge_e_inv_s[1:n_atoms_mol])) /
-                         sum(charge_inv_s[1:n_atoms_mol])
-        charge_factors = fill(charge_factor, n_atoms)
-    elseif n_molecules == 1
-        charge_factor = (sum(formal_charges) + sum(charge_e_inv_s)) / sum(charge_inv_s)
-        charge_factors = fill(charge_factor, n_atoms)
-    else
-        mol_charge_factor = multi_mol_charge_factors(charge_e_inv_s, charge_inv_s,
-                                                     formal_charges, molecule_inds,
-                                                     n_molecules)
-        charge_factors = [mol_charge_factor[mi] for mi in molecule_inds]
-    end
-
-    return T(-1)*(-charge_e_inv_s .+ charge_inv_s .* charge_factors)
-
+    charge_factor = (sum(formal_charges) + sum(e_over_s)) / sum(inv_s)
+    return -e_over_s .+ inv_s .* charge_factor
 end
+
 
 function atom_feats_to_vdW(
     atom_features

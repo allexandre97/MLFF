@@ -201,33 +201,16 @@ function build_models()
 end
 
 function calc_embeddings(
-    mol_id::String,
-    adj_list::Vector{Vector{Int64}},
-    atom_feats::Matrix{T},
+    adj_list::Vector{Vector{Int}},
+    atom_features::Matrix{T},
     atom_embedding_model::GNNChain,
     atom_features_model::Chain,
-    n_atoms::Int, n_repeats::Int
-)
-
-    if any(startswith.(mol_id, ("vapourisation_", "mixing_"))) # Condensed phase
-
-        n_atoms_rep = n_atoms ÷ n_repeats
-        molecule_graph = GNNGraph(adj_list[1:n_atoms_rep])
-        atom_embeddings = atom_embedding_model(molecule_graph, atom_feats[:, 1:n_atoms_rep])
-        atom_features = repeat(atom_features_model(atom_embeddings), 1, n_repeats)
-
-    elseif startswith(mol_id, "protein") # Unused for now
-    
-    else
-
-        mol_graph       = GNNGraph(adj_list)
-        atom_embeddings = atom_embedding_model(mol_graph, atom_feats)
-        atom_features   = atom_features_model(atom_embeddings)
-
-    end
-
-    return atom_features, atom_embeddings
-
+) where T
+    gnn_input = atom_features
+    graph = GNNGraph(adj_list)
+    atom_embeddings = atom_embedding_model(graph, gnn_input)
+    atom_feats = atom_features_model(atom_embeddings)
+    return atom_feats, atom_embeddings
 end
 
 function embed_to_pool(

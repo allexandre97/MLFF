@@ -205,6 +205,7 @@ begin
     coords_j, forces_j, energy_j,
     charges_j, has_charges_j = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)[1]
 
-    sys, charges, vdw, torsions, elements, mol_inds = mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
-
+    mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
+    println()
+    
 end

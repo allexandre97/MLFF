@@ -276,151 +276,491 @@ function mol_to_system(
     improper_features_model::Chain
 )
 
-    # Read the relevant features and store them in vectors
-    
     elements, formal_charges,
     bonds_i, bonds_j,
     angles_i, angles_j, angles_k,
     propers_i, propers_j, propers_k, propers_l,
     impropers_i, impropers_j, impropers_k, impropers_l,
-    mol_inds, adj_list, n_atoms, atom_features = decode_feats(feat_df)
+    mol_inds, _, n_atoms, atom_features = decode_feats(feat_df)
 
     masses = [NAME_TO_MASS[ELEMENT_TO_NAME[e]] for e in elements]
 
-    n_mols = maximum(mol_inds)
-    n_repeats = startswith(mol_id, "mixing_combined_") ? n_mols ÷ 2 : n_mols
-
-    if any(startswith.(mol_id, ("vapourisation_", "mixing_")))
-
-        ignore_derivatives() do
-            if startswith(mol_id, "vapourisation")
-                name = split(mol_id, "_")[end]
-                if name == "O"
-                    mol_names = ["water"]
-                else
-                    mol_names = [name]
-                end
-            else
-                _, _, smiles = split(mol_id, "_"; limit = 3)
-                names = split(smiles, "_")
-                mol_names = [name != "water" ? name : "water" for name in names]
-            end
-        end
-
-        n_elements_rep  = length(elements   ) ÷ n_repeats
-        n_bonds_rep     = length(bonds_i    ) ÷ n_repeats
-        n_angles_rep    = length(angles_i   ) ÷ n_repeats
-        n_propers_rep   = length(propers_i  ) ÷ n_repeats
-        n_impropers_rep = length(impropers_i) ÷ n_repeats
-    else
-
-        if occursin("water", mol_id)
-            mol_names = ["water"]
-        end
-
-        n_elements_rep  = length(elements   )
-        n_bonds_rep     = length(bonds_i    )
-        n_angles_rep    = length(angles_i   )
-        n_propers_rep   = length(propers_i  )
-        n_impropers_rep = length(impropers_i)
-    end
-
-
-    labels_templates::Vector{Vector{String}} = []
-    mol_type   = Vector{Int}(undef, length(elements))
     atom_types = Vector{String}(undef, length(elements))
     atom_names = Vector{String}(undef, length(elements))
-    
-    ignore_derivatives() do
-        global_graph = build_global_graph(length(elements), [(Int(i), Int(j)) for (i, j) in zip(bonds_i, bonds_j)])
-        all_graphs, all_indices = extract_all_subgraphs(global_graph)
-        unique_graphs, unique_indices, counts = filter_unique(all_graphs, all_indices)
-    
-        for (t, (g, vs_template)) in enumerate(zip(unique_graphs, unique_indices))
-            equivs_template = find_atom_equivalences(g, vs_template, elements)
-            labels_template = label_molecule(vs_template, equivs_template, elements)
-            names_template  = atom_names_from_elements(elements[vs_template], ELEMENT_TO_NAME)
-            
-            labels_template = ["$(mol_names[t])_" * l for l in labels_template]
-            push!(labels_templates, labels_template)
 
-            # For each actual instance of this molecule type, assign the labels/names
-            n_done = 0
-            for (g2, vs_instance) in zip(all_graphs, all_indices)
-                if has_isomorph(g, g2, VF2())
-                    for (local_i, global_i) in enumerate(vs_instance)
-                        atom_types[global_i] = labels_template[local_i]
-                        atom_names[global_i] = names_template[local_i]
-                        mol_type[global_i]   = t
+    feat_dim = 0
+    embed_dim = 0
+    atom_feats = nothing
+    atom_embeds = nothing
+
+    bond_feats_dim = 0
+    bond_feats = nothing
+    bond_pairs = Tuple{Int,Int}[]
+
+    angle_feats_dim = 0
+    angle_feats = nothing
+    angle_tuples = Tuple{Int,Int,Int}[]
+
+    proper_feats_dim = 0
+    proper_feats = nothing
+    proper_quads = Tuple{Int,Int,Int,Int}[]
+
+    improper_feats_dim = 0
+    improper_feats = nothing
+    improper_quads = Tuple{Int,Int,Int,Int}[]
+
+    global_graph = build_global_graph(length(elements), zip(bonds_i, bonds_j))
+    all_graphs, all_indices = extract_all_subgraphs(global_graph)
+    unique_graphs, unique_indices, counts = filter_unique(all_graphs, all_indices)
+
+    # Prediction arrays
+    partial_charges = zeros(T, n_atoms)
+    
+    vdw_functional_form = MODEL_PARAMS["physics"]["vdw_functional_form"]
+    if vdw_functional_form == "lj"
+        vdw_dict = Dict(
+            "functional" => vdw_functional_form,
+            "params_size" => zero(T),
+            "weight_vdw" => zero(T),
+            "σ" => zeros(T, n_atoms),
+            "ϵ" => zeros(T, n_atoms)
+        )
+    elseif vdw_functional_form == "lj69"
+        vdw_dict = Dict(
+            "functional" => vdw_functional_form,
+            "params_size" => zero(T),
+            "weight_vdw" => zero(T),
+            "σ" => zeros(T, n_atoms),
+            "ϵ" => zeros(T, n_atoms)
+        )
+    elseif vdw_functional_form == "dexp"
+        vdw_dict = Dict(
+            "functional" => vdw_functional_form,
+            "params_size" => zero(T),
+            "weight_vdw" => zero(T),
+            "σ" => Vector{T}(undef, n_atoms),
+            "ϵ" => Vector{T}(undef, n_atoms),
+            "α" => zeros(T, n_atoms),
+            "β" => zeros(T, n_atoms)
+        )
+    elseif vdw_functional_form == "buff"
+        vdw_dict = Dict(
+            "functional" => vdw_functional_form,
+            "params_size" => zero(T),
+            "weight_vdw" => zero(T),
+            "σ" => Vector{T}(undef, n_atoms),
+            "ϵ" => Vector{T}(undef, n_atoms),
+            "δ" => zeros(T, n_atoms),
+            "γ" => zeros(T, n_atoms)
+        )
+    elseif vdw_functional_form == "buck"
+        vdw_dict = Dict(
+            "functional" => vdw_functional_form,
+            "params_size" => zero(T),
+            "weight_vdw" => zero(T),
+            "A" => zeros(T, n_atoms),
+            "B" => zeros(T, n_atoms),
+            "C" => zeros(T, n_atoms)
+        )
+    end
+
+    bond_functional_form = MODEL_PARAMS["physics"]["bond_functional_form"]
+    if bond_functional_form == "harmonic"
+        bonds_dict = Dict(
+            "functional" => bond_functional_form,
+            "k"  => zeros(T, length(bonds_i)),
+            "r0" => zeros(T, length(bonds_i))
+        )
+    elseif bond_functional_form == "morse"
+        bonds_dict = Dict(
+            "functional" => bond_functional_form,
+            "k"  => zeros(T, length(bonds_i)),
+            "r0" => zeros(T, length(bonds_i)),
+            "a"  => zeros(T, length(bonds_i))
+        )
+    end
+
+    angle_functional_form = MODEL_PARAMS["physics"]["angle_functional_form"]
+    if angle_functional_form == "harmonic"
+        angles_dict = Dict(
+            "functional" => angle_functional_form,
+            "k" => zeros(T, length(angles_i)),
+            "θ0" => zeros(T, length(angles_i))
+        )
+    elseif angle_functional_form == "ub"
+        angles_dict = Dict(
+            "functional" => angle_functional_form,
+            "ki" => zeros(T, length(angles_i)),
+            "θ0i" => zeros(T, length(angles_i)),
+            "kj" => zeros(T, length(angles_i)),
+            "θ0j" => zeros(T, length(angles_i))
+        )
+    end
+
+    for (t, (g, vs_template)) in enumerate(zip(unique_graphs, unique_indices))
+
+        equivs = find_atom_equivalences(g, vs_template, elements)
+        labels = ["mol$(t)_" * l for l in label_molecule(vs_template, equivs, elements)]
+        names  = atom_names_from_elements(elements[vs_template], ELEMENT_TO_NAME)
+
+        feat_mol = atom_features[:, vs_template]
+
+        adj_mol  = [Int[] for _ in 1:nv(g)]
+        for e in edges(g)
+            u, v = src(e), dst(e)
+            push!(adj_mol[u], v)
+            push!(adj_mol[v], u)
+        end
+
+        ### Atom pooling and feature prediction ###
+
+        _, embeds_mol = calc_embeddings(adj_mol, feat_mol, atom_embedding_model, atom_features_model)
+
+        label_to_index = Dict{String, Int}()
+        for (i, label) in enumerate(labels)
+            if !haskey(label_to_index, label)
+                label_to_index[label] = i
+            end
+        end
+        unique_label_indices = collect(values(label_to_index))
+        unique_embeds = embeds_mol[:, unique_label_indices]
+        unique_feats  = atom_features_model(unique_embeds)
+
+        feats_mol = map(labels) do label
+            return unique_feats[:, label_to_index[label]]
+        end
+        feats_mol = hcat(feats_mol...)
+
+        ### Bonds pooling and feature prediction ###
+
+
+        # First we create a dict that converts bonds represented as indices as bonds represented by molecule type
+        bond_key    = Tuple{String,String}[]
+        bond_to_key = Dict{Tuple{Int,Int}, Tuple{String,String}}()
+        bond_to_local_idx = Dict{Tuple{Int,Int}, Int}()
+        for (k, e) in enumerate(edges(g))
+            u, v = src(e), dst(e)
+            bond_to_local_idx[(min(u,v), max(u,v))] = k
+            lu, lv = labels[u], labels[v]
+            key = lu < lv ? (lu, lv) : (lv, lu)
+            push!(bond_key, key)
+            bond_to_key[(min(u,v), max(u,v))] = key
+        end
+
+        # Then we get the unique bonds represented by atom type
+        unique_keys = Dict{Tuple{String,String}, Int}()
+        unique_bond_keys = Tuple{String,String}[]
+        for key in bond_key
+            if !haskey(unique_keys, key)
+                push!(unique_bond_keys, key)
+                unique_keys[key] = length(unique_keys) + 1
+            end
+        end
+        
+        # We pass only the unique bonds to the pooling model
+        emb_i = embeds_mol[:, [findfirst(==(l), labels) for (l, _) in unique_bond_keys]]
+        emb_j = embeds_mol[:, [findfirst(==(l), labels) for (_, l) in unique_bond_keys]]
+        bond_pool_1 = bond_pooling_model(cat(emb_i, emb_j; dims=1))
+        bond_pool_2 = bond_pooling_model(cat(emb_j, emb_i; dims=1))
+        bond_pool = bond_pool_1 .+ bond_pool_2 # Bond symmetry preserved
+
+        # Predict features 
+        unique_bond_feats = bond_features_model(bond_pool)
+        bond_feats_mol = map(1:length(edges(g))) do k
+            e = [_ for _  in edges(g)][k]
+            u, v = src(e), dst(e)
+            key = bond_to_key[(min(u,v), max(u,v))]
+            idx = unique_keys[key]
+            return unique_bond_feats[:,idx]
+        end
+        bond_feats_mol = hcat(bond_feats_mol...)
+
+        ### Angle Feature Pooling ###
+        angle_key = Tuple{String,String,String}[]
+        angle_to_key = Dict{NTuple{3,Int}, NTuple{3,String}}()
+        angle_triples = [(i,j,k) for (i,j,k) in zip(angles_i, angles_j, angles_k) if i in vs_template && j in vs_template && k in vs_template]
+        
+        
+        # Map triplets from whole system indexing to local molecule indexing
+        local_map = Dict(glo => loc for (loc, glo) in enumerate(vs_template))
+        angle_triples = [(local_map[i], local_map[j], local_map[k]) for (i,j,k) in angle_triples]
+        
+        # From index to molecule type
+        angle_to_local_idx = Dict{Tuple{Int,Int,Int}, Int}()
+        for (idx, (i, j, k)) in enumerate(angle_triples)
+            angle_to_local_idx[(i,j,k)] = idx
+            li, lj, lk = labels[i], labels[j], labels[k]
+            key = (li, lj, lk) < (lk, lj, li) ? (li, lj, lk) : (lk, lj, li)
+            push!(angle_key, key)
+            angle_to_key[(i,j,k)] = key
+        end
+
+        # Get unique representation by molecule type
+        unique_angle_keys = Dict{NTuple{3,String}, Int}()
+        angle_key_order = NTuple{3,String}[]
+        for key in angle_key
+            if !haskey(unique_angle_keys, key)
+                push!(angle_key_order, key)
+                unique_angle_keys[key] = length(unique_angle_keys) + 1
+            end
+        end
+
+        # Get features for just the unique angles
+        angle_emb_i = embeds_mol[:, [findfirst(==(li), labels) for (li, _, _) in angle_key_order]]
+        angle_emb_j = embeds_mol[:, [findfirst(==(lj), labels) for (_, lj, _) in angle_key_order]]
+        angle_emb_k = embeds_mol[:, [findfirst(==(lk), labels) for (_, _, lk) in angle_key_order]]
+
+        # Symmetry preserving pooling
+        angle_com_emb_1 = cat(angle_emb_i, angle_emb_j, angle_emb_k; dims=1)
+        angle_com_emb_2 = cat(angle_emb_k, angle_emb_j, angle_emb_i; dims=1)
+        angle_pool_1 = angle_pooling_model(angle_com_emb_1)
+        angle_pool_2 = angle_pooling_model(angle_com_emb_2)
+
+        # Get features
+        angle_pool = angle_pool_1 .+ angle_pool_2
+        unique_angle_feats = angle_features_model(angle_pool)
+
+        # Broadcast from unique bonds to whole molecule
+        angle_feats_mol = map(1:length(angle_triples)) do idx
+            ijk = angle_triples[idx]
+            key = angle_to_key[ijk]
+            key_idx = unique_angle_keys[key]
+            return unique_angle_feats[:, key_idx]
+        end
+        angle_feats_mol = hcat(angle_feats_mol...)
+
+        ### Torsion Feature Pooling ###
+        torsion_key_proper = NTuple{4,String}[]
+        torsion_key_improper = NTuple{4,String}[]
+        torsion_to_key_proper = Dict{NTuple{4,Int}, NTuple{4,String}}()
+        torsion_to_key_improper = Dict{NTuple{4,Int}, NTuple{4,String}}()
+
+        # Get global indices that appear in molecular template indices
+        torsion_proper_quads = [(i,j,k,l) for (i,j,k,l) in zip(propers_i, propers_j, propers_k, propers_l) if i in vs_template && j in vs_template && k in vs_template && l in vs_template]
+        torsion_improper_quads = [(i,j,k,l) for (i,j,k,l) in zip(impropers_i, impropers_j, impropers_k, impropers_l) if i in vs_template && j in vs_template && k in vs_template && l in vs_template]
+
+        # Map indices from global to local indexing
+        local_map = Dict(glo => loc for (loc, glo) in enumerate(vs_template))
+        torsion_proper_quads = [(local_map[i], local_map[j], local_map[k], local_map[l]) for (i,j,k,l) in torsion_proper_quads]
+        torsion_improper_quads = [(local_map[i], local_map[j], local_map[k], local_map[l]) for (i,j,k,l) in torsion_improper_quads]
+
+        # From indices to atom types
+        for (i, j, k, l) in torsion_proper_quads
+            li, lj, lk, ll = labels[i], labels[j], labels[k], labels[l]
+            key = (li, lj, lk, ll) < (ll, lk, lj, li) ? (li, lj, lk, ll) : (ll, lk, lj, li)
+            push!(torsion_key_proper, key)
+            torsion_to_key_proper[(i,j,k,l)] = key
+        end
+
+        for (i, j, k, l) in torsion_improper_quads
+            li, lj, lk, ll = labels[i], labels[j], labels[k], labels[l]
+            key = (li, lj, lk, ll)  # ordering matters, as specified
+            push!(torsion_key_improper, key)
+            torsion_to_key_improper[(i,j,k,l)] = key
+        end
+
+        # We get the unique torsions depending on atom type
+        unique_proper_keys = Dict{NTuple{4,String}, Int}()
+        unique_improper_keys = Dict{NTuple{4,String}, Int}()
+        proper_key_order = NTuple{4,String}[]
+        improper_key_order = NTuple{4,String}[]
+
+        for key in torsion_key_proper
+            if !haskey(unique_proper_keys, key)
+                push!(proper_key_order, key)
+                unique_proper_keys[key] = length(unique_proper_keys) + 1
+            end
+        end
+
+        for key in torsion_key_improper
+            if !haskey(unique_improper_keys, key)
+                push!(improper_key_order, key)
+                unique_improper_keys[key] = length(unique_improper_keys) + 1
+            end
+        end
+
+        # Symmetry preserving pooling
+
+        prop_i = embeds_mol[:, [findfirst(==(li), labels) for (li, _, _, _) in proper_key_order]]
+        prop_j = embeds_mol[:, [findfirst(==(lj), labels) for (_, lj, _, _) in proper_key_order]]
+        prop_k = embeds_mol[:, [findfirst(==(lk), labels) for (_, _, lk, _) in proper_key_order]]
+        prop_l = embeds_mol[:, [findfirst(==(ll), labels) for (_, _, _, ll) in proper_key_order]]
+
+        prop_1 = cat(prop_i, prop_j, prop_k, prop_l; dims=1)
+        prop_2 = cat(prop_l, prop_k, prop_j, prop_i; dims=1)
+        proper_pool = proper_pooling_model(prop_1) .+ proper_pooling_model(prop_2)
+        unique_proper_feats = proper_features_model(proper_pool)
+
+        imp_i = embeds_mol[:, [findfirst(==(li), labels) for (li, _, _, _) in improper_key_order]]
+        imp_j = embeds_mol[:, [findfirst(==(lj), labels) for (_, lj, _, _) in improper_key_order]]
+        imp_k = embeds_mol[:, [findfirst(==(lk), labels) for (_, _, lk, _) in improper_key_order]]
+        imp_l = embeds_mol[:, [findfirst(==(ll), labels) for (_, _, _, ll) in improper_key_order]]
+
+        imp_1 = cat(imp_i, imp_j, imp_k, imp_l; dims=1)
+        imp_2 = cat(imp_i, imp_k, imp_j, imp_l; dims=1)
+        imp_3 = cat(imp_i, imp_l, imp_j, imp_k; dims=1)
+        improper_pool = improper_pooling_model(imp_1) .+ improper_pooling_model(imp_2) .+ improper_pooling_model(imp_3)
+        unique_improper_feats = improper_features_model(improper_pool)
+
+        # Broadcast from unique torsions to whole molecule
+        proper_feats_mol = map(1:length(torsion_proper_quads)) do idx
+            quad    = torsion_proper_quads[idx]
+            key     = torsion_to_key_proper[quad]
+            key_idx = unique_proper_keys[key]
+            return unique_proper_feats[:, key_idx]
+        end
+        proper_feats_mol = hcat(proper_feats_mol...)
+
+        improper_feats_mol = map(1:length(torsion_improper_quads)) do idx
+            quad    = torsion_improper_quads[idx]
+            key     = torsion_to_key_improper[quad]
+            key_idx = unique_improper_keys[key]
+            return unique_improper_feats[:, key_idx]
+        end
+        improper_feats_mol = hcat(improper_feats_mol...)
+
+        ### Predict charges from atom features ###
+        charges_mol = atom_feats_to_charges(feats_mol, formal_charges[vs_template])
+
+        ### Predict vdw params ###
+        vdw_mol = atom_feats_to_vdW(feats_mol)
+        
+        ### Predict bonds params ###
+        bonds_mol = feats_to_bonds(bond_feats_mol)
+
+        ### Predict angle feats ###
+        angles_mol = feats_to_angles(angle_feats_mol)
+
+        for (g2, vs_instance) in zip(all_graphs, all_indices)
+            
+            if has_isomorph(g, g2, VF2())
+                
+                atom_data = map(1:n_atoms) do global_i
+                    local_i = findfirst(x -> x == global_i, vs_instance)
+                    charge_return = isnothing(local_i) ? zero(T) : charges_mol[local_i]
+
+                    if vdw_functional_form in ("lj", "lj69", "dexp", "buff")
+                        vdw_return_1 = isnothing(local_i) ? zero(T) : vdw_mol["σ"][local_i]
+                        vdw_return_2 = isnothing(local_i) ? zero(T) : vdw_mol["ϵ"][local_i]
+                        vdw_returns = (vdw_return_1, vdw_return_2)
+                    else
+                        vdw_return_1 = isnothing(local_i) ? zero(T) : vdw_mol["A"][local_i]
+                        vdw_return_2 = isnothing(local_i) ? zero(T) : vdw_mol["B"][local_i]
+                        vdw_return_3 = isnothing(local_i) ? zero(T) : vdw_mol["C"][local_i]
+                        vdw_returns = (vdw_return_1, vdw_return_2, vdw_return_3)
                     end
-                    n_done += 1
-                    if n_done == counts[t]
-                        break
+
+                    return charge_return, vdw_returns...
+                end
+
+                partial_charges = partial_charges .+ [d[1] for d in atom_data]
+                
+                if vdw_functional_form in ("lj", "lj69", "dexp", "buff")
+                    vdw_dict["σ"] = vdw_dict["σ"] .+ [d[2] for d in atom_data]
+                    vdw_dict["ϵ"] = vdw_dict["ϵ"] .+ [d[3] for d in atom_data]
+                    if vdw_functional_form == "dexp"
+                        vdw_dict["α"] = vdw_mol["α"]
+                        vdw_dict["β"] = vdw_mol["β"]
+                    elseif vdw_functional_form == "buff"
+                        vdw_dict["δ"] = vdw_mol["δ"]
+                        vdw_dict["γ"] = vdw_mol["γ"]
+                    end
+                else
+                    vdw_dict["A"] = vdw_dict["A"] .+ [d[2] for d in atom_data]
+                    vdw_dict["B"] = vdw_dict["B"] .+ [d[3] for d in atom_data]
+                    vdw_dict["C"] = vdw_dict["C"] .+ [d[4] for d in atom_data]
+                end
+
+                mapping = Dict(i => vs_instance[i] for i in 1:length(vs_instance))
+                bond_global_to_local = Dict{Tuple{Int,Int}, Int}()
+                for e in edges(g)
+                    i, j = mapping[src(e)], mapping[dst(e)]
+                    global_pair = (min(i, j), max(i, j))
+                    local_pair = (min(src(e), dst(e)), max(src(e), dst(e)))
+                    bond_global_to_local[global_pair] = bond_to_local_idx[local_pair]
+                end
+
+                bond_data = map(1:length(bonds_i)) do idx
+                    bond = (bonds_i[idx], bonds_j[idx])
+                    if !haskey(bond_global_to_local, bond)
+                        if bond_functional_form == "harmonic"
+                            return zero(T), zero(T)
+                        elseif bond_functional_form == "morse"
+                            return zero(T), zero(T), zero(T)
+                        end
+                    else
+                        local_i = bond_global_to_local[bond]
+                        if bond_functional_form == "harmonic"
+                            return_k = bonds_mol["k"][local_i]
+                            return_r = bonds_mol["r0"][local_i]
+                            return_params = (return_k, return_r)
+                        elseif bond_functional_form == "morse"
+                            return_k = bonds_mol["k"][local_i]
+                            return_r = bonds_mol["r0"][local_i]
+                            return_a = bonds_mol["a"][local_i]
+                            return_params = (return_k, return_r, return_a)
+                        end
+                        return return_params
                     end
                 end
+                if bond_functional_form == "harmonic"
+                    bonds_dict["k"]  = bonds_dict["k"]  .+ [d[1] for d in bond_data]
+                    bonds_dict["r0"] = bonds_dict["r0"] .+ [d[2] for d in bond_data]
+                elseif bond_functional_form == "morse"
+                    bonds_dict["k"]  = bonds_dict["k"]  .+ [d[1] for d in bond_data]
+                    bonds_dict["r0"] = bonds_dict["r0"] .+ [d[2] for d in bond_data]
+                    bonds_dict["a"] = bonds_dict["a"] .+ [d[3] for d in bond_data]
+                end
+
+                angle_global_to_local = Dict{Tuple{Int,Int,Int}, Int}()
+                for (i, j, k) in angle_triples
+                    gi, gj, gk = mapping[i], mapping[j], mapping[k]
+                    angle_global_to_local[(gi, gj, gk)] = angle_to_local_idx[(i, j, k)]
+                end
+
+                angle_data = map(1:length(angles_i)) do idx
+                    angle = (angles_i[idx], angles_j[idx], angles_k[idx])
+                    if !haskey(angle_global_to_local, angle)
+                        if angle_functional_form == "harmonic"
+                            return zero(T), zero(T)
+                        elseif angle_functional_form == "ub"
+                            return zero(T), zero(T), zero(T), zero(T)
+                        end
+                    else
+                        local_i = angle_global_to_local[angle]
+                        if angle_functional_form == "harmonic"
+                            return_k = angles_mol["k"][local_i]
+                            return_θ = angles_mol["θ0"][local_i]
+                            return_params = (return_k, return_θ)
+                        elseif angle_functional_form == "ub"
+                            return_ki = angles_mol["ki"][local_i]
+                            return_θi = angles_mol["θ0i"][local_i]
+                            return_kj = angles_mol["kj"][local_i]
+                            return_θj = angles_mol["θ0j"][local_i]
+                            return_params = (return_ki, return_θi, return_kj, return_θj)
+                        end
+                        return return_params
+                    end
+                end
+                if angle_functional_form == "harmonic"
+                    angles_dict["k"]  = angles_dict["k"]  .+ [d[1] for d in angle_data]
+                    angles_dict["θ0"] = angles_dict["θ0"] .+ [d[2] for d in angle_data]
+                elseif angle_functional_form == "ub"
+                    angles_dict["ki"]  = angles_dict["ki"]  .+ [d[1] for d in angle_data]
+                    angles_dict["θ0i"] = angles_dict["θ0i"] .+ [d[2] for d in angle_data]
+                    angles_dict["kj"]  = angles_dict["kj"]  .+ [d[3] for d in angle_data]
+                    angles_dict["θ0j"] = angles_dict["θ0j"] .+ [d[4] for d in angle_data]
+                end
+
             end
         end
     end
 
-    label_index = Vector{Int}(undef, n_atoms)
-    for (i, (type, mid)) in enumerate(zip(atom_types, mol_type))
-        label_index[i] = findfirst(x->x==type, labels_templates[mid])
+    if vdw_functional_form in ("lj", "lj69", "dexp", "buff")
+        vdw_dict["params_size"] = T(0.5*(mean(vdw_dict["σ"]) + mean(vdw_dict["ϵ"])))
+    else
+        vdw_dict["params_size"] = zero(T)
     end
+    vdw_dict["weight_vdw"] = (vdw_functional_form == "lj" ? sigmoid(global_params[1]) : one(T))
 
-    unique_label_bonds::Vector{Tuple{Int, Int}} = []
-    for (bi, bj) in zip(bonds_i, bonds_j)
-        push!(unique_label_bonds, (label_index[bi], label_index[bj]))
-    end
-
-    unique_label_angles::Vector{Tuple{Int, Int, Int}} = []
-    for (ai, aj, ak) in zip(angles_i, angles_j, angles_k)
-        push!(unique_label_angles, (label_index[ai], label_index[aj], label_index[ak]))
-    end
-
-    unique_bonds = []
-    for bond in unique(unique_label_bonds)
-        idx = findfirst(x->x==bond, unique_label_bonds)
-        push!(unique_bonds, (bonds_i[idx], bonds_j[idx]))
-    end
-
-    println(unique_bonds)
-
-    atom_feats, atom_embeds = calc_embeddings(
-        mol_id, adj_list, atom_features,
-        atom_embedding_model, atom_features_model,
-        n_atoms, n_repeats)
-
-    bond_pool, angle_pool, proper_pool, improper_pool = embed_to_pool(atom_embeds,
-        bonds_i[1:n_bonds_rep], bonds_j[1:n_bonds_rep],
-        angles_i[1:n_angles_rep], angles_j[1:n_angles_rep], angles_k[1:n_angles_rep],
-        propers_i[1:n_propers_rep], propers_j[1:n_propers_rep], propers_k[1:n_propers_rep], propers_l[1:n_propers_rep],
-        impropers_i[1:n_impropers_rep], impropers_j[1:n_impropers_rep], impropers_k[1:n_impropers_rep], impropers_l[1:n_impropers_rep],
-        bond_pooling_model, angle_pooling_model, proper_pooling_model, improper_pooling_model)
-
-    bond_feats, angle_feats, proper_feats, improper_feats = pool_to_feats(
-        mol_id, n_repeats, bond_pool, angle_pool, proper_pool, improper_pool,
-        bond_features_model, angle_features_model, proper_features_model, improper_features_model
-    )
-
-    partial_charges = atom_feats_to_charges(mol_id, n_atoms, n_mols, atom_feats, formal_charges, mol_inds)
-    vdw_dict = atom_feats_to_vdW(atom_feats)
-    bonds_dict = feats_to_bonds(bond_feats)
-    angles_dict = feats_to_angles(angle_feats)
-
-    torsion_ks_size = zero(T)
-    torsion_ks_size += !isempty(proper_feats)   ? mean(abs, proper_feats)   : zero(T)
-    torsion_ks_size += !isempty(improper_feats) ? mean(abs, improper_feats) : zero(T)
-
-    proper_feats_pad   = cat(proper_feats,   zeros(T, 6 - n_proper_terms,   length(propers_i));   dims=1)
-    improper_feats_pad = cat(improper_feats, zeros(T, 6 - n_improper_terms, length(impropers_i)); dims=1)
-
-    molly_sys = build_sys(mol_id, masses, atom_types, atom_names, mol_inds, coords, boundary,
-                          partial_charges, vdw_dict, bonds_dict, angles_dict,
-                          bonds_i, bonds_j,
-                          angles_i, angles_j, angles_k,
-                          proper_feats_pad, improper_feats_pad,
-                          propers_i, propers_j, propers_k, propers_l,
-                          impropers_i, impropers_j, impropers_k, impropers_l)
-
-    return molly_sys, partial_charges, vdw_dict["params_size"], torsion_ks_size, elements, mol_inds
 end
