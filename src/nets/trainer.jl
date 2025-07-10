@@ -373,8 +373,6 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                 charges_j, has_charges_j,
                 exceeds_force, pair_present = conf_data[i - start_i + 1]
 
-                occursin("maceoff", mol_id) ? "" : println(charges_i)
-
 
                 #TODO: Maybe it is a good idea to make logging modular
                 if MODEL_PARAMS["training"]["verbose"]
@@ -1032,7 +1030,6 @@ function train!(models, optims)
     out_dir = MODEL_PARAMS["paths"]["out_dir"]
 
     if !isnothing(out_dir) && isfile(joinpath(out_dir, "training.log"))
-        println("ABCD")
         for line in readlines(joinpath(out_dir, "training.log"))
             if startswith(line, "Epoch")
                 # TODO: This needs a good refactoring

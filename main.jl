@@ -191,13 +191,13 @@ if !isnothing(out_dir) && !isdir(out_dir)
     end
 end
 
-#models, optims = train!(models, optims)
+models, optims = train!(models, optims)
 
-begin
+#= begin
 
-    mol_id = "water"
+    mol_id = "vapourisation_liquid_O"
     
-    feat_df = FEATURE_DATAFRAMES[1]
+    feat_df = FEATURE_DATAFRAMES[3]
     feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
 
     coords_i, forces_i, energy_i,
@@ -205,7 +205,7 @@ begin
     coords_j, forces_j, energy_j,
     charges_j, has_charges_j = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)[1]
 
-    mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
+    sys = mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
     println()
-    
-end
+
+end =#

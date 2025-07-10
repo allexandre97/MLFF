@@ -7,6 +7,8 @@ function build_global_graph(n_atoms, bonds)
     return g
 end
 
+Flux.@non_differentiable build_global_graph(args...)
+
 # 2) Extract every connected‐component subgraph + its global atom indices
 function extract_all_subgraphs(g::SimpleGraph)
     comps = connected_components(g)            # Vector{Vector{Int}}
@@ -20,6 +22,8 @@ function extract_all_subgraphs(g::SimpleGraph)
     end
     return subgs, inds
 end
+
+Flux.@non_differentiable extract_all_subgraphs(args...)
 
 # 3) Filter to unique molecule types (by isomorphism),
 #    and count how many of each type we have.
@@ -51,6 +55,8 @@ function filter_unique(subgs::Vector{SimpleGraph{Int}},
     return uniq_s, uniq_i, counts
 end
 
+Flux.@non_differentiable filter_unique(ars...)
+
 # 4) Graph‐omission helper for atom‐equivalence test
 function relabel_bonds(edges::Vector{Tuple{Int,Int}}, omit::Int)
     out = Tuple{Int,Int}[]
@@ -64,6 +70,8 @@ function relabel_bonds(edges::Vector{Tuple{Int,Int}}, omit::Int)
     end
     return out
 end
+
+Flux.@non_differentiable relabel_bonds(args...)
 
 # 5) Find equivalence pairs → Dict(global_index => [globals…])
 function find_atom_equivalences(g::SimpleGraph, global_vs::Vector{Int}, elements::Vector{Int})
@@ -102,6 +110,8 @@ function find_atom_equivalences(g::SimpleGraph, global_vs::Vector{Int}, elements
 
     return equivs
 end
+
+Flux.@non_differentiable find_atom_equivalences(args...)
 
 # 6) Turn equivalence‐dict + ELEMENT_TO_NAME into local labels
 function label_molecule(global_vs::Vector{Int},
@@ -154,3 +164,5 @@ function label_molecule(global_vs::Vector{Int},
 
     return labels
 end
+
+Flux.@non_differentiable label_molecule(args...)

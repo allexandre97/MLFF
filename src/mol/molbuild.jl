@@ -14,7 +14,20 @@ function build_adj_list(mol_row::DataFrame)::Array
     return adj_list
 end
 
+function build_adj_list(g)
+    adj_mol  = [Int[] for _ in 1:nv(g)]
+    for e in edges(g)
+        u, v = src(e), dst(e)
+        push!(adj_mol[u], v)
+        push!(adj_mol[v], u)
+    end
+    return adj_mol
+end
+
 Flux.@non_differentiable build_adj_list(mol_row::DataFrame)
+Flux.@non_differentiable build_adj_list(args...)
+Flux.@non_differentiable has_isomorph(args...)
+
 
 function mol_to_preds(
     mol_id::String,
@@ -259,6 +272,8 @@ function atom_names_from_elements(el_list::Vector{Int},
     return names
 end
 
+Flux.@non_differentiable atom_names_from_elements(args...)
+
 function mol_to_system(
     mol_id::String,
     feat_df::DataFrame,
@@ -285,29 +300,8 @@ function mol_to_system(
 
     masses = [NAME_TO_MASS[ELEMENT_TO_NAME[e]] for e in elements]
 
-    atom_types = Vector{String}(undef, length(elements))
-    atom_names = Vector{String}(undef, length(elements))
-
-    feat_dim = 0
-    embed_dim = 0
-    atom_feats = nothing
-    atom_embeds = nothing
-
-    bond_feats_dim = 0
-    bond_feats = nothing
-    bond_pairs = Tuple{Int,Int}[]
-
-    angle_feats_dim = 0
-    angle_feats = nothing
-    angle_tuples = Tuple{Int,Int,Int}[]
-
-    proper_feats_dim = 0
-    proper_feats = nothing
-    proper_quads = Tuple{Int,Int,Int,Int}[]
-
-    improper_feats_dim = 0
-    improper_feats = nothing
-    improper_quads = Tuple{Int,Int,Int,Int}[]
+    atom_types = fill("", length(elements))
+    atom_names = fill("", length(elements))
 
     global_graph = build_global_graph(length(elements), zip(bonds_i, bonds_j))
     all_graphs, all_indices = extract_all_subgraphs(global_graph)
@@ -397,20 +391,43 @@ function mol_to_system(
         )
     end
 
+    proper_feats   = zeros(T, (n_proper_terms, length(propers_i)))
+    improper_feats = zeros(T, (n_improper_terms, length(impropers_i)))
+
+    if any(startswith.(mol_id, ("vapourisation_", "mixing_")))
+
+        ignore_derivatives() do
+            if startswith(mol_id, "vapourisation")
+                name = split(mol_id, "_")[end]
+                if name == "O"
+                    mol_names = ["water"]
+                else
+                    mol_names = [name]
+                end
+            else
+                _, _, smiles = split(mol_id, "_"; limit = 3)
+                names = split(smiles, "_")
+                mol_names = [name != "water" ? name : "water" for name in names]
+            end
+        end
+
+    else
+
+        if occursin("water", mol_id)
+            mol_names = ["water"]
+        end
+
+    end
+
     for (t, (g, vs_template)) in enumerate(zip(unique_graphs, unique_indices))
 
         equivs = find_atom_equivalences(g, vs_template, elements)
-        labels = ["mol$(t)_" * l for l in label_molecule(vs_template, equivs, elements)]
+        labels = ["$(mol_names[t])_" * l for l in label_molecule(vs_template, equivs, elements)]
         names  = atom_names_from_elements(elements[vs_template], ELEMENT_TO_NAME)
 
         feat_mol = atom_features[:, vs_template]
 
-        adj_mol  = [Int[] for _ in 1:nv(g)]
-        for e in edges(g)
-            u, v = src(e), dst(e)
-            push!(adj_mol[u], v)
-            push!(adj_mol[v], u)
-        end
+        adj_mol = build_adj_list(g)
 
         ### Atom pooling and feature prediction ###
 
@@ -422,7 +439,9 @@ function mol_to_system(
                 label_to_index[label] = i
             end
         end
-        unique_label_indices = collect(values(label_to_index))
+        unique_label_indices = ignore_derivatives() do
+            return collect(values(label_to_index))
+        end
         unique_embeds = embeds_mol[:, unique_label_indices]
         unique_feats  = atom_features_model(unique_embeds)
 
@@ -433,30 +452,33 @@ function mol_to_system(
 
         ### Bonds pooling and feature prediction ###
 
-
         # First we create a dict that converts bonds represented as indices as bonds represented by molecule type
-        bond_key    = Tuple{String,String}[]
         bond_to_key = Dict{Tuple{Int,Int}, Tuple{String,String}}()
         bond_to_local_idx = Dict{Tuple{Int,Int}, Int}()
-        for (k, e) in enumerate(edges(g))
+        
+        edges_list = [e for e in edges(g)]
+        bond_key = map(1:length(edges_list)) do k
+            e = edges_list[k]
             u, v = src(e), dst(e)
             bond_to_local_idx[(min(u,v), max(u,v))] = k
             lu, lv = labels[u], labels[v]
             key = lu < lv ? (lu, lv) : (lv, lu)
-            push!(bond_key, key)
             bond_to_key[(min(u,v), max(u,v))] = key
+            return key
         end
 
         # Then we get the unique bonds represented by atom type
         unique_keys = Dict{Tuple{String,String}, Int}()
         unique_bond_keys = Tuple{String,String}[]
-        for key in bond_key
-            if !haskey(unique_keys, key)
-                push!(unique_bond_keys, key)
-                unique_keys[key] = length(unique_keys) + 1
+        ignore_derivatives() do
+            for key in bond_key
+                if !haskey(unique_keys, key)
+                    push!(unique_bond_keys, key)
+                    unique_keys[key] = length(unique_keys) + 1
+                end
             end
         end
-        
+
         # We pass only the unique bonds to the pooling model
         emb_i = embeds_mol[:, [findfirst(==(l), labels) for (l, _) in unique_bond_keys]]
         emb_j = embeds_mol[:, [findfirst(==(l), labels) for (_, l) in unique_bond_keys]]
@@ -476,7 +498,6 @@ function mol_to_system(
         bond_feats_mol = hcat(bond_feats_mol...)
 
         ### Angle Feature Pooling ###
-        angle_key = Tuple{String,String,String}[]
         angle_to_key = Dict{NTuple{3,Int}, NTuple{3,String}}()
         angle_triples = [(i,j,k) for (i,j,k) in zip(angles_i, angles_j, angles_k) if i in vs_template && j in vs_template && k in vs_template]
         
@@ -487,21 +508,26 @@ function mol_to_system(
         
         # From index to molecule type
         angle_to_local_idx = Dict{Tuple{Int,Int,Int}, Int}()
-        for (idx, (i, j, k)) in enumerate(angle_triples)
-            angle_to_local_idx[(i,j,k)] = idx
-            li, lj, lk = labels[i], labels[j], labels[k]
-            key = (li, lj, lk) < (lk, lj, li) ? (li, lj, lk) : (lk, lj, li)
-            push!(angle_key, key)
-            angle_to_key[(i,j,k)] = key
+        angle_key = Tuple{String,String,String}[]
+        ignore_derivatives() do
+            for (idx, (i, j, k)) in enumerate(angle_triples)
+                angle_to_local_idx[(i,j,k)] = idx
+                li, lj, lk = labels[i], labels[j], labels[k]
+                key = (li, lj, lk) < (lk, lj, li) ? (li, lj, lk) : (lk, lj, li)
+                push!(angle_key, key)
+                angle_to_key[(i,j,k)] = key
+            end
         end
 
         # Get unique representation by molecule type
         unique_angle_keys = Dict{NTuple{3,String}, Int}()
         angle_key_order = NTuple{3,String}[]
-        for key in angle_key
-            if !haskey(unique_angle_keys, key)
-                push!(angle_key_order, key)
-                unique_angle_keys[key] = length(unique_angle_keys) + 1
+        ignore_derivatives() do 
+            for key in angle_key
+                if !haskey(unique_angle_keys, key)
+                    push!(angle_key_order, key)
+                    unique_angle_keys[key] = length(unique_angle_keys) + 1
+                end
             end
         end
 
@@ -530,8 +556,6 @@ function mol_to_system(
         angle_feats_mol = hcat(angle_feats_mol...)
 
         ### Torsion Feature Pooling ###
-        torsion_key_proper = NTuple{4,String}[]
-        torsion_key_improper = NTuple{4,String}[]
         torsion_to_key_proper = Dict{NTuple{4,Int}, NTuple{4,String}}()
         torsion_to_key_improper = Dict{NTuple{4,Int}, NTuple{4,String}}()
 
@@ -545,18 +569,20 @@ function mol_to_system(
         torsion_improper_quads = [(local_map[i], local_map[j], local_map[k], local_map[l]) for (i,j,k,l) in torsion_improper_quads]
 
         # From indices to atom types
-        for (i, j, k, l) in torsion_proper_quads
+        torsion_key_proper = map(torsion_proper_quads) do quad
+            i,j,k,l = quad
             li, lj, lk, ll = labels[i], labels[j], labels[k], labels[l]
             key = (li, lj, lk, ll) < (ll, lk, lj, li) ? (li, lj, lk, ll) : (ll, lk, lj, li)
-            push!(torsion_key_proper, key)
             torsion_to_key_proper[(i,j,k,l)] = key
+            return key
         end
 
-        for (i, j, k, l) in torsion_improper_quads
+        torsion_key_improper = map(torsion_improper_quads) do quad
+            i,j,k,l = quad
             li, lj, lk, ll = labels[i], labels[j], labels[k], labels[l]
-            key = (li, lj, lk, ll)  # ordering matters, as specified
-            push!(torsion_key_improper, key)
+            key = (li, lj, lk, ll)
             torsion_to_key_improper[(i,j,k,l)] = key
+            return key
         end
 
         # We get the unique torsions depending on atom type
@@ -564,18 +590,19 @@ function mol_to_system(
         unique_improper_keys = Dict{NTuple{4,String}, Int}()
         proper_key_order = NTuple{4,String}[]
         improper_key_order = NTuple{4,String}[]
-
-        for key in torsion_key_proper
-            if !haskey(unique_proper_keys, key)
-                push!(proper_key_order, key)
-                unique_proper_keys[key] = length(unique_proper_keys) + 1
+        ignore_derivatives() do 
+            for key in torsion_key_proper
+                if !haskey(unique_proper_keys, key)
+                    push!(proper_key_order, key)
+                    unique_proper_keys[key] = length(unique_proper_keys) + 1
+                end
             end
-        end
 
-        for key in torsion_key_improper
-            if !haskey(unique_improper_keys, key)
-                push!(improper_key_order, key)
-                unique_improper_keys[key] = length(unique_improper_keys) + 1
+            for key in torsion_key_improper
+                if !haskey(unique_improper_keys, key)
+                    push!(improper_key_order, key)
+                    unique_improper_keys[key] = length(unique_improper_keys) + 1
+                end
             end
         end
 
@@ -639,6 +666,9 @@ function mol_to_system(
                     local_i = findfirst(x -> x == global_i, vs_instance)
                     charge_return = isnothing(local_i) ? zero(T) : charges_mol[local_i]
 
+                    name_return = isnothing(local_i) ? "" : names[local_i]
+                    type_return = isnothing(local_i) ? "" : labels[local_i]
+
                     if vdw_functional_form in ("lj", "lj69", "dexp", "buff")
                         vdw_return_1 = isnothing(local_i) ? zero(T) : vdw_mol["σ"][local_i]
                         vdw_return_2 = isnothing(local_i) ? zero(T) : vdw_mol["ϵ"][local_i]
@@ -650,14 +680,16 @@ function mol_to_system(
                         vdw_returns = (vdw_return_1, vdw_return_2, vdw_return_3)
                     end
 
-                    return charge_return, vdw_returns...
+                    return charge_return, name_return, type_return, vdw_returns...
                 end
 
                 partial_charges = partial_charges .+ [d[1] for d in atom_data]
+                atom_names      = atom_names      .* [d[2] for d in atom_data]
+                atom_types      = atom_types      .* [d[3] for d in atom_data]
                 
                 if vdw_functional_form in ("lj", "lj69", "dexp", "buff")
-                    vdw_dict["σ"] = vdw_dict["σ"] .+ [d[2] for d in atom_data]
-                    vdw_dict["ϵ"] = vdw_dict["ϵ"] .+ [d[3] for d in atom_data]
+                    vdw_dict["σ"] = vdw_dict["σ"] .+ [d[4] for d in atom_data]
+                    vdw_dict["ϵ"] = vdw_dict["ϵ"] .+ [d[5] for d in atom_data]
                     if vdw_functional_form == "dexp"
                         vdw_dict["α"] = vdw_mol["α"]
                         vdw_dict["β"] = vdw_mol["β"]
@@ -666,9 +698,9 @@ function mol_to_system(
                         vdw_dict["γ"] = vdw_mol["γ"]
                     end
                 else
-                    vdw_dict["A"] = vdw_dict["A"] .+ [d[2] for d in atom_data]
-                    vdw_dict["B"] = vdw_dict["B"] .+ [d[3] for d in atom_data]
-                    vdw_dict["C"] = vdw_dict["C"] .+ [d[4] for d in atom_data]
+                    vdw_dict["A"] = vdw_dict["A"] .+ [d[4] for d in atom_data]
+                    vdw_dict["B"] = vdw_dict["B"] .+ [d[5] for d in atom_data]
+                    vdw_dict["C"] = vdw_dict["C"] .+ [d[6] for d in atom_data]
                 end
 
                 mapping = Dict(i => vs_instance[i] for i in 1:length(vs_instance))
@@ -752,6 +784,52 @@ function mol_to_system(
                     angles_dict["θ0j"] = angles_dict["θ0j"] .+ [d[4] for d in angle_data]
                 end
 
+                # Broadcast proper torsion features
+                proper_data = map(1:length(propers_i)) do idx
+                    global_quad = (propers_i[idx], propers_j[idx], propers_k[idx], propers_l[idx])
+                    feat = zeros(T, size(proper_feats_mol, 1))
+                    if all(x -> haskey(mapping, x), global_quad)
+                        local_quad = (findfirst(==(global_quad[1]), vs_instance),
+                                    findfirst(==(global_quad[2]), vs_instance),
+                                    findfirst(==(global_quad[3]), vs_instance),
+                                    findfirst(==(global_quad[4]), vs_instance))
+                        if all(!isnothing, local_quad) && haskey(torsion_to_key_proper, local_quad)
+                            key = torsion_to_key_proper[local_quad]
+                            if haskey(unique_proper_keys, key)
+                                idx_feat = unique_proper_keys[key]
+                                feat = proper_feats_mol[:, idx_feat]
+                            end
+                        end
+                    end
+                    return feat
+                end
+                if !isempty(proper_data) 
+                    proper_feats += hcat(proper_data...)
+                end
+
+                # Broadcast improper torsion features
+                improper_data = map(1:length(impropers_i)) do idx
+                    global_quad = (impropers_i[idx], impropers_j[idx], impropers_k[idx], impropers_l[idx])
+                    feat = zeros(T, size(improper_feats_mol, 1))
+                    if all(x -> haskey(mapping, x), global_quad)
+                        local_quad = (findfirst(==(global_quad[1]), vs_instance),
+                                    findfirst(==(global_quad[2]), vs_instance),
+                                    findfirst(==(global_quad[3]), vs_instance),
+                                    findfirst(==(global_quad[4]), vs_instance))
+                        if all(!isnothing, local_quad) && haskey(torsion_to_key_improper, local_quad)
+                            key = torsion_to_key_improper[local_quad]
+                            if haskey(unique_improper_keys, key)
+                                idx_feat = unique_improper_keys[key]
+                                feat = improper_feats_mol[:, idx_feat]
+                            end
+                        end
+                    end
+                    return feat
+                end
+                if !isempty(improper_data) 
+                    improper_feats += hcat(improper_data...)
+                end
+
             end
         end
     end
@@ -762,5 +840,43 @@ function mol_to_system(
         vdw_dict["params_size"] = zero(T)
     end
     vdw_dict["weight_vdw"] = (vdw_functional_form == "lj" ? sigmoid(global_params[1]) : one(T))
+
+    torsion_ks_size = zero(T)
+    if length(proper_feats) > 0
+        torsion_ks_size += mean(abs, proper_feats)
+    end
+    if length(improper_feats) > 0
+        torsion_ks_size += mean(abs, improper_feats)
+    end
+
+    # Why is this padding needed?
+    proper_feats_pad   = cat(proper_feats, zeros(T, 6 - n_proper_terms, length(propers_i)); dims = 1)
+    improper_feats_pad = cat(improper_feats, zeros(T, 6 - n_improper_terms, length(impropers_i)); dims = 1)
+
+    molly_sys = build_sys(mol_id,
+                          masses,
+                          atom_types,
+                          atom_names,
+                          mol_inds,
+                          coords,
+                          boundary,
+                          partial_charges,
+                          vdw_dict,
+                          bonds_dict, 
+                          angles_dict, 
+                          bonds_i, bonds_j,
+                          angles_i, angles_j, angles_k,
+                          proper_feats_pad, improper_feats_pad,
+                          propers_i, propers_j, propers_k, propers_l,
+                          impropers_i, impropers_j, impropers_k, impropers_l)
+
+    return (
+        molly_sys,
+        partial_charges, 
+        vdw_dict["params_size"],
+        torsion_ks_size,
+        elements,
+        mol_inds
+    )
 
 end
