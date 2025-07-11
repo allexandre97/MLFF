@@ -77,52 +77,24 @@ function atom_feats_to_vdW(
         vdw_params_size = mean(σs) + mean(ϵs)/2.0
     
         if vdw_functional_form == "lj"
-            return Dict(
-                "functional" => vdw_functional_form,
-                "params_size" => vdw_params_size,
-                "weight_vdw" => weight_vdw,
-                "σ" => σs,
-                "ϵ" => ϵs
-            )
+            return σs, ϵs
+
         elseif vdw_functional_form == "dexp"
             α = transform_dexp_α(global_params[3])
             β = transform_dexp_β(global_params[4])
-            return Dict(
-                "functional" => vdw_functional_form,
-                "params_size" => vdw_params_size,
-                "weight_vdw" => weight_vdw,
-                "σ" => σs,
-                "ϵ" => ϵs,
-                "α" => α,
-                "β" => β
-            )
+            return σs, ϵs, α, β
+
         elseif vdw_functional_form == "buff"
             δ = transform_buff_δ(global_params[3])
             γ = transform_buff_γ(global_params[4])
-            return Dict(
-                "functional" => vdw_functional_form,
-                "params_size" => vdw_params_size,
-                "weight_vdw" => weight_vdw,
-                "σ" => σs,
-                "ϵ" => ϵs,
-                "δ" => δ,
-                "γ" => γ
-            )
+            return σs, ϵs, δ, γ
         end
 
     elseif vdw_functional_form == "buck"
         As = transform_buck_A.(atom_features[3, :])
         Bs = transform_buck_A.(atom_features[4, :])
         Cs = transform_buck_A.(atom_features[5, :])
-        vdw_params_size = zero(T)
-        return Dict(
-            "functional" => vdw_functional_form,
-            "params_size" => vdw_params_size,
-            "weight_vdw" => weight_vdw,
-            "A" => As,
-            "B" => Bs,
-            "C" => Cs
-        )
+        return As, Bs, Cs
     end
 
     #=
@@ -140,21 +112,13 @@ function feats_to_bonds(
     if bond_functional_form == "harmonic"
         k  = transform_bond_k.(bond_feats[1, :], bond_feats[2, :])
         r0 = transform_bond_r0.(bond_feats[1, :], bond_feats[2, :])
-        return Dict(
-            "functional" => bond_functional_form,
-            "k" => k,
-            "r0" => r0
-        )
+        return k, r0, nothing
+
     elseif bond_functional_form == "morse"
         k  = transform_bond_k.(bond_feats[1, :], bond_feats[2, :])
         r0 = transform_morse_a.(bond_feats[3, :])
         a  = transform_bond_r0.(bond_feats[1, :], bond_feats[2, :])
-        return Dict(
-            "functional" => bond_functional_form,
-            "k" => k,
-            "r0" => r0,
-            "a" => a
-        )
+        return k, r0, a
     end
 
 end
@@ -168,23 +132,14 @@ function feats_to_angles(
     if angle_functional_form == "harmonic"
         k  = transform_angle_k.(angle_feats[1, :], angle_feats[2, :])
         θ0 = transform_angle_θ0.(angle_feats[1, :], angle_feats[2, :])
-        return Dict(
-            "functional" => angle_functional_form,
-            "k" => k,
-            "θ0" => θ0
-        )
+        return k, θ0, nothing, nothing
+
     elseif angle_functional_form == "ub"
         ki  = transform_angle_k.(angle_feats[1, :], angle_feats[2, :])
         θ0i = transform_angle_θ0.(angle_feats[1, :], angle_feats[2, :])
         kj  = transform_angle_k.(angle_feats[3, :], angle_feats[4, :])
         θ0j = transform_angle_θ0.(angle_feats[3, :], angle_feats[4, :])
-        return Dict(
-            "functional" => angle_functional_form,
-            "ki" => ki,
-            "θ0i" => θ0i,
-            "kj" => kj,
-            "θ0j" => θ0j
-        )
+        return ki, θ0i, kj, θ0j
     end
     
 end

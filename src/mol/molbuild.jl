@@ -111,114 +111,99 @@ function build_sys(
     coords,
     boundary,
     partial_charges,
-    vdW_dict,
-    bonds_dict,
-    angles_dict,
+    vdw_functional_form::String,
+    weight_vdw::Float32,
+    
+    σ::Union{Vector{Float32}, Nothing},
+    ε::Union{Vector{Float32}, Nothing},
+    A::Union{Vector{Float32}, Nothing},
+    B::Union{Vector{Float32}, Nothing},
+    C::Union{Vector{Float32}, Nothing},
+    α::Union{Float32, Nothing},
+    β::Union{Float32, Nothing},
+    δ::Union{Float32, Nothing},
+    γ::Union{Float32, Nothing},
+
+    bond_functional_form::String,
+    bond_k::Vector{Float32},
+    bond_r0::Vector{Float32},
+    bond_a::Union{Vector{Float32}, Nothing},
+
+    angle_functional_form::String,
+    angle_k::Union{Vector{Float32}, Nothing},
+    angle_θ0::Union{Vector{Float32}, Nothing},
+    angle_kj::Union{Vector{Float32}, Nothing},
+    angle_θ0j::Union{Vector{Float32}, Nothing},
+
     bonds_i, bonds_j,
     angles_i, angles_j, angles_k,
     proper_feats, improper_feats,
     propers_i, propers_j, propers_k, propers_l,
     impropers_i, impropers_j, impropers_k, impropers_l
 )
-    n_atoms  = length(partial_charges)
-
+    n_atoms = length(partial_charges)
     dist_nb_cutoff = T(MODEL_PARAMS["physics"]["dist_nb_cutoff"])
 
-    vdw    = vdW_dict["functional"]
-    weight = vdW_dict["weight_vdw"]
-    bond   = bonds_dict["functional"]
-    angle  = angles_dict["functional"]
-
     ########## van der Waals section ##########
-    if vdw in ("lj", "lj69", "dexp", "buff")
-        σ = vdW_dict["σ"]
-        ϵ = vdW_dict["ϵ"]
-        atoms = [Atom(i, one(T), masses[i], partial_charges[i], σ[i], ϵ[i])
-                 for i in 1:n_atoms]
-        if vdw == "lj"
-            inter_vdw = LennardJones(DistanceCutoff(dist_nb_cutoff),
-                                     true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, weight)
-        elseif vdw == "lj69"
-            inter_vdw = Mie(6, 9, DistanceCutoff(dist_nb_cutoff),
-                            true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, weight, 1)
-        elseif vdw == "dexp"
-            α = vdW_dict["α"]
-            β = vdW_dict["β"]
-            inter_vdw = DoubleExponential(α, β, σ_mixing, ϵ_mixing, weight, dist_nb_cutoff)
-        elseif vdw == "buff"
-            δ = vdW_dict["δ"]
-            γ = vdW_dict["γ"]
-            inter_vdw = Buffered147(δ, γ, σ_mixing, ϵ_mixing, weight, dist_nb_cutoff)
+    if vdw_functional_form in ("lj", "lj69", "dexp", "buff")
+        atoms = [Atom(i, one(T), masses[i], partial_charges[i], σ[i], ε[i]) for i in 1:n_atoms]
+        if vdw_functional_form == "lj"
+            inter_vdw = LennardJones(DistanceCutoff(dist_nb_cutoff), true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, weight_vdw)
+        elseif vdw_functional_form == "lj69"
+            inter_vdw = Mie(6, 9, DistanceCutoff(dist_nb_cutoff), true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, weight_vdw, 1)
+        elseif vdw_functional_form == "dexp"
+            inter_vdw = DoubleExponential(α, β, σ_mixing, ϵ_mixing, weight_vdw, dist_nb_cutoff)
+        elseif vdw_functional_form == "buff"
+            inter_vdw = Buffered147(δ, γ, σ_mixing, ϵ_mixing, weight_vdw, dist_nb_cutoff)
         end
-    
-    elseif vdw == "buck"
 
-        A = vdW_dict["A"]
-        B = vdW_dict["B"]
-        C = vdW_dict["C"]
+    elseif vdw_functional_form == "buck"
+        atoms = [BuckinghamAtom(i, one(T), masses[i], partial_charges[i], A[i], B[i], C[i]) for i in 1:n_atoms]
+        inter_vdw = Buckingham(weight_vdw, dist_nb_cutoff)
 
-        atoms = [BuckinghamAtom(i, one(T), masses[i], partial_charges[i], A[i], B[i], C[i])
-                 for i in 1:n_atoms]
-        
-        inter_vdw = Buckingham(weight, dist_nb_cutoff)
-
-    elseif vdw == "nn"
-        # TODO: Add functionality for NNet vdW interactions. See comment in 
-        # relevant method of transformers.jl
-    
+    elseif vdw_functional_form == "nn"
+        # TODO: Add functionality for NNet vdW interactions
     end
 
     ########## Coulomb interactions section ##########
-
-    if vdw == "nn"
-        # See previous TODO
+    if vdw_functional_form == "nn"
+        # Placeholder
     else
         weight_14_coul = sigmoid(global_params[2])
-        
+
         if MODEL_PARAMS["physics"]["use_reaction_field"] &&
             any(startswith.(mol_id, ("vapourisation_liquid_", "mixing_", "protein_")))
-            
             inter_coulomb = CoulombReactionField(dist_nb_cutoff, T(Molly.crf_solvent_dielectric),
-            true, weight_14_coul, T(ustrip(Molly.coulomb_const)))
-        
+                                                 true, weight_14_coul, T(ustrip(Molly.coulomb_const)))
         else
-
             inter_coulomb = Coulomb(DistanceCutoff(dist_nb_cutoff),
-            true, weight_14_coul, T(ustrip(Molly.coulomb_const)))
-        
+                                    true, weight_14_coul, T(ustrip(Molly.coulomb_const)))
         end
 
         pairwise_inter = (inter_vdw, inter_coulomb)
-
     end
 
     ########## Bond Interactions section ##########
-
-    if bond == "harmonic"
-        bond_inter = HarmonicBond.(T.(bonds_dict["k"]), T.(bonds_dict["r0"]))
-    elseif bond == "morse"
-        bond_inter = MorseBond.(T.(bonds_dict["k"]), T.(bonds_dict["a"]), T.(bonds_dict["r0"]))
+    if bond_functional_form == "harmonic"
+        bond_inter = HarmonicBond.(T.(bond_k), T.(bond_r0))
+    elseif bond_functional_form == "morse"
+        bond_inter = MorseBond.(T.(bond_k), T.(bond_a), T.(bond_r0))
     end
     bonds = InteractionList2Atoms(bonds_i, bonds_j, bond_inter)
 
     ########## Angle Interactions section ##########
-
-    if angle == "harmonic"
-        angle_inter = HarmonicAngle.(T.(angles_dict["k"]), T.(angles_dict["θ0"]))
-    elseif angle == "ub"
-        # TODO: I think this is not yet defined. Check with JG and train.jl script
+    if angle_functional_form == "harmonic"
+        angle_inter = HarmonicAngle.(T.(angle_k), T.(angle_θ0))
     end
-
     angles = InteractionList3Atoms(angles_i, angles_j, angles_k, angle_inter)
 
     ######### Torsion Interactions section ##########
-
     proper_inter = setup_torsions(proper_feats, torsion_periodicities, torsion_phases, true)
     propers = InteractionList4Atoms(propers_i, propers_j, propers_k, propers_l, proper_inter)
 
     improper_inter = setup_torsions(improper_feats, torsion_periodicities, torsion_phases, false)
     impropers = InteractionList4Atoms(impropers_j, impropers_k, impropers_i, impropers_l, improper_inter)
-    
+
     if length(propers_i) > 0 && length(impropers_i) > 0
         specific_inter_lists = (bonds, angles, propers, impropers)
     elseif length(propers_i) > 0
@@ -233,11 +218,10 @@ function build_sys(
         specific_inter_lists = ()
     end
 
-
-    neighbor_finder = generate_neighbors(n_atoms, 
+    neighbor_finder = generate_neighbors(n_atoms,
                                          bonds_i, bonds_j,
                                          angles_i, angles_k,
-                                         propers_i, propers_l, 
+                                         propers_i, propers_l,
                                          dist_nb_cutoff)
 
     velocities = zero(coords)
@@ -256,7 +240,6 @@ function build_sys(
         (), (), neighbor_finder, (), 1, NoUnits, NoUnits, one(T), zeros(T, n_atoms), nothing)
 
     return sys
-
 end
 
 function atom_names_from_elements(el_list::Vector{Int},
@@ -273,6 +256,511 @@ function atom_names_from_elements(el_list::Vector{Int},
 end
 
 Flux.@non_differentiable atom_names_from_elements(args...)
+
+# For LJ, LJ69
+function broadcast_atom_data!(
+    charges_sys::Vector{T}, 
+    charges_mol::Vector{T},
+    vdw_σ::Vector{T}, vdw_σ_mol::Vector{T},
+    vdw_ϵ::Vector{T}, vdw_ϵ_mol::Vector{T},
+    global_to_local::Dict{Int, Int}
+)
+    for global_i in 1:length(charges_sys)
+        local_i = get(global_to_local, global_i, nothing)
+        if !isnothing(local_i)
+            charges_sys[global_i] = charges_mol[local_i]
+            vdw_σ[global_i] = vdw_σ_mol[local_i]
+            vdw_ϵ[global_i] = vdw_ϵ_mol[local_i]
+        end
+    end
+end
+
+
+function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
+               charges_sys::Vector{Float32},
+               charges_mol::Vector{Float32},
+               vdw_σ::Vector{Float32}, vdw_σ_mol::Vector{Float32},
+               vdw_ϵ::Vector{Float32}, vdw_ϵ_mol::Vector{Float32},
+               global_to_local::Dict{Int, Int})
+
+    broadcast_atom_data!(charges_sys, charges_mol, vdw_σ, vdw_σ_mol, vdw_ϵ, vdw_ϵ_mol, global_to_local)
+
+    function pullback(ȳ)
+        d_charges_sys, d_vdw_σ, d_vdw_ϵ = ȳ
+
+        d_charges_mol = zeros(T, length(charges_mol))
+        d_vdw_σ_mol   = zeros(T, length(vdw_σ_mol))
+        d_vdw_ϵ_mol   = zeros(T, length(vdw_ϵ_mol))
+
+        Enzyme.autodiff(
+            Enzyme.Reverse,
+            broadcast_atom_data!,
+            Enzyme.Duplicated(charges_sys, d_charges_sys),
+            Enzyme.Duplicated(charges_mol, d_charges_mol),
+            Enzyme.Duplicated(vdw_σ, d_vdw_σ),
+            Enzyme.Duplicated(vdw_σ_mol, d_vdw_σ_mol),
+            Enzyme.Duplicated(vdw_ϵ, d_vdw_ϵ),
+            Enzyme.Duplicated(vdw_ϵ_mol, d_vdw_ϵ_mol),
+            Enzyme.Const(global_to_local)
+        )
+
+        return NoTangent(), NoTangent(), d_charges_mol,
+               NoTangent(), d_vdw_σ_mol, NoTangent(), d_vdw_ϵ_mol, NoTangent()
+    end
+
+    return nothing, pullback
+end
+
+# For BUCK
+function broadcast_atom_data!(
+    charges_sys::Vector{T}, 
+    charges_mol::Vector{T},
+    vdw_A::Vector{T}, vdw_A_mol::Vector{T},
+    vdw_B::Vector{T}, vdw_B_mol::Vector{T},
+    vdw_C::Vector{T}, vdw_C_mol::Vector{T},
+    global_to_local::Dict{Int, Int}
+)
+    for global_i in 1:length(charges_sys)
+        local_i = get(global_to_local, global_i, nothing)
+        if !isnothing(local_i)
+            charges_sys[global_i] = charges_mol[local_i]
+            vdw_A[global_i] = vdw_A_mol[local_i]
+            vdw_B[global_i] = vdw_B_mol[local_i]
+            vdw_C[global_i] = vdw_C_mol[local_i]
+        end
+    end
+end
+
+function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
+               charges_sys::Vector{Float32},
+               charges_mol::Vector{Float32},
+               vdw_A::Vector{Float32}, vdw_A_mol::Vector{Float32},
+               vdw_B::Vector{Float32}, vdw_B_mol::Vector{Float32},
+               vdw_C::Vector{Float32}, vdw_C_mol::Vector{Float32},
+               global_to_local::Dict{Int, Int})
+
+    broadcast_atom_data!(charges_sys, charges_mol, vdw_A, vdw_A_mol, vdw_B, vdw_B_mol, vdw_C, vdw_C_mol, global_to_local)
+
+    function pullback(ȳ)
+        d_charges_sys, d_vdw_A, d_vdw_B, d_vdw_C = ȳ
+
+        d_charges_mol = zeros(T, length(charges_mol))
+        d_vdw_A_mol   = zeros(T, length(vdw_A_mol))
+        d_vdw_B_mol   = zeros(T, length(vdw_B_mol))
+        d_vdw_C_mol   = zeros(T, length(vdw_C_mol))
+
+        Enzyme.autodiff(
+            Enzyme.Reverse,
+            broadcast_atom_data!,
+            Enzyme.Duplicated(charges_sys, d_charges_sys),
+            Enzyme.Duplicated(charges_mol, d_charges_mol),
+            Enzyme.Duplicated(vdw_A, d_vdw_A),
+            Enzyme.Duplicated(vdw_A_mol, d_vdw_A_mol),
+            Enzyme.Duplicated(vdw_B, d_vdw_B),
+            Enzyme.Duplicated(vdw_B_mol, d_vdw_B_mol),
+            Enzyme.Duplicated(vdw_C, d_vdw_C),
+            Enzyme.Duplicated(vdw_C_mol, d_vdw_C_mol),
+            Enzyme.Const(global_to_local)
+        )
+
+        return NoTangent(), NoTangent(), d_charges_mol,
+               NoTangent(), d_vdw_A_mol, NoTangent(), d_vdw_B_mol, NoTangent(), d_vdw_C_mol, NoTangent()
+    end
+
+    return nothing, pullback
+end
+
+# For DEXP and BUFF
+function broadcast_atom_data!(
+    charges_sys::Vector{Float32}, 
+    charges_mol::Vector{Float32},
+    vdw_σ::Vector{Float32}, vdw_σ_mol::Vector{Float32},
+    vdw_ϵ::Vector{Float32}, vdw_ϵ_mol::Vector{Float32},
+    vdw_α::Base.RefValue{Float32}, vdw_α_mol::Base.RefValue{Float32},
+    vdw_β::Base.RefValue{Float32}, vdw_β_mol::Base.RefValue{Float32},
+    global_to_local::Dict{Int, Int}
+)
+    for global_i in 1:length(charges_sys)
+        local_i = get(global_to_local, global_i, nothing)
+        if !isnothing(local_i)
+            charges_sys[global_i] = charges_mol[local_i]
+            vdw_σ[global_i] = vdw_σ_mol[local_i]
+            vdw_ϵ[global_i] = vdw_ϵ_mol[local_i]
+        end
+    end
+
+    vdw_α[] = vdw_α_mol[]
+    vdw_β[] = vdw_β_mol[]
+end
+
+function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
+               charges_sys::Vector{Float32},
+               charges_mol::Vector{Float32},
+               vdw_σ::Vector{Float32}, vdw_σ_mol::Vector{Float32},
+               vdw_ϵ::Vector{Float32}, vdw_ϵ_mol::Vector{Float32},
+               vdw_α::Base.RefValue{Float32}, vdw_α_mol::Base.RefValue{Float32},
+               vdw_β::Base.RefValue{Float32}, vdw_β_mol::Base.RefValue{Float32},
+               global_to_local::Dict{Int, Int})
+
+    broadcast_atom_data!(charges_sys, charges_mol, vdw_σ, vdw_σ_mol, vdw_ϵ, vdw_ϵ_mol, vdw_α, vdw_α_mol, vdw_β, vdw_β_mol, global_to_local)
+
+    function pullback(ȳ)
+        d_charges_sys, d_vdw_σ, d_vdw_ϵ, d_vdw_α, d_vdw_β = ȳ
+
+        d_charges_mol = zeros(T, length(charges_mol))
+        d_vdw_σ_mol   = zeros(T, length(vdw_σ_mol))
+        d_vdw_ϵ_mol   = zeros(T, length(vdw_ϵ_mol))
+        d_vdw_α_mol   = Ref(zero(T))
+        d_vdw_β_mol   = Ref(zero(T))
+
+        Enzyme.autodiff(
+            Enzyme.Reverse,
+            broadcast_atom_data!,
+            Enzyme.Duplicated(charges_sys, d_charges_sys),
+            Enzyme.Duplicated(charges_mol, d_charges_mol),
+            Enzyme.Duplicated(vdw_σ, d_vdw_σ),
+            Enzyme.Duplicated(vdw_σ_mol, d_vdw_σ_mol),
+            Enzyme.Duplicated(vdw_ϵ, d_vdw_ϵ),
+            Enzyme.Duplicated(vdw_ϵ_mol, d_vdw_ϵ_mol),
+            Enzyme.Duplicated(vdw_α, d_vdw_α),
+            Enzyme.Duplicated(vdw_α_mol, d_vdw_α_mol),
+            Enzyme.Duplicated(vdw_β, d_vdw_β),
+            Enzyme.Duplicated(vdw_β_mol, d_vdw_β_mol),
+            Enzyme.Const(global_to_local)
+        )
+
+        return NoTangent(), NoTangent(), d_charges_mol,
+               NoTangent(), d_vdw_σ_mol, NoTangent(), d_vdw_ϵ_mol,
+               NoTangent(), d_vdw_α_mol, NoTangent(), d_vdw_β_mol, NoTangent()
+    end
+
+    return nothing, pullback
+end
+
+function broadcast_bond_data!(
+    bonds_k::Union{Vector{T}, Nothing},
+    bonds_r0::Union{Vector{T}, Nothing},
+    bonds_a::Union{Vector{T}, Nothing},
+    bonds_k_mol::Union{Vector{T}, Nothing},
+    bonds_r0_mol::Union{Vector{T}, Nothing},
+    bonds_a_mol::Union{Vector{T}, Nothing},
+    bond_functional_form::String,
+    bonds_i::Vector{Int}, 
+    bonds_j::Vector{Int},
+    bond_global_to_local::Dict{Tuple{Int, Int}, Int}
+)
+    n_bonds = length(bonds_i)
+
+    for idx in 1:n_bonds
+        bond = (bonds_i[idx], bonds_j[idx])
+        if haskey(bond_global_to_local, bond)
+            local_i = bond_global_to_local[bond]
+            if bond_functional_form == "harmonic"
+                @assert bonds_k !== nothing && bonds_r0 !== nothing
+                @assert bonds_k_mol !== nothing && bonds_r0_mol !== nothing
+                bonds_k[idx] = bonds_k_mol[local_i]
+                bonds_r0[idx] = bonds_r0_mol[local_i]
+            elseif bond_functional_form == "morse"
+                @assert bonds_k !== nothing && bonds_r0 !== nothing && bonds_a !== nothing
+                @assert bonds_k_mol !== nothing && bonds_r0_mol !== nothing && bonds_a_mol !== nothing
+                bonds_k[idx]  = bonds_k_mol[local_i]
+                bonds_r0[idx] = bonds_r0_mol[local_i]
+                bonds_a[idx]  = bonds_a_mol[local_i]
+            end
+        end
+    end
+end
+
+function ChainRulesCore.rrule(
+    ::typeof(broadcast_bond_data!),
+    bonds_k::Union{Vector{T}, Nothing},
+    bonds_r0::Union{Vector{T}, Nothing},
+    bonds_a::Union{Vector{T}, Nothing},
+    bonds_k_mol::Union{Vector{T}, Nothing},
+    bonds_r0_mol::Union{Vector{T}, Nothing},
+    bonds_a_mol::Union{Vector{T}, Nothing},
+    bond_functional_form::String,
+    bonds_i::Vector{Int},
+    bonds_j::Vector{Int},
+    bond_global_to_local::Dict{Tuple{Int, Int}, Int}
+)
+
+    broadcast_bond_data!(
+        bonds_k, bonds_r0, bonds_a,
+        bonds_k_mol, bonds_r0_mol, bonds_a_mol,
+        bond_functional_form, bonds_i, bonds_j, bond_global_to_local
+    )
+
+    function pullback((ȳ_k, ȳ_r0, ȳ_a))
+        d_bonds_k_mol  = bonds_k_mol  === nothing ? nothing : zeros(T, length(bonds_k_mol))
+        d_bonds_r0_mol = bonds_r0_mol === nothing ? nothing : zeros(T, length(bonds_r0_mol))
+        d_bonds_a_mol  = bonds_a_mol  === nothing ? nothing : zeros(T, length(bonds_a_mol))
+
+        Enzyme.autodiff(
+            Enzyme.Reverse,
+            broadcast_bond_data!,
+            bonds_k  === nothing ? Enzyme.Const(bonds_k)  : Enzyme.Duplicated(bonds_k, ȳ_k),
+            bonds_r0 === nothing ? Enzyme.Const(bonds_r0) : Enzyme.Duplicated(bonds_r0, ȳ_r0),
+            bonds_a  === nothing ? Enzyme.Const(bonds_a)  : Enzyme.Duplicated(bonds_a, ȳ_a),
+            bonds_k_mol  === nothing ? Enzyme.Const(bonds_k_mol)  : Enzyme.Duplicated(bonds_k_mol, d_bonds_k_mol),
+            bonds_r0_mol === nothing ? Enzyme.Const(bonds_r0_mol) : Enzyme.Duplicated(bonds_r0_mol, d_bonds_r0_mol),
+            bonds_a_mol  === nothing ? Enzyme.Const(bonds_a_mol)  : Enzyme.Duplicated(bonds_a_mol, d_bonds_a_mol),
+            Enzyme.Const(bond_functional_form),
+            Enzyme.Const(bonds_i),
+            Enzyme.Const(bonds_j),
+            Enzyme.Const(bond_global_to_local)
+        )
+
+        return NoTangent(), NoTangent(), NoTangent(),
+               d_bonds_k_mol, d_bonds_r0_mol, d_bonds_a_mol,
+               NoTangent(), NoTangent(), NoTangent(), NoTangent()
+    end
+
+    return nothing, pullback
+end
+
+function broadcast_angle_data!(
+    angles_ki::Union{Vector{T}, Nothing},
+    angles_θ0i::Union{Vector{T}, Nothing},
+    angles_kj::Union{Vector{T}, Nothing},
+    angles_θ0j::Union{Vector{T}, Nothing},
+    angles_ki_mol::Union{Vector{T}, Nothing},
+    angles_θ0i_mol::Union{Vector{T}, Nothing},
+    angles_kj_mol::Union{Vector{T}, Nothing},
+    angles_θ0j_mol::Union{Vector{T}, Nothing},
+    angle_functional_form::String,
+    angles_i::Vector{Int}, 
+    angles_j::Vector{Int},
+    angles_k::Vector{Int},
+    angle_global_to_local::Dict{Tuple{Int, Int, Int}, Int}
+)
+    n_angles = length(angles_i)
+
+    for idx in 1:n_angles
+        angle = (angles_i[idx], angles_j[idx], angles_k[idx])
+        if haskey(angle_global_to_local, angle)
+            local_i = angle_global_to_local[angle]
+            if angle_functional_form == "harmonic"
+                @assert angles_ki     !== nothing && angles_θ0i     !== nothing
+                @assert angles_ki_mol !== nothing && angles_θ0i_mol !== nothing
+                angles_ki[idx]  = angles_ki_mol[local_i]
+                angles_θ0i[idx] = angles_θ0i_mol[local_i]
+            elseif angle_functional_form == "ub"
+                @assert angles_ki     !== nothing && angles_θ0i     !== nothing && angles_kj     !== nothing && angles_θ0j     !== nothing
+                @assert angles_ki_mol !== nothing && angles_θ0i_mol !== nothing && angles_kj_mol !== nothing && angles_θ0j_mol !== nothing
+                angles_ki[idx]  = angles_ki_mol[local_i]
+                angles_θ0i[idx] = angles_θ0i_mol[local_i]
+                angles_kj[idx]  = angles_kj_mol[local_i]
+                angles_θ0j[idx] = angles_θ0j_mol[local_i]
+            end
+        end
+    end
+end
+
+function ChainRulesCore.rrule(
+    ::typeof(broadcast_angle_data!),
+    angles_ki::Union{Vector{T}, Nothing},
+    angles_θ0i::Union{Vector{T}, Nothing},
+    angles_kj::Union{Vector{T}, Nothing},
+    angles_θ0j::Union{Vector{T}, Nothing},
+    angles_ki_mol::Union{Vector{T}, Nothing},
+    angles_θ0i_mol::Union{Vector{T}, Nothing},
+    angles_kj_mol::Union{Vector{T}, Nothing},
+    angles_θ0j_mol::Union{Vector{T}, Nothing},
+    angle_functional_form::String,
+    angles_i::Vector{Int}, 
+    angles_j::Vector{Int},
+    angles_k::Vector{Int},
+    angle_global_to_local::Dict{Tuple{Int, Int, Int}, Int}
+)
+    broadcast_angle_data!(angles_ki, angles_θ0i, angles_kj, angles_θ0j, angles_ki_mol, angles_θ0i_mol, angles_kj_mol, angles_θ0j_mol, angle_functional_form, angles_i, angles_j, angles_k, angle_global_to_local)
+
+    function pullback((ȳ_ki, ȳ_θ0i, ȳ_kj, ȳ_θ0j))
+
+        d_angles_ki_mol  = angles_ki_mol  === nothing ? nothing : zeros(T, length(angles_ki_mol))
+        d_angles_θ0i_mol = angles_θ0i_mol === nothing ? nothing : zeros(T, length(angles_θ0i_mol))
+        d_angles_kj_mol  = angles_kj_mol  === nothing ? nothing : zeros(T, length(angles_kj_mol))
+        d_angles_θ0j_mol = angles_θ0j_mol === nothing ? nothing : zeros(T, length(angles_θ0j_mol))
+
+        Enzyme.autodiff(
+            Enzyme.Reverse,
+            broadcast_angle_data!,
+            angles_ki  === nothing ? Enzyme.Const(angles_ki)  : Enzyme.Duplicated(angles_ki,  ȳ_ki),
+            angles_θ0i === nothing ? Enzyme.Const(angles_θ0i) : Enzyme.Duplicated(angles_θ0i, ȳ_θ0i),
+            angles_kj  === nothing ? Enzyme.Const(angles_kj)  : Enzyme.Duplicated(angles_kj,  ȳ_kj),
+            angles_θ0j === nothing ? Enzyme.Const(angles_θ0j) : Enzyme.Duplicated(angles_θ0j, ȳ_θ0j),
+            angles_ki_mol  === nothing ? Enzyme.Const(angles_ki_mol)  : Enzyme.Duplicated(angles_ki_mol,  d_angles_ki_mol),
+            angles_θ0i_mol === nothing ? Enzyme.Const(angles_θ0i_mol) : Enzyme.Duplicated(angles_θ0i_mol, d_angles_θ0i_mol),
+            angles_kj_mol  === nothing ? Enzyme.Const(angles_kj_mol)  : Enzyme.Duplicated(angles_kj_mol,  d_angles_kj_mol),
+            angles_θ0j_mol === nothing ? Enzyme.Const(angles_θ0j_mol) : Enzyme.Duplicated(angles_θ0j_mol, d_angles_θ0j_mol),
+            Enzyme.Const(angle_functional_form),
+            Enzyme.Const(angles_i),
+            Enzyme.Const(angles_j),
+            Enzyme.Const(angles_k),
+            Enzyme.Const(angle_global_to_local)
+        )
+        return NoTangent(), NoTangent(), NoTangent(), NoTangent(),
+               d_angles_ki_mol, d_angles_θ0i_mol, d_angles_kj_mol, d_angles_θ0j_mol,
+               NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent()
+    end
+
+    return nothing, pullback
+end
+
+function broadcast_proper_torsion_feats!(
+    proper_feats::Matrix{T},
+    proper_feats_mol::Matrix{T},
+    propers_i::Vector{Int},
+    propers_j::Vector{Int},
+    propers_k::Vector{Int},
+    propers_l::Vector{Int},
+    vs_instance::Vector{Int},
+    mapping::Dict{Int, Int},
+    torsion_to_key_proper::Dict{NTuple{4, Int}, NTuple{4, String}},
+    unique_proper_keys::Dict{NTuple{4, String}, Int}
+)
+    for idx in 1:length(propers_i)
+        global_quad = (propers_i[idx], propers_j[idx], propers_k[idx], propers_l[idx])
+        if all(x -> haskey(mapping, x), global_quad)
+            local_quad = (
+                findfirst(==(global_quad[1]), vs_instance),
+                findfirst(==(global_quad[2]), vs_instance),
+                findfirst(==(global_quad[3]), vs_instance),
+                findfirst(==(global_quad[4]), vs_instance)
+            )
+            if all(!isnothing, local_quad) && haskey(torsion_to_key_proper, local_quad)
+                key = torsion_to_key_proper[local_quad]
+                if haskey(unique_proper_keys, key)
+                    idx_feat = unique_proper_keys[key]
+                    proper_feats[:, idx] .= proper_feats_mol[:, idx_feat]
+                end
+            end
+        end
+    end
+end
+
+function ChainRulesCore.rrule(
+    ::typeof(broadcast_proper_torsion_feats!),
+    proper_feats::Matrix{T},
+    proper_feats_mol::Matrix{T},
+    propers_i::Vector{Int},
+    propers_j::Vector{Int},
+    propers_k::Vector{Int},
+    propers_l::Vector{Int},
+    vs_instance::Vector{Int},
+    mapping::Dict{Int, Int},
+    torsion_to_key_proper::Dict{NTuple{4, Int}, NTuple{4, String}},
+    unique_proper_keys::Dict{NTuple{4, String}, Int}
+)
+    broadcast_proper_torsion_feats!(proper_feats, proper_feats_mol, propers_i, propers_j, propers_k, propers_l,
+                                    vs_instance, mapping, torsion_to_key_proper, unique_proper_keys)
+
+    function pullback(ȳ)
+        d_proper_feats_mol = zeros(size(proper_feats_mol))
+
+        Enzyme.autodiff(
+            Enzyme.Reverse,
+            broadcast_proper_torsion_feats!,
+            Enzyme.Duplicated(proper_feats, ȳ),
+            Enzyme.Duplicated(proper_feats_mol, d_proper_feats_mol),
+            Enzyme.Const(propers_i),
+            Enzyme.Const(propers_j),
+            Enzyme.Const(propers_k),
+            Enzyme.Const(propers_l),
+            Enzyme.Const(vs_instance),
+            Enzyme.Const(mapping),
+            Enzyme.Const(torsion_to_key_proper),
+            Enzyme.Const(unique_proper_keys)
+        )
+
+        return (
+            NoTangent(), 
+            NoTangent(), d_proper_feats_mol,
+            NoTangent(), NoTangent(), NoTangent(), NoTangent(),
+            NoTangent(), NoTangent(), NoTangent()
+        )
+    end
+
+    return nothing, pullback
+end
+
+function broadcast_improper_torsion_feats!(
+    improper_feats::Matrix{T},
+    improper_feats_mol::Matrix{T},
+    impropers_i::Vector{Int},
+    impropers_j::Vector{Int},
+    impropers_k::Vector{Int},
+    impropers_l::Vector{Int},
+    vs_instance::Vector{Int},
+    mapping::Dict{Int, Int},
+    torsion_to_key_improper::Dict{NTuple{4, Int}, NTuple{4, String}},
+    unique_improper_keys::Dict{NTuple{4, String}, Int}
+)
+    for idx in 1:length(impropers_i)
+        global_quad = (impropers_i[idx], impropers_j[idx], impropers_k[idx], impropers_l[idx])
+        if all(x -> haskey(mapping, x), global_quad)
+            local_quad = (
+                findfirst(==(global_quad[1]), vs_instance),
+                findfirst(==(global_quad[2]), vs_instance),
+                findfirst(==(global_quad[3]), vs_instance),
+                findfirst(==(global_quad[4]), vs_instance)
+            )
+            if all(!isnothing, local_quad) && haskey(torsion_to_key_improper, local_quad)
+                key = torsion_to_key_improper[local_quad]
+                if haskey(unique_improper_keys, key)
+                    idx_feat = unique_improper_keys[key]
+                    improper_feats[:, idx] .= improper_feats_mol[:, idx_feat]
+                end
+            end
+        end
+    end
+end
+
+function ChainRulesCore.rrule(
+    ::typeof(broadcast_improper_torsion_feats!),
+    improper_feats::Matrix{T},
+    improper_feats_mol::Matrix{T},
+    impropers_i::Vector{Int},
+    impropers_j::Vector{Int},
+    impropers_k::Vector{Int},
+    impropers_l::Vector{Int},
+    vs_instance::Vector{Int},
+    mapping::Dict{Int, Int},
+    torsion_to_key_improper::Dict{NTuple{4, Int}, NTuple{4, String}},
+    unique_improper_keys::Dict{NTuple{4, String}, Int}
+)
+    broadcast_improper_torsion_feats!(improper_feats, improper_feats_mol, impropers_i, impropers_j, impropers_k, impropers_l,
+                                      vs_instance, mapping, torsion_to_key_improper, unique_improper_keys)
+
+    function pullback(ȳ)
+        d_improper_feats_mol = zeros(size(improper_feats_mol))
+
+        Enzyme.autodiff(
+            Enzyme.Reverse,
+            broadcast_improper_torsion_feats!,
+            Enzyme.Duplicated(improper_feats, ȳ),
+            Enzyme.Duplicated(improper_feats_mol, d_improper_feats_mol),
+            Enzyme.Const(impropers_i),
+            Enzyme.Const(impropers_j),
+            Enzyme.Const(impropers_k),
+            Enzyme.Const(impropers_l),
+            Enzyme.Const(vs_instance),
+            Enzyme.Const(mapping),
+            Enzyme.Const(torsion_to_key_improper),
+            Enzyme.Const(unique_improper_keys)
+        )
+
+        return (
+            NoTangent(),
+            NoTangent(), d_improper_feats_mol,
+            NoTangent(), NoTangent(), NoTangent(), NoTangent(),
+            NoTangent(), NoTangent(), NoTangent()
+        )
+    end
+
+    return nothing, pullback
+end
+
 
 function mol_to_system(
     mol_id::String,
@@ -305,94 +793,89 @@ function mol_to_system(
 
     global_graph = build_global_graph(length(elements), zip(bonds_i, bonds_j))
     all_graphs, all_indices = extract_all_subgraphs(global_graph)
-    unique_graphs, unique_indices, counts = filter_unique(all_graphs, all_indices)
+    unique_graphs, unique_indices, graph_to_unique = filter_unique(all_graphs, all_indices)
 
     # Prediction arrays
     partial_charges = zeros(T, n_atoms)
-    
+
     vdw_functional_form = MODEL_PARAMS["physics"]["vdw_functional_form"]
+    
+    
+    vdw_size     = zero(T)
+    weight_vdw   = zero(T)
+
+    vdw_σ = nothing
+    vdw_ϵ = nothing
+    vdw_A = nothing
+    vdw_B = nothing
+    vdw_C = nothing
+    vdw_α = nothing
+    vdw_β = nothing
+    vdw_δ = nothing
+    vdw_γ = nothing
     if vdw_functional_form == "lj"
-        vdw_dict = Dict(
-            "functional" => vdw_functional_form,
-            "params_size" => zero(T),
-            "weight_vdw" => zero(T),
-            "σ" => zeros(T, n_atoms),
-            "ϵ" => zeros(T, n_atoms)
-        )
+        vdw_σ = zeros(T, n_atoms)
+        vdw_ϵ = zeros(T, n_atoms)
+
     elseif vdw_functional_form == "lj69"
-        vdw_dict = Dict(
-            "functional" => vdw_functional_form,
-            "params_size" => zero(T),
-            "weight_vdw" => zero(T),
-            "σ" => zeros(T, n_atoms),
-            "ϵ" => zeros(T, n_atoms)
-        )
+        vdw_σ = zeros(T, n_atoms)
+        vdw_ϵ = zeros(T, n_atoms)
+
     elseif vdw_functional_form == "dexp"
-        vdw_dict = Dict(
-            "functional" => vdw_functional_form,
-            "params_size" => zero(T),
-            "weight_vdw" => zero(T),
-            "σ" => Vector{T}(undef, n_atoms),
-            "ϵ" => Vector{T}(undef, n_atoms),
-            "α" => zeros(T, n_atoms),
-            "β" => zeros(T, n_atoms)
-        )
+        vdw_σ = zeros(T, n_atoms)
+        vdw_ϵ = zeros(T, n_atoms)
+        vdw_α = zero(T)
+        vdw_β = zero(T)
+
     elseif vdw_functional_form == "buff"
-        vdw_dict = Dict(
-            "functional" => vdw_functional_form,
-            "params_size" => zero(T),
-            "weight_vdw" => zero(T),
-            "σ" => Vector{T}(undef, n_atoms),
-            "ϵ" => Vector{T}(undef, n_atoms),
-            "δ" => zeros(T, n_atoms),
-            "γ" => zeros(T, n_atoms)
-        )
+        vdw_σ = zeros(T, n_atoms)
+        vdw_ϵ = zeros(T, n_atoms)
+        vdw_δ = zero(T)
+        vdw_γ = zero(T)
+
     elseif vdw_functional_form == "buck"
-        vdw_dict = Dict(
-            "functional" => vdw_functional_form,
-            "params_size" => zero(T),
-            "weight_vdw" => zero(T),
-            "A" => zeros(T, n_atoms),
-            "B" => zeros(T, n_atoms),
-            "C" => zeros(T, n_atoms)
-        )
+        vdw_A = zeros(T, n_atoms)
+        vdw_B = zeros(T, n_atoms)
+        vdw_C = zeros(T, n_atoms)
     end
 
     bond_functional_form = MODEL_PARAMS["physics"]["bond_functional_form"]
+    n_bonds = length(bonds_i)
+
+    bonds_k  = nothing
+    bonds_r0 = nothing
+    bonds_a  = nothing
+
     if bond_functional_form == "harmonic"
-        bonds_dict = Dict(
-            "functional" => bond_functional_form,
-            "k"  => zeros(T, length(bonds_i)),
-            "r0" => zeros(T, length(bonds_i))
-        )
+        bonds_k  = zeros(T, n_bonds)
+        bonds_r0 = zeros(T, n_bonds)
     elseif bond_functional_form == "morse"
-        bonds_dict = Dict(
-            "functional" => bond_functional_form,
-            "k"  => zeros(T, length(bonds_i)),
-            "r0" => zeros(T, length(bonds_i)),
-            "a"  => zeros(T, length(bonds_i))
-        )
+        bonds_k  = zeros(T, n_bonds)
+        bonds_r0 = zeros(T, n_bonds)
+        bonds_a  = zeros(T, n_bonds)
     end
 
     angle_functional_form = MODEL_PARAMS["physics"]["angle_functional_form"]
+    n_angles = length(angles_i)
+    angles_ki  = nothing
+    angles_θ0i = nothing
+    angles_kj  = nothing
+    angles_θ0j = nothing
     if angle_functional_form == "harmonic"
-        angles_dict = Dict(
-            "functional" => angle_functional_form,
-            "k" => zeros(T, length(angles_i)),
-            "θ0" => zeros(T, length(angles_i))
-        )
+        angles_ki  = zeros(T, n_angles)
+        angles_θ0i = zeros(T, n_angles)
+
     elseif angle_functional_form == "ub"
-        angles_dict = Dict(
-            "functional" => angle_functional_form,
-            "ki" => zeros(T, length(angles_i)),
-            "θ0i" => zeros(T, length(angles_i)),
-            "kj" => zeros(T, length(angles_i)),
-            "θ0j" => zeros(T, length(angles_i))
-        )
+        angles_ki   = zeros(T, n_angles)
+        angles_θ0i  = zeros(T, n_angles)
+        angles_kj  = zeros(T, n_angles)
+        angles_θ0j = zeros(T, n_angles)
+
     end
 
     proper_feats   = zeros(T, (n_proper_terms, length(propers_i)))
     improper_feats = zeros(T, (n_improper_terms, length(impropers_i)))
+
 
     if any(startswith.(mol_id, ("vapourisation_", "mixing_")))
 
@@ -431,7 +914,7 @@ function mol_to_system(
 
         ### Atom pooling and feature prediction ###
 
-        _, embeds_mol = calc_embeddings(adj_mol, feat_mol, atom_embedding_model, atom_features_model)
+        embeds_mol = calc_embeddings(adj_mol, feat_mol, atom_embedding_model)
 
         label_to_index = Dict{String, Int}()
         for (i, label) in enumerate(labels)
@@ -636,7 +1119,11 @@ function mol_to_system(
             key_idx = unique_proper_keys[key]
             return unique_proper_feats[:, key_idx]
         end
-        proper_feats_mol = hcat(proper_feats_mol...)
+        if !isempty(proper_feats_mol)
+            proper_feats_mol = hcat(proper_feats_mol...)
+        else
+            proper_feats_mol = zeros(T, n_proper_terms, 0)
+        end
 
         improper_feats_mol = map(1:length(torsion_improper_quads)) do idx
             quad    = torsion_improper_quads[idx]
@@ -644,7 +1131,11 @@ function mol_to_system(
             key_idx = unique_improper_keys[key]
             return unique_improper_feats[:, key_idx]
         end
-        improper_feats_mol = hcat(improper_feats_mol...)
+        if !isempty(proper_feats_mol)
+            improper_feats_mol = hcat(improper_feats_mol...)
+        else
+            improper_feats_mol = zeros(T, n_improper_terms, 0)
+        end
 
         ### Predict charges from atom features ###
         charges_mol = atom_feats_to_charges(feats_mol, formal_charges[vs_template])
@@ -658,49 +1149,37 @@ function mol_to_system(
         ### Predict angle feats ###
         angles_mol = feats_to_angles(angle_feats_mol)
 
-        for (g2, vs_instance) in zip(all_graphs, all_indices)
-            
-            if has_isomorph(g, g2, VF2())
+        for (idx, vs_instance) in enumerate(all_indices)
+
+            if graph_to_unique[idx] == t
+
+                global_to_local = Dict(g => i for (i, g) in enumerate(vs_instance))
                 
-                atom_data = map(1:n_atoms) do global_i
-                    local_i = findfirst(x -> x == global_i, vs_instance)
-                    charge_return = isnothing(local_i) ? zero(T) : charges_mol[local_i]
-
-                    name_return = isnothing(local_i) ? "" : names[local_i]
-                    type_return = isnothing(local_i) ? "" : labels[local_i]
-
-                    if vdw_functional_form in ("lj", "lj69", "dexp", "buff")
-                        vdw_return_1 = isnothing(local_i) ? zero(T) : vdw_mol["σ"][local_i]
-                        vdw_return_2 = isnothing(local_i) ? zero(T) : vdw_mol["ϵ"][local_i]
-                        vdw_returns = (vdw_return_1, vdw_return_2)
-                    else
-                        vdw_return_1 = isnothing(local_i) ? zero(T) : vdw_mol["A"][local_i]
-                        vdw_return_2 = isnothing(local_i) ? zero(T) : vdw_mol["B"][local_i]
-                        vdw_return_3 = isnothing(local_i) ? zero(T) : vdw_mol["C"][local_i]
-                        vdw_returns = (vdw_return_1, vdw_return_2, vdw_return_3)
-                    end
-
-                    return charge_return, name_return, type_return, vdw_returns...
-                end
-
-                partial_charges = partial_charges .+ [d[1] for d in atom_data]
-                atom_names      = atom_names      .* [d[2] for d in atom_data]
-                atom_types      = atom_types      .* [d[3] for d in atom_data]
-                
-                if vdw_functional_form in ("lj", "lj69", "dexp", "buff")
-                    vdw_dict["σ"] = vdw_dict["σ"] .+ [d[4] for d in atom_data]
-                    vdw_dict["ϵ"] = vdw_dict["ϵ"] .+ [d[5] for d in atom_data]
-                    if vdw_functional_form == "dexp"
-                        vdw_dict["α"] = vdw_mol["α"]
-                        vdw_dict["β"] = vdw_mol["β"]
-                    elseif vdw_functional_form == "buff"
-                        vdw_dict["δ"] = vdw_mol["δ"]
-                        vdw_dict["γ"] = vdw_mol["γ"]
-                    end
-                else
-                    vdw_dict["A"] = vdw_dict["A"] .+ [d[4] for d in atom_data]
-                    vdw_dict["B"] = vdw_dict["B"] .+ [d[5] for d in atom_data]
-                    vdw_dict["C"] = vdw_dict["C"] .+ [d[6] for d in atom_data]
+                if vdw_functional_form in ("lj", "lj69")
+                    broadcast_atom_data!(partial_charges, charges_mol, 
+                                         vdw_σ, vdw_mol[1],
+                                         vdw_ϵ, vdw_mol[2],
+                                         global_to_local)
+                elseif vdw_functional_form == "dexp"
+                    broadcast_atom_data!(partial_charges, charges_mol, 
+                                         vdw_σ, vdw_mol[1],
+                                         vdw_ϵ, vdw_mol[2],
+                                         vdw_α, vdw_mol[3],
+                                         vdw_β, vdw_mol[4],
+                                         global_to_local)
+                elseif vdw_functional_form == "buff"
+                    broadcast_atom_data!(partial_charges, charges_mol, 
+                                         vdw_σ, vdw_mol[1],
+                                         vdw_ϵ, vdw_mol[2],
+                                         vdw_δ, vdw_mol[3],
+                                         vdw_γ, vdw_mol[4],
+                                         global_to_local)
+                elseif vdw_functional_form == "buck"
+                    broadcast_atom_data!(partial_charges, charges_mol, 
+                                         vdw_A, vdw_mol[1],
+                                         vdw_B, vdw_mol[2],
+                                         vdw_C, vdw_mol[3],
+                                         global_to_local)
                 end
 
                 mapping = Dict(i => vs_instance[i] for i in 1:length(vs_instance))
@@ -712,37 +1191,7 @@ function mol_to_system(
                     bond_global_to_local[global_pair] = bond_to_local_idx[local_pair]
                 end
 
-                bond_data = map(1:length(bonds_i)) do idx
-                    bond = (bonds_i[idx], bonds_j[idx])
-                    if !haskey(bond_global_to_local, bond)
-                        if bond_functional_form == "harmonic"
-                            return zero(T), zero(T)
-                        elseif bond_functional_form == "morse"
-                            return zero(T), zero(T), zero(T)
-                        end
-                    else
-                        local_i = bond_global_to_local[bond]
-                        if bond_functional_form == "harmonic"
-                            return_k = bonds_mol["k"][local_i]
-                            return_r = bonds_mol["r0"][local_i]
-                            return_params = (return_k, return_r)
-                        elseif bond_functional_form == "morse"
-                            return_k = bonds_mol["k"][local_i]
-                            return_r = bonds_mol["r0"][local_i]
-                            return_a = bonds_mol["a"][local_i]
-                            return_params = (return_k, return_r, return_a)
-                        end
-                        return return_params
-                    end
-                end
-                if bond_functional_form == "harmonic"
-                    bonds_dict["k"]  = bonds_dict["k"]  .+ [d[1] for d in bond_data]
-                    bonds_dict["r0"] = bonds_dict["r0"] .+ [d[2] for d in bond_data]
-                elseif bond_functional_form == "morse"
-                    bonds_dict["k"]  = bonds_dict["k"]  .+ [d[1] for d in bond_data]
-                    bonds_dict["r0"] = bonds_dict["r0"] .+ [d[2] for d in bond_data]
-                    bonds_dict["a"] = bonds_dict["a"] .+ [d[3] for d in bond_data]
-                end
+                broadcast_bond_data!(bonds_k, bonds_r0, bonds_a, bonds_mol[1], bonds_mol[2], bonds_mol[3], bond_functional_form, bonds_i, bonds_j, bond_global_to_local)
 
                 angle_global_to_local = Dict{Tuple{Int,Int,Int}, Int}()
                 for (i, j, k) in angle_triples
@@ -750,96 +1199,23 @@ function mol_to_system(
                     angle_global_to_local[(gi, gj, gk)] = angle_to_local_idx[(i, j, k)]
                 end
 
-                angle_data = map(1:length(angles_i)) do idx
-                    angle = (angles_i[idx], angles_j[idx], angles_k[idx])
-                    if !haskey(angle_global_to_local, angle)
-                        if angle_functional_form == "harmonic"
-                            return zero(T), zero(T)
-                        elseif angle_functional_form == "ub"
-                            return zero(T), zero(T), zero(T), zero(T)
-                        end
-                    else
-                        local_i = angle_global_to_local[angle]
-                        if angle_functional_form == "harmonic"
-                            return_k = angles_mol["k"][local_i]
-                            return_θ = angles_mol["θ0"][local_i]
-                            return_params = (return_k, return_θ)
-                        elseif angle_functional_form == "ub"
-                            return_ki = angles_mol["ki"][local_i]
-                            return_θi = angles_mol["θ0i"][local_i]
-                            return_kj = angles_mol["kj"][local_i]
-                            return_θj = angles_mol["θ0j"][local_i]
-                            return_params = (return_ki, return_θi, return_kj, return_θj)
-                        end
-                        return return_params
-                    end
-                end
-                if angle_functional_form == "harmonic"
-                    angles_dict["k"]  = angles_dict["k"]  .+ [d[1] for d in angle_data]
-                    angles_dict["θ0"] = angles_dict["θ0"] .+ [d[2] for d in angle_data]
-                elseif angle_functional_form == "ub"
-                    angles_dict["ki"]  = angles_dict["ki"]  .+ [d[1] for d in angle_data]
-                    angles_dict["θ0i"] = angles_dict["θ0i"] .+ [d[2] for d in angle_data]
-                    angles_dict["kj"]  = angles_dict["kj"]  .+ [d[3] for d in angle_data]
-                    angles_dict["θ0j"] = angles_dict["θ0j"] .+ [d[4] for d in angle_data]
-                end
+                broadcast_angle_data!(angles_ki, angles_θ0i, angles_kj, angles_θ0j, angles_mol[1], angles_mol[2], angles_mol[3], angles_mol[4], angle_functional_form, angles_i, angles_j, angles_k, angle_global_to_local)
 
                 # Broadcast proper torsion features
-                proper_data = map(1:length(propers_i)) do idx
-                    global_quad = (propers_i[idx], propers_j[idx], propers_k[idx], propers_l[idx])
-                    feat = zeros(T, size(proper_feats_mol, 1))
-                    if all(x -> haskey(mapping, x), global_quad)
-                        local_quad = (findfirst(==(global_quad[1]), vs_instance),
-                                    findfirst(==(global_quad[2]), vs_instance),
-                                    findfirst(==(global_quad[3]), vs_instance),
-                                    findfirst(==(global_quad[4]), vs_instance))
-                        if all(!isnothing, local_quad) && haskey(torsion_to_key_proper, local_quad)
-                            key = torsion_to_key_proper[local_quad]
-                            if haskey(unique_proper_keys, key)
-                                idx_feat = unique_proper_keys[key]
-                                feat = proper_feats_mol[:, idx_feat]
-                            end
-                        end
-                    end
-                    return feat
-                end
-                if !isempty(proper_data) 
-                    proper_feats += hcat(proper_data...)
-                end
+                broadcast_proper_torsion_feats!(proper_feats, proper_feats_mol, propers_i, propers_j, propers_k, propers_l, vs_instance, mapping, torsion_to_key_proper, unique_proper_keys)
 
                 # Broadcast improper torsion features
-                improper_data = map(1:length(impropers_i)) do idx
-                    global_quad = (impropers_i[idx], impropers_j[idx], impropers_k[idx], impropers_l[idx])
-                    feat = zeros(T, size(improper_feats_mol, 1))
-                    if all(x -> haskey(mapping, x), global_quad)
-                        local_quad = (findfirst(==(global_quad[1]), vs_instance),
-                                    findfirst(==(global_quad[2]), vs_instance),
-                                    findfirst(==(global_quad[3]), vs_instance),
-                                    findfirst(==(global_quad[4]), vs_instance))
-                        if all(!isnothing, local_quad) && haskey(torsion_to_key_improper, local_quad)
-                            key = torsion_to_key_improper[local_quad]
-                            if haskey(unique_improper_keys, key)
-                                idx_feat = unique_improper_keys[key]
-                                feat = improper_feats_mol[:, idx_feat]
-                            end
-                        end
-                    end
-                    return feat
-                end
-                if !isempty(improper_data) 
-                    improper_feats += hcat(improper_data...)
-                end
-
+                broadcast_improper_torsion_feats!(improper_feats, improper_feats_mol, impropers_i, impropers_j, impropers_k, impropers_l, vs_instance, mapping, torsion_to_key_improper, unique_improper_keys)
             end
         end
     end
 
     if vdw_functional_form in ("lj", "lj69", "dexp", "buff")
-        vdw_dict["params_size"] = T(0.5*(mean(vdw_dict["σ"]) + mean(vdw_dict["ϵ"])))
+        vdw_size = T(0.5*(mean(vdw_σ) + mean(vdw_ϵ)))
     else
-        vdw_dict["params_size"] = zero(T)
+        vdw_size = zero(T)
     end
-    vdw_dict["weight_vdw"] = (vdw_functional_form == "lj" ? sigmoid(global_params[1]) : one(T))
+    weight_vdw = (vdw_functional_form == "lj" ? sigmoid(global_params[1]) : one(T))
 
     torsion_ks_size = zero(T)
     if length(proper_feats) > 0
@@ -853,27 +1229,18 @@ function mol_to_system(
     proper_feats_pad   = cat(proper_feats, zeros(T, 6 - n_proper_terms, length(propers_i)); dims = 1)
     improper_feats_pad = cat(improper_feats, zeros(T, 6 - n_improper_terms, length(impropers_i)); dims = 1)
 
-    molly_sys = build_sys(mol_id,
-                          masses,
-                          atom_types,
-                          atom_names,
-                          mol_inds,
-                          coords,
-                          boundary,
-                          partial_charges,
-                          vdw_dict,
-                          bonds_dict, 
-                          angles_dict, 
-                          bonds_i, bonds_j,
-                          angles_i, angles_j, angles_k,
-                          proper_feats_pad, improper_feats_pad,
-                          propers_i, propers_j, propers_k, propers_l,
-                          impropers_i, impropers_j, impropers_k, impropers_l)
+    molly_sys = build_sys(mol_id, 
+    masses, atom_types, atom_names, mol_inds, coords, boundary_inf, partial_charges, 
+    vdw_functional_form, weight_vdw, vdw_σ, vdw_ϵ, vdw_A, vdw_B, vdw_C, vdw_α, vdw_β,
+    vdw_δ, vdw_γ, bond_functional_form, bonds_k, bonds_r0, bonds_a, angle_functional_form,
+    angles_ki, angles_θ0i, angles_kj, angles_θ0j, bonds_i, bonds_j, angles_i, angles_j, angles_k, proper_feats_pad,
+    improper_feats_pad, propers_i, propers_j, propers_k, propers_l, impropers_i, impropers_j, impropers_k,
+    impropers_l)
 
     return (
         molly_sys,
         partial_charges, 
-        vdw_dict["params_size"],
+        vdw_size,
         torsion_ks_size,
         elements,
         mol_inds

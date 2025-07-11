@@ -193,7 +193,10 @@ end
 
 models, optims = train!(models, optims)
 
-#= begin
+#= using BenchmarkTools
+using ProfileView
+
+begin
 
     mol_id = "vapourisation_liquid_O"
     
@@ -205,7 +208,7 @@ models, optims = train!(models, optims)
     coords_j, forces_j, energy_j,
     charges_j, has_charges_j = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)[1]
 
-    sys = mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
+    ProfileView.@profview molly_sys, partial_charges, vdw_dict, torsion_ks_size, elements, mol_inds = mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
     println()
 
 end =#

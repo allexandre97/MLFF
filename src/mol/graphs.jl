@@ -27,32 +27,28 @@ Flux.@non_differentiable extract_all_subgraphs(args...)
 
 # 3) Filter to unique molecule types (by isomorphism),
 #    and count how many of each type we have.
-function filter_unique(subgs::Vector{SimpleGraph{Int}},
-                       inds::Vector{Vector{Int}})
+function filter_unique(subgs::Vector{SimpleGraph{Int}}, inds::Vector{Vector{Int}})
     uniq_s = SimpleGraph{Int}[]
     uniq_i = Vector{Vector{Int}}()
-    counts = Int[]
+    graph_to_unique = Int[]
 
-    for (g, vs) in zip(subgs, inds)
+    for (i, (g, vs)) in enumerate(zip(subgs, inds))
         found = false
-        # check against each already-collected unique graph
         for (k, ug) in enumerate(uniq_s)
             if has_isomorph(ug, g, VF2())
-                counts[k] += 1
+                push!(graph_to_unique, k)
                 found = true
                 break
             end
         end
-
-        # if it's truly new, record it and start its count at 1
         if !found
             push!(uniq_s, g)
             push!(uniq_i, vs)
-            push!(counts, 1)
+            push!(graph_to_unique, length(uniq_s))
         end
     end
 
-    return uniq_s, uniq_i, counts
+    return uniq_s, uniq_i, graph_to_unique
 end
 
 Flux.@non_differentiable filter_unique(ars...)

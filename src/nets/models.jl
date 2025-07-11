@@ -203,14 +203,13 @@ end
 function calc_embeddings(
     adj_list::Vector{Vector{Int}},
     atom_features::Matrix{T},
-    atom_embedding_model::GNNChain,
-    atom_features_model::Chain,
+    atom_embedding_model::GNNChain
 ) where T
     gnn_input = atom_features
     graph = GNNGraph(adj_list)
     atom_embeddings = atom_embedding_model(graph, gnn_input)
-    atom_feats = atom_features_model(atom_embeddings)
-    return atom_feats, atom_embeddings
+ 
+    return atom_embeddings
 end
 
 function embed_to_pool(
