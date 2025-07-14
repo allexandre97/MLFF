@@ -175,7 +175,7 @@ function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
             Enzyme.Const(global_to_local)
         )
 
-        return Notangent(), d_charges_mol,
+        return NoTangent(), d_charges_mol,
                NoTangent(), d_vdw_σ_mol,
                NoTangent(), d_vdw_ϵ_mol,
                NoTangent(), d_vdw_α_mol,
