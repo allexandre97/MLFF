@@ -45,8 +45,10 @@ function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
             Enzyme.Const(global_to_local)
         )
 
-        return NoTangent(), NoTangent(), d_charges_mol,
-               NoTangent(), d_vdw_σ_mol, NoTangent(), d_vdw_ϵ_mol, NoTangent()
+        return NoTangent(), d_charges_mol,
+               NoTangent(), d_vdw_σ_mol,
+               NoTangent(), d_vdw_ϵ_mol,
+               NoTangent()
     end
 
     return nothing, pullback
@@ -104,8 +106,11 @@ function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
             Enzyme.Const(global_to_local)
         )
 
-        return NoTangent(), NoTangent(), d_charges_mol,
-               NoTangent(), d_vdw_A_mol, NoTangent(), d_vdw_B_mol, NoTangent(), d_vdw_C_mol, NoTangent()
+        return NoTangent(), d_charges_mol,
+               NoTangent(), d_vdw_A_mol,
+               NoTangent(), d_vdw_B_mol,
+               NoTangent(), d_vdw_C_mol,
+               NoTangent()
     end
 
     return nothing, pullback
@@ -170,9 +175,12 @@ function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
             Enzyme.Const(global_to_local)
         )
 
-        return NoTangent(), NoTangent(), d_charges_mol,
-               NoTangent(), d_vdw_σ_mol, NoTangent(), d_vdw_ϵ_mol,
-               NoTangent(), d_vdw_α_mol, NoTangent(), d_vdw_β_mol, NoTangent()
+        return Notangent(), d_charges_mol,
+               NoTangent(), d_vdw_σ_mol,
+               NoTangent(), d_vdw_ϵ_mol,
+               NoTangent(), d_vdw_α_mol,
+               NoTangent(), d_vdw_β_mol,
+               NoTangent()
     end
 
     return nothing, pullback
@@ -255,6 +263,7 @@ function ChainRulesCore.rrule(
         return NoTangent(), NoTangent(), NoTangent(),
                d_bonds_k_mol, d_bonds_r0_mol, d_bonds_a_mol,
                NoTangent(), NoTangent(), NoTangent(), NoTangent()
+               
     end
 
     return nothing, pullback
@@ -314,7 +323,9 @@ function ChainRulesCore.rrule(
     angles_k::Vector{Int},
     angle_global_to_local::Dict{Tuple{Int, Int, Int}, Int}
 )
-    broadcast_angle_data!(angles_ki, angles_θ0i, angles_kj, angles_θ0j, angles_ki_mol, angles_θ0i_mol, angles_kj_mol, angles_θ0j_mol, angle_functional_form, angles_i, angles_j, angles_k, angle_global_to_local)
+    broadcast_angle_data!(angles_ki, angles_θ0i, angles_kj, angles_θ0j,
+                          angles_ki_mol, angles_θ0i_mol, angles_kj_mol, angles_θ0j_mol,
+                          angle_functional_form, angles_i, angles_j, angles_k, angle_global_to_local)
 
     function pullback((ȳ_ki, ȳ_θ0i, ȳ_kj, ȳ_θ0j))
 
@@ -414,12 +425,9 @@ function ChainRulesCore.rrule(
             Enzyme.Const(unique_proper_keys)
         )
 
-        return (
-            NoTangent(), 
-            NoTangent(), d_proper_feats_mol,
-            NoTangent(), NoTangent(), NoTangent(), NoTangent(),
-            NoTangent(), NoTangent(), NoTangent()
-        )
+        return NoTangent(), d_proper_feats_mol,
+               NoTangent(), NoTangent(), NoTangent(), NoTangent(),
+               NoTangent(), NoTangent(), NoTangent(), NoTangent()
     end
 
     return nothing, pullback
@@ -491,12 +499,9 @@ function ChainRulesCore.rrule(
             Enzyme.Const(unique_improper_keys)
         )
 
-        return (
-            NoTangent(),
-            NoTangent(), d_improper_feats_mol,
-            NoTangent(), NoTangent(), NoTangent(), NoTangent(),
-            NoTangent(), NoTangent(), NoTangent()
-        )
+        return NoTangent(), d_improper_feats_mol,
+               NoTangent(), NoTangent(), NoTangent(), NoTangent(),
+               NoTangent(), NoTangent(), NoTangent(), NoTangent()
     end
 
     return nothing, pullback

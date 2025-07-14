@@ -183,7 +183,7 @@ out_dir = MODEL_PARAMS["paths"]["out_dir"]
 const global save_every_epoch = true
 
 if !isnothing(out_dir) && !isdir(out_dir)
-    mkdpath(out_dir)
+    mkpath(out_dir)
     mkdir(joinpath(out_dir, "ff_xml"))
     mkdir(joinpath(out_dir, "training_sims"))
     if save_every_epoch
