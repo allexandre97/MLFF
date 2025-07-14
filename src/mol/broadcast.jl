@@ -114,10 +114,6 @@ function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
             Enzyme.Const(global_to_local)
         )
 
-        println("d_charges_mol = ", d_charges_mol)
-        println("d_vdw_σ_mol = ", d_vdw_σ_mol)
-        println("d_vdw_ϵ_mol = ", d_vdw_ϵ_mol)
-
         return NoTangent(),
                NoTangent(), d_charges_mol,
                NoTangent(), d_vdw_A_mol,
@@ -188,10 +184,6 @@ function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
             Enzyme.Duplicated(vdw_β_mol, d_vdw_β_mol),
             Enzyme.Const(global_to_local)
         )
-
-        println("d_charges_mol = ", d_charges_mol)
-        println("d_vdw_σ_mol = ", d_vdw_σ_mol)
-        println("d_vdw_ϵ_mol = ", d_vdw_ϵ_mol)
 
         return NoTangent(),
                NoTangent(), d_charges_mol,
@@ -280,7 +272,7 @@ function ChainRulesCore.rrule(
             Enzyme.Const(bonds_j),
             Enzyme.Const(bond_global_to_local)
         )
-
+        
         return NoTangent(),
                NoTangent(), NoTangent(), NoTangent(),
                d_bonds_k_mol, d_bonds_r0_mol, d_bonds_a_mol,
@@ -288,7 +280,7 @@ function ChainRulesCore.rrule(
                
     end
 
-    return nothing, pullback
+    return Y, pullback
 end
 
 function broadcast_angle_data!(
@@ -375,13 +367,14 @@ function ChainRulesCore.rrule(
             Enzyme.Const(angles_k),
             Enzyme.Const(angle_global_to_local)
         )
+
         return NoTangent()
                NoTangent(), NoTangent(), NoTangent(), NoTangent(),
                d_angles_ki_mol, d_angles_θ0i_mol, d_angles_kj_mol, d_angles_θ0j_mol,
                NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent()
     end
 
-    return nothing, pullback
+    return Y, pullback
 end
 
 function broadcast_proper_torsion_feats!(

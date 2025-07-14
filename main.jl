@@ -171,7 +171,10 @@ const global COND_MOL_TRAIN = COND_MOLECULES[(MODEL_PARAMS["training"]["n_frames
 # Molly Constants. TODO: How can I pack these in a json?
 const global boundary_inf = CubicBoundary(T(Inf))
 
-#models, optims     = build_models()
+#= models, optims     = build_models()
+
+BSON.@save "init_models.bson" models
+BSON.@save "init_optims.bson" optims =#
 
 BSON.@load "init_models.bson" models
 BSON.@load "init_optims.bson" optims
@@ -192,9 +195,9 @@ if !isnothing(out_dir) && !isdir(out_dir)
     end
 end
 
-#models, optims = train!(models, optims)
+models, optims = train!(models, optims)
 
-using BenchmarkTools
+#= using BenchmarkTools
 using ProfileView
 
 begin
@@ -209,7 +212,7 @@ begin
     coords_j, forces_j, energy_j,
     charges_j, has_charges_j = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)[1]
 
-    #molly_sys, partial_charges, vdw_dict, torsion_ks_size, elements, mol_inds = mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
+    #@btime molly_sys, partial_charges, vdw_dict, torsion_ks_size, elements, mol_inds = mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
     grads = Zygote.gradient(models...) do models...
 
         #= molly_sys,
@@ -236,4 +239,4 @@ begin
     end
     println()
 
-end
+end =#

@@ -458,26 +458,29 @@ function mol_to_system(
                                                                          vdw_σ, vdw_mol[1],
                                                                          vdw_ϵ, vdw_mol[2],
                                                                          global_to_local)
+
                 elseif vdw_functional_form == "dexp"
-                    broadcast_atom_data!(partial_charges, charges_mol, 
-                                         vdw_σ, vdw_mol[1],
-                                         vdw_ϵ, vdw_mol[2],
-                                         Ref(vdw_α), Ref(vdw_mol[3]),
-                                         Ref(vdw_β), Ref(vdw_mol[4]),
-                                         global_to_local)
+                    partial_charges, vdw_σ, vdw_ϵ, vdw_α, vdw_β = broadcast_atom_data!(partial_charges, charges_mol, 
+                                                                                       vdw_σ, vdw_mol[1],
+                                                                                       vdw_ϵ, vdw_mol[2],
+                                                                                       Ref(vdw_α), Ref(vdw_mol[3]),
+                                                                                       Ref(vdw_β), Ref(vdw_mol[4]),
+                                                                                       global_to_local)
+
                 elseif vdw_functional_form == "buff"
-                    broadcast_atom_data!(partial_charges, charges_mol, 
-                                         vdw_σ, vdw_mol[1],
-                                         vdw_ϵ, vdw_mol[2],
-                                         Ref(vdw_δ), Ref(vdw_mol[3]),
-                                         Ref(vdw_γ), Ref(vdw_mol[4]),
-                                         global_to_local)
+                    partial_charges, vdw_σ, vdw_ϵ, vdw_δ, vdw_γ = broadcast_atom_data!(partial_charges, charges_mol, 
+                                                                                       vdw_σ, vdw_mol[1],
+                                                                                       vdw_ϵ, vdw_mol[2],
+                                                                                       Ref(vdw_δ), Ref(vdw_mol[3]),
+                                                                                       Ref(vdw_γ), Ref(vdw_mol[4]),
+                                                                                       global_to_local)
+
                 elseif vdw_functional_form == "buck"
-                    broadcast_atom_data!(partial_charges, charges_mol, 
-                                         vdw_A, vdw_mol[1],
-                                         vdw_B, vdw_mol[2],
-                                         vdw_C, vdw_mol[3],
-                                         global_to_local)
+                    partial_charges, vdw_A, vdw_B, vdw_C = broadcast_atom_data!(partial_charges, charges_mol, 
+                                                                                vdw_A, vdw_mol[1],
+                                                                                vdw_B, vdw_mol[2],
+                                                                                vdw_C, vdw_mol[3],
+                                                                                global_to_local)
                 end
 
                 mapping = Dict(i => vs_instance[i] for i in eachindex(vs_instance))
@@ -489,7 +492,7 @@ function mol_to_system(
                     bond_global_to_local[global_pair] = bond_to_local_idx[local_pair]
                 end
 
-                broadcast_bond_data!(bonds_k, bonds_r0, bonds_a, bonds_mol[1], bonds_mol[2], bonds_mol[3], bond_functional_form, bonds_i, bonds_j, bond_global_to_local)
+                bonds_k, bonds_r0, bonds_a = broadcast_bond_data!(bonds_k, bonds_r0, bonds_a, bonds_mol[1], bonds_mol[2], bonds_mol[3], bond_functional_form, bonds_i, bonds_j, bond_global_to_local)
 
                 angle_global_to_local = Dict{Tuple{Int,Int,Int}, Int}()
                 for (i, j, k) in angle_triples
@@ -497,13 +500,13 @@ function mol_to_system(
                     angle_global_to_local[(gi, gj, gk)] = angle_to_local_idx[(i, j, k)]
                 end
 
-                broadcast_angle_data!(angles_ki, angles_θ0i, angles_kj, angles_θ0j, angles_mol[1], angles_mol[2], angles_mol[3], angles_mol[4], angle_functional_form, angles_i, angles_j, angles_k, angle_global_to_local)
+                angles_ki, angles_θ0i, angles_kj, angles_θ0j = broadcast_angle_data!(angles_ki, angles_θ0i, angles_kj, angles_θ0j, angles_mol[1], angles_mol[2], angles_mol[3], angles_mol[4], angle_functional_form, angles_i, angles_j, angles_k, angle_global_to_local)
 
                 # Broadcast proper torsion features
-                broadcast_proper_torsion_feats!(proper_feats, proper_feats_mol, propers_i, propers_j, propers_k, propers_l, vs_instance, mapping, torsion_to_key_proper, unique_proper_keys)
+                proper_feats = broadcast_proper_torsion_feats!(proper_feats, proper_feats_mol, propers_i, propers_j, propers_k, propers_l, vs_instance, mapping, torsion_to_key_proper, unique_proper_keys)
 
                 # Broadcast improper torsion features
-                broadcast_improper_torsion_feats!(improper_feats, improper_feats_mol, impropers_i, impropers_j, impropers_k, impropers_l, vs_instance, mapping, torsion_to_key_improper, unique_improper_keys)
+                improper_feats = broadcast_improper_torsion_feats!(improper_feats, improper_feats_mol, impropers_i, impropers_j, impropers_k, impropers_l, vs_instance, mapping, torsion_to_key_improper, unique_improper_keys)
             end
         end
     end
