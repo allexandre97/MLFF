@@ -195,9 +195,9 @@ if !isnothing(out_dir) && !isdir(out_dir)
     end
 end
 
-#models, optims = train!(models, optims)
+models, optims = train!(models, optims)
 
-using BenchmarkTools
+#= using BenchmarkTools
 using ProfileView
 
 begin
@@ -239,4 +239,4 @@ begin
     end
     println()
 
-end
+end =#
