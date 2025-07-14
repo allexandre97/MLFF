@@ -6,6 +6,7 @@ function broadcast_atom_data!(
     vdw_ϵ::Vector{T}, vdw_ϵ_mol::Vector{T},
     global_to_local::Dict{Int, Int}
 )
+
     for global_i in 1:length(charges_sys)
         local_i = get(global_to_local, global_i, nothing)
         if !isnothing(local_i)
@@ -14,20 +15,23 @@ function broadcast_atom_data!(
             vdw_ϵ[global_i] = vdw_ϵ_mol[local_i]
         end
     end
+    return charges_sys, vdw_σ, vdw_ϵ
 end
 
-
 function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
-               charges_sys::Vector{Float32},
-               charges_mol::Vector{Float32},
-               vdw_σ::Vector{Float32}, vdw_σ_mol::Vector{Float32},
-               vdw_ϵ::Vector{Float32}, vdw_ϵ_mol::Vector{Float32},
+               charges_sys::Vector{T},
+               charges_mol::Vector{T},
+               vdw_σ::Vector{T}, vdw_σ_mol::Vector{T},
+               vdw_ϵ::Vector{T}, vdw_ϵ_mol::Vector{T},
                global_to_local::Dict{Int, Int})
 
-    broadcast_atom_data!(charges_sys, charges_mol, vdw_σ, vdw_σ_mol, vdw_ϵ, vdw_ϵ_mol, global_to_local)
+    Y = broadcast_atom_data!(charges_sys, charges_mol, vdw_σ, vdw_σ_mol, vdw_ϵ, vdw_ϵ_mol, global_to_local)
 
-    function pullback(ȳ)
-        d_charges_sys, d_vdw_σ, d_vdw_ϵ = ȳ
+    function pullback(y_hat)
+
+        d_charges_sys = iszero(y_hat[1]) ? zero(charges_sys) : y_hat[1]
+        d_vdw_σ       = iszero(y_hat[2]) ? zero(vdw_σ)       : y_hat[2]
+        d_vdw_ϵ       = iszero(y_hat[3]) ? zero(vdw_ϵ)       : y_hat[3]
 
         d_charges_mol = zeros(T, length(charges_mol))
         d_vdw_σ_mol   = zeros(T, length(vdw_σ_mol))
@@ -36,6 +40,7 @@ function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
         Enzyme.autodiff(
             Enzyme.Reverse,
             broadcast_atom_data!,
+            Enzyme.Const,
             Enzyme.Duplicated(charges_sys, d_charges_sys),
             Enzyme.Duplicated(charges_mol, d_charges_mol),
             Enzyme.Duplicated(vdw_σ, d_vdw_σ),
@@ -45,13 +50,14 @@ function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
             Enzyme.Const(global_to_local)
         )
 
-        return NoTangent(), d_charges_mol,
+        return NoTangent(), 
+               NoTangent(), d_charges_mol,
                NoTangent(), d_vdw_σ_mol,
                NoTangent(), d_vdw_ϵ_mol,
                NoTangent()
     end
 
-    return nothing, pullback
+    return Y, pullback
 end
 
 # For BUCK
@@ -72,20 +78,21 @@ function broadcast_atom_data!(
             vdw_C[global_i] = vdw_C_mol[local_i]
         end
     end
+    return charges_sys, vdw_A, vdw_B, vdw_C
 end
 
 function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
-               charges_sys::Vector{Float32},
-               charges_mol::Vector{Float32},
-               vdw_A::Vector{Float32}, vdw_A_mol::Vector{Float32},
-               vdw_B::Vector{Float32}, vdw_B_mol::Vector{Float32},
-               vdw_C::Vector{Float32}, vdw_C_mol::Vector{Float32},
+               charges_sys::Vector{T},
+               charges_mol::Vector{T},
+               vdw_A::Vector{T}, vdw_A_mol::Vector{T},
+               vdw_B::Vector{T}, vdw_B_mol::Vector{T},
+               vdw_C::Vector{T}, vdw_C_mol::Vector{T},
                global_to_local::Dict{Int, Int})
 
-    broadcast_atom_data!(charges_sys, charges_mol, vdw_A, vdw_A_mol, vdw_B, vdw_B_mol, vdw_C, vdw_C_mol, global_to_local)
+    Y = broadcast_atom_data!(charges_sys, charges_mol, vdw_A, vdw_A_mol, vdw_B, vdw_B_mol, vdw_C, vdw_C_mol, global_to_local)
 
-    function pullback(ȳ)
-        d_charges_sys, d_vdw_A, d_vdw_B, d_vdw_C = ȳ
+    function pullback(y_hat)
+        d_charges_sys, d_vdw_A, d_vdw_B, d_vdw_C = y_hat
 
         d_charges_mol = zeros(T, length(charges_mol))
         d_vdw_A_mol   = zeros(T, length(vdw_A_mol))
@@ -95,6 +102,7 @@ function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
         Enzyme.autodiff(
             Enzyme.Reverse,
             broadcast_atom_data!,
+            Enzyme.Const,
             Enzyme.Duplicated(charges_sys, d_charges_sys),
             Enzyme.Duplicated(charges_mol, d_charges_mol),
             Enzyme.Duplicated(vdw_A, d_vdw_A),
@@ -106,24 +114,29 @@ function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
             Enzyme.Const(global_to_local)
         )
 
-        return NoTangent(), d_charges_mol,
+        println("d_charges_mol = ", d_charges_mol)
+        println("d_vdw_σ_mol = ", d_vdw_σ_mol)
+        println("d_vdw_ϵ_mol = ", d_vdw_ϵ_mol)
+
+        return NoTangent(),
+               NoTangent(), d_charges_mol,
                NoTangent(), d_vdw_A_mol,
                NoTangent(), d_vdw_B_mol,
                NoTangent(), d_vdw_C_mol,
                NoTangent()
     end
 
-    return nothing, pullback
+    return Y, pullback
 end
 
 # For DEXP and BUFF
 function broadcast_atom_data!(
-    charges_sys::Vector{Float32}, 
-    charges_mol::Vector{Float32},
-    vdw_σ::Vector{Float32}, vdw_σ_mol::Vector{Float32},
-    vdw_ϵ::Vector{Float32}, vdw_ϵ_mol::Vector{Float32},
-    vdw_α::Base.RefValue{Float32}, vdw_α_mol::Base.RefValue{Float32},
-    vdw_β::Base.RefValue{Float32}, vdw_β_mol::Base.RefValue{Float32},
+    charges_sys::Vector{T}, 
+    charges_mol::Vector{T},
+    vdw_σ::Vector{T}, vdw_σ_mol::Vector{T},
+    vdw_ϵ::Vector{T}, vdw_ϵ_mol::Vector{T},
+    vdw_α::Base.RefValue{T}, vdw_α_mol::Base.RefValue{T},
+    vdw_β::Base.RefValue{T}, vdw_β_mol::Base.RefValue{T},
     global_to_local::Dict{Int, Int}
 )
     for global_i in 1:length(charges_sys)
@@ -134,24 +147,24 @@ function broadcast_atom_data!(
             vdw_ϵ[global_i] = vdw_ϵ_mol[local_i]
         end
     end
-
     vdw_α[] = vdw_α_mol[]
     vdw_β[] = vdw_β_mol[]
+    return charges_sys, vdw_σ, vdw_ϵ, vdw_α, vdw_β
 end
 
 function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
-               charges_sys::Vector{Float32},
-               charges_mol::Vector{Float32},
-               vdw_σ::Vector{Float32}, vdw_σ_mol::Vector{Float32},
-               vdw_ϵ::Vector{Float32}, vdw_ϵ_mol::Vector{Float32},
-               vdw_α::Base.RefValue{Float32}, vdw_α_mol::Base.RefValue{Float32},
-               vdw_β::Base.RefValue{Float32}, vdw_β_mol::Base.RefValue{Float32},
+               charges_sys::Vector{T},
+               charges_mol::Vector{T},
+               vdw_σ::Vector{T}, vdw_σ_mol::Vector{T},
+               vdw_ϵ::Vector{T}, vdw_ϵ_mol::Vector{T},
+               vdw_α::Base.RefValue{T}, vdw_α_mol::Base.RefValue{T},
+               vdw_β::Base.RefValue{T}, vdw_β_mol::Base.RefValue{T},
                global_to_local::Dict{Int, Int})
 
-    broadcast_atom_data!(charges_sys, charges_mol, vdw_σ, vdw_σ_mol, vdw_ϵ, vdw_ϵ_mol, vdw_α, vdw_α_mol, vdw_β, vdw_β_mol, global_to_local)
+    Y = broadcast_atom_data!(charges_sys, charges_mol, vdw_σ, vdw_σ_mol, vdw_ϵ, vdw_ϵ_mol, vdw_α, vdw_α_mol, vdw_β, vdw_β_mol, global_to_local)
 
-    function pullback(ȳ)
-        d_charges_sys, d_vdw_σ, d_vdw_ϵ, d_vdw_α, d_vdw_β = ȳ
+    function pullback(y_hat)
+        d_charges_sys, d_vdw_σ, d_vdw_ϵ, d_vdw_α, d_vdw_β = y_hat
 
         d_charges_mol = zeros(T, length(charges_mol))
         d_vdw_σ_mol   = zeros(T, length(vdw_σ_mol))
@@ -162,6 +175,7 @@ function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
         Enzyme.autodiff(
             Enzyme.Reverse,
             broadcast_atom_data!,
+            Enzyme.Const,
             Enzyme.Duplicated(charges_sys, d_charges_sys),
             Enzyme.Duplicated(charges_mol, d_charges_mol),
             Enzyme.Duplicated(vdw_σ, d_vdw_σ),
@@ -175,7 +189,12 @@ function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
             Enzyme.Const(global_to_local)
         )
 
-        return NoTangent(), d_charges_mol,
+        println("d_charges_mol = ", d_charges_mol)
+        println("d_vdw_σ_mol = ", d_vdw_σ_mol)
+        println("d_vdw_ϵ_mol = ", d_vdw_ϵ_mol)
+
+        return NoTangent(),
+               NoTangent(), d_charges_mol,
                NoTangent(), d_vdw_σ_mol,
                NoTangent(), d_vdw_ϵ_mol,
                NoTangent(), d_vdw_α_mol,
@@ -183,7 +202,7 @@ function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
                NoTangent()
     end
 
-    return nothing, pullback
+    return Y, pullback
 end
 
 function broadcast_bond_data!(
@@ -218,6 +237,7 @@ function broadcast_bond_data!(
             end
         end
     end
+    return bonds_k, bonds_r0, bonds_a
 end
 
 function ChainRulesCore.rrule(
@@ -234,7 +254,7 @@ function ChainRulesCore.rrule(
     bond_global_to_local::Dict{Tuple{Int, Int}, Int}
 )
 
-    broadcast_bond_data!(
+    Y = broadcast_bond_data!(
         bonds_k, bonds_r0, bonds_a,
         bonds_k_mol, bonds_r0_mol, bonds_a_mol,
         bond_functional_form, bonds_i, bonds_j, bond_global_to_local
@@ -248,6 +268,7 @@ function ChainRulesCore.rrule(
         Enzyme.autodiff(
             Enzyme.Reverse,
             broadcast_bond_data!,
+            Enzyme.Const,
             bonds_k  === nothing ? Enzyme.Const(bonds_k)  : Enzyme.Duplicated(bonds_k, ȳ_k),
             bonds_r0 === nothing ? Enzyme.Const(bonds_r0) : Enzyme.Duplicated(bonds_r0, ȳ_r0),
             bonds_a  === nothing ? Enzyme.Const(bonds_a)  : Enzyme.Duplicated(bonds_a, ȳ_a),
@@ -260,7 +281,8 @@ function ChainRulesCore.rrule(
             Enzyme.Const(bond_global_to_local)
         )
 
-        return NoTangent(), NoTangent(), NoTangent(),
+        return NoTangent(),
+               NoTangent(), NoTangent(), NoTangent(),
                d_bonds_k_mol, d_bonds_r0_mol, d_bonds_a_mol,
                NoTangent(), NoTangent(), NoTangent(), NoTangent()
                
@@ -305,6 +327,7 @@ function broadcast_angle_data!(
             end
         end
     end
+    return angles_ki, angles_θ0i, angles_kj, angles_θ0j
 end
 
 function ChainRulesCore.rrule(
@@ -323,7 +346,7 @@ function ChainRulesCore.rrule(
     angles_k::Vector{Int},
     angle_global_to_local::Dict{Tuple{Int, Int, Int}, Int}
 )
-    broadcast_angle_data!(angles_ki, angles_θ0i, angles_kj, angles_θ0j,
+    Y = broadcast_angle_data!(angles_ki, angles_θ0i, angles_kj, angles_θ0j,
                           angles_ki_mol, angles_θ0i_mol, angles_kj_mol, angles_θ0j_mol,
                           angle_functional_form, angles_i, angles_j, angles_k, angle_global_to_local)
 
@@ -337,6 +360,7 @@ function ChainRulesCore.rrule(
         Enzyme.autodiff(
             Enzyme.Reverse,
             broadcast_angle_data!,
+            Enzyme.Const,
             angles_ki  === nothing ? Enzyme.Const(angles_ki)  : Enzyme.Duplicated(angles_ki,  ȳ_ki),
             angles_θ0i === nothing ? Enzyme.Const(angles_θ0i) : Enzyme.Duplicated(angles_θ0i, ȳ_θ0i),
             angles_kj  === nothing ? Enzyme.Const(angles_kj)  : Enzyme.Duplicated(angles_kj,  ȳ_kj),
@@ -351,7 +375,8 @@ function ChainRulesCore.rrule(
             Enzyme.Const(angles_k),
             Enzyme.Const(angle_global_to_local)
         )
-        return NoTangent(), NoTangent(), NoTangent(), NoTangent(),
+        return NoTangent()
+               NoTangent(), NoTangent(), NoTangent(), NoTangent(),
                d_angles_ki_mol, d_angles_θ0i_mol, d_angles_kj_mol, d_angles_θ0j_mol,
                NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent()
     end
@@ -389,6 +414,7 @@ function broadcast_proper_torsion_feats!(
             end
         end
     end
+    return proper_feats
 end
 
 function ChainRulesCore.rrule(
@@ -404,7 +430,7 @@ function ChainRulesCore.rrule(
     torsion_to_key_proper::Dict{NTuple{4, Int}, NTuple{4, String}},
     unique_proper_keys::Dict{NTuple{4, String}, Int}
 )
-    broadcast_proper_torsion_feats!(proper_feats, proper_feats_mol, propers_i, propers_j, propers_k, propers_l,
+    Y = broadcast_proper_torsion_feats!(proper_feats, proper_feats_mol, propers_i, propers_j, propers_k, propers_l,
                                     vs_instance, mapping, torsion_to_key_proper, unique_proper_keys)
 
     function pullback(ȳ)
@@ -413,6 +439,7 @@ function ChainRulesCore.rrule(
         Enzyme.autodiff(
             Enzyme.Reverse,
             broadcast_proper_torsion_feats!,
+            Enzyme.Const,
             Enzyme.Duplicated(proper_feats, ȳ),
             Enzyme.Duplicated(proper_feats_mol, d_proper_feats_mol),
             Enzyme.Const(propers_i),
@@ -425,12 +452,13 @@ function ChainRulesCore.rrule(
             Enzyme.Const(unique_proper_keys)
         )
 
-        return NoTangent(), d_proper_feats_mol,
+        return NoTangent(),
+               NoTangent(), d_proper_feats_mol,
                NoTangent(), NoTangent(), NoTangent(), NoTangent(),
                NoTangent(), NoTangent(), NoTangent(), NoTangent()
     end
 
-    return nothing, pullback
+    return Y, pullback
 end
 
 function broadcast_improper_torsion_feats!(
@@ -463,6 +491,7 @@ function broadcast_improper_torsion_feats!(
             end
         end
     end
+    return improper_feats
 end
 
 function ChainRulesCore.rrule(
@@ -478,7 +507,7 @@ function ChainRulesCore.rrule(
     torsion_to_key_improper::Dict{NTuple{4, Int}, NTuple{4, String}},
     unique_improper_keys::Dict{NTuple{4, String}, Int}
 )
-    broadcast_improper_torsion_feats!(improper_feats, improper_feats_mol, impropers_i, impropers_j, impropers_k, impropers_l,
+    Y = broadcast_improper_torsion_feats!(improper_feats, improper_feats_mol, impropers_i, impropers_j, impropers_k, impropers_l,
                                       vs_instance, mapping, torsion_to_key_improper, unique_improper_keys)
 
     function pullback(ȳ)
@@ -487,6 +516,7 @@ function ChainRulesCore.rrule(
         Enzyme.autodiff(
             Enzyme.Reverse,
             broadcast_improper_torsion_feats!,
+            Enzyme.Const,
             Enzyme.Duplicated(improper_feats, ȳ),
             Enzyme.Duplicated(improper_feats_mol, d_improper_feats_mol),
             Enzyme.Const(impropers_i),
@@ -499,10 +529,11 @@ function ChainRulesCore.rrule(
             Enzyme.Const(unique_improper_keys)
         )
 
-        return NoTangent(), d_improper_feats_mol,
+        return NoTangent(),
+               NoTangent(), d_improper_feats_mol,
                NoTangent(), NoTangent(), NoTangent(), NoTangent(),
                NoTangent(), NoTangent(), NoTangent(), NoTangent()
     end
 
-    return nothing, pullback
+    return Y, pullback
 end

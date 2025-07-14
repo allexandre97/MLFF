@@ -146,7 +146,7 @@ function build_sys(
 
     ########## van der Waals section ##########
     if vdw_functional_form in ("lj", "lj69", "dexp", "buff")
-        atoms = [Atom(i, one(T), masses[i], partial_charges[i], σ[i], ε[i]) for i in 1:n_atoms]
+        atoms = [Atom(i, one(T), T(masses[i]), T(partial_charges[i]), T(σ[i]), T(ε[i])) for i in 1:n_atoms]
         if vdw_functional_form == "lj"
             inter_vdw = LennardJones(DistanceCutoff(dist_nb_cutoff), true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, weight_vdw)
         elseif vdw_functional_form == "lj69"
@@ -158,7 +158,7 @@ function build_sys(
         end
 
     elseif vdw_functional_form == "buck"
-        atoms = [BuckinghamAtom(i, one(T), masses[i], partial_charges[i], A[i], B[i], C[i]) for i in 1:n_atoms]
+        atoms = [BuckinghamAtom(i, one(T), T(masses[i]), T(partial_charges[i]), T(A[i]), T(B[i]), T(C[i])) for i in 1:n_atoms]
         inter_vdw = Buckingham(weight_vdw, dist_nb_cutoff)
 
     elseif vdw_functional_form == "nn"
@@ -454,10 +454,10 @@ function mol_to_system(
                 end
                 
                 if vdw_functional_form in ("lj", "lj69")
-                    broadcast_atom_data!(partial_charges, charges_mol, 
-                                         vdw_σ, vdw_mol[1],
-                                         vdw_ϵ, vdw_mol[2],
-                                         global_to_local)
+                    partial_charges, vdw_σ, vdw_ϵ = broadcast_atom_data!(partial_charges, charges_mol, 
+                                                                         vdw_σ, vdw_mol[1],
+                                                                         vdw_ϵ, vdw_mol[2],
+                                                                         global_to_local)
                 elseif vdw_functional_form == "dexp"
                     broadcast_atom_data!(partial_charges, charges_mol, 
                                          vdw_σ, vdw_mol[1],
@@ -528,7 +528,7 @@ function mol_to_system(
     improper_feats_pad = cat(improper_feats, zeros(T, 6 - n_improper_terms, length(impropers_i)); dims = 1)
 
     molly_sys = build_sys(mol_id, 
-    masses, atom_types, atom_names, mol_inds, coords, boundary_inf, partial_charges, 
+    masses, atom_types, atom_names, mol_inds, coords, boundary, partial_charges, 
     vdw_functional_form, weight_vdw, vdw_σ, vdw_ϵ, vdw_A, vdw_B, vdw_C, vdw_α, vdw_β,
     vdw_δ, vdw_γ, bond_functional_form, bonds_k, bonds_r0, bonds_a, angle_functional_form,
     angles_ki, angles_θ0i, angles_kj, angles_θ0j, bonds_i, bonds_j, angles_i, angles_j, angles_k, proper_feats_pad,

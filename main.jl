@@ -192,16 +192,16 @@ if !isnothing(out_dir) && !isdir(out_dir)
     end
 end
 
-models, optims = train!(models, optims)
+#models, optims = train!(models, optims)
 
-#= using BenchmarkTools
+using BenchmarkTools
 using ProfileView
 
 begin
 
-    mol_id = "vapourisation_liquid_O"
+    mol_id = "water"
     
-    feat_df = FEATURE_DATAFRAMES[3]
+    feat_df = FEATURE_DATAFRAMES[1]
     feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
 
     coords_i, forces_i, energy_i,
@@ -209,7 +209,31 @@ begin
     coords_j, forces_j, energy_j,
     charges_j, has_charges_j = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)[1]
 
-    #= ProfileView.@profview  =#molly_sys, partial_charges, vdw_dict, torsion_ks_size, elements, mol_inds = mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
+    #molly_sys, partial_charges, vdw_dict, torsion_ks_size, elements, mol_inds = mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
+    grads = Zygote.gradient(models...) do models...
+
+        #= molly_sys,
+        partial_charges, 
+        vdw_size,
+        torsion_ks_size,
+        elements,
+        mol_inds = mol_to_system(mol_id,
+                                 feat_df,
+                                 coords_i,
+                                 boundary_inf,
+                                 models...) =#
+
+        sys,
+        forces, potential_i, charges,
+        vdw_size, torsion_size,
+        elements, mol_inds,
+        forces_loss_inter, forces_loss_intra,
+        charges_loss, vdw_loss,
+        torsions_loss, reg_loss = fwd_and_loss(mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
+
+        # println(partial_charges)
+        return forces_loss_inter + potential_i + forces_loss_intra + charges_loss + vdw_loss + torsions_loss + reg_loss
+    end
     println()
 
-end =#
+end

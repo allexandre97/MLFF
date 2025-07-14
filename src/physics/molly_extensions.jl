@@ -492,7 +492,7 @@ function pe_wrap!(pe_vec, atoms, coords, velocities, boundary, pairwise_inters_n
     
     pe += Molly.specific_pe(atoms, coords, velocities, boundary, NoUnits, (),
                             sils_2_atoms, sils_3_atoms, sils_4_atoms, T, 0)
-    pe_vec[1] = pe
+    pe_vec[1] = T(pe)
     return pe_vec
 end
 
@@ -519,7 +519,7 @@ function ChainRulesCore.rrule(::typeof(pe_wrap), atoms, coords, velocities, boun
             Enzyme.set_runtime_activity(Enzyme.Reverse),
             pe_wrap!,
             Enzyme.Const,
-            Enzyme.Duplicated(zeros(T, 1), [d_pe]),
+            Enzyme.Duplicated(zeros(T, 1), [T(d_pe)]),
             Enzyme.Duplicated(atoms, d_atoms),
             Enzyme.Duplicated(coords, d_coords),
             Enzyme.Const(velocities),
