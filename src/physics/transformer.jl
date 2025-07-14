@@ -131,8 +131,10 @@ function feats_to_angles(
     angle_functional_form = MODEL_PARAMS["physics"]["angle_functional_form"]
 
     if angle_functional_form == "harmonic"
-        k  = transform_angle_k.(angle_feats[1, :], angle_feats[2, :])
-        θ0 = transform_angle_θ0.(angle_feats[1, :], angle_feats[2, :])
+        k1 = softplus(angle_feats[1, :])
+        k2 = softplus(angle_feats[2, :])
+        k  = transform_angle_k.(k1, k2)
+        θ0 = transform_angle_θ0.(k1, k2)
         return k, θ0, nothing, nothing
 
     elseif angle_functional_form == "ub"

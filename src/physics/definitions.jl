@@ -110,6 +110,7 @@ transform_angle_k( k1, k2) = max(k1 + k2, zero(T))
 bond_r1, bond_r2 = T(MODEL_PARAMS["physics"]["bond_r1"]), T(MODEL_PARAMS["physics"]["bond_r2"])
 angle_r1, angle_r2 = T(MODEL_PARAMS["physics"]["angle_r1"]), T(MODEL_PARAMS["physics"]["angle_r2"])
 transform_bond_r0( k1, k2) = max(T((k1 * bond_r1  + k2 * bond_r2 ) / (k1 + k2)), zero(T))
-transform_angle_θ0(k1, k2) = max(T(k1 * deg2rad(angle_r1) + k2 * deg2rad(angle_r2) / (k1 + k2)), zero(T))
+transform_angle_θ0(k1, k2) = max(T((k1 * deg2rad(angle_r1) + k2 * deg2rad(angle_r2)) / (k1 + k2)), zero(T))
+
 
 transform_morse_a(a) = max(a, zero(T))
