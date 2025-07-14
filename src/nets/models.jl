@@ -204,7 +204,7 @@ function calc_embeddings(
     adj_list::Vector{Vector{Int}},
     atom_features::Matrix{T},
     atom_embedding_model::GNNChain
-) where T
+)
     gnn_input = atom_features
     graph = GNNGraph(adj_list)
     atom_embeddings = atom_embedding_model(graph, gnn_input)
@@ -212,111 +212,259 @@ function calc_embeddings(
     return atom_embeddings
 end
 
-function embed_to_pool(
-    atom_embeddings,
-    bonds_i, bonds_j,
-    angles_i, angles_j, angles_k,
-    propers_i, propers_j, propers_k, propers_l,
-    impropers_i, impropers_j, impropers_k, impropers_l,
-    bond_pooling_model::Chain,
-    angle_pooling_model::Chain,
-    proper_pooling_model::Chain,
-    improper_pooling_model::Chain
+function predict_atom_features(
+    labels,
+    embeds_mol,
+    atom_features_model
 )
 
-    bond_emb_i,
-    bond_emb_j = atom_embeddings[:, bonds_i],
-                 atom_embeddings[:, bonds_j]
+    label_to_index = Dict{String, Int}()
+    for (i, label) in enumerate(labels)
+        if !haskey(label_to_index, label)
+            label_to_index[label] = i
+        end
+    end
+    unique_label_indices = ignore_derivatives() do
+        return collect(values(label_to_index))
+    end
+    unique_embeds = embeds_mol[:, unique_label_indices]
+    unique_feats  = atom_features_model(unique_embeds)
 
-    angle_emb_i,
-    angle_emb_j,
-    angle_emb_k = atom_embeddings[:, angles_i, :],
-                  atom_embeddings[:, angles_j, :],
-                  atom_embeddings[:, angles_k, :]
-
-    proper_emb_i,
-    proper_emb_j,
-    proper_emb_k,
-    proper_emb_l = atom_embeddings[:, propers_i],
-                   atom_embeddings[:, propers_j],
-                   atom_embeddings[:, propers_k],
-                   atom_embeddings[:, propers_l]
-
-    improper_emb_i,
-    improper_emb_j,
-    improper_emb_k,
-    improper_emb_l = atom_embeddings[:, impropers_i],
-                     atom_embeddings[:, impropers_j],
-                     atom_embeddings[:, impropers_k],
-                     atom_embeddings[:, impropers_l]
-
-    bond_com_emb_1 = cat(bond_emb_i, bond_emb_j; dims=1)
-    bond_com_emb_2 = cat(bond_emb_j, bond_emb_i; dims=1)
-    bond_pool_1    = bond_pooling_model(bond_com_emb_1)
-    bond_pool_2    = bond_pooling_model(bond_com_emb_2)
-    bond_pool = bond_pool_1 .+ bond_pool_2
-
-    angle_com_emb_1 = cat(angle_emb_i, angle_emb_j, angle_emb_k; dims=1)
-    angle_com_emb_2 = cat(angle_emb_k, angle_emb_j, angle_emb_i; dims=1)
-    angle_pool_1    = angle_pooling_model(angle_com_emb_1)
-    angle_pool_2    = angle_pooling_model(angle_com_emb_2)
-    angle_pool = angle_pool_1 .+ angle_pool_2
-
-    proper_com_emb_1 = cat(proper_emb_i, proper_emb_j, proper_emb_k, proper_emb_l; dims=1)
-    proper_com_emb_2 = cat(proper_emb_l, proper_emb_k, proper_emb_j, proper_emb_i; dims=1)
-    proper_pool_1    = proper_pooling_model(proper_com_emb_1)
-    proper_pool_2    = proper_pooling_model(proper_com_emb_2)
-    proper_pool = proper_pool_1 .+ proper_pool_2
-
-    improper_com_emb_1 = cat(improper_emb_i, improper_emb_j, improper_emb_k, improper_emb_l; dims=1)
-    improper_com_emb_2 = cat(improper_emb_i, improper_emb_k, improper_emb_j, improper_emb_l; dims=1)
-    improper_com_emb_3 = cat(improper_emb_i, improper_emb_l, improper_emb_j, improper_emb_k; dims=1)
-    improper_pool_1    = improper_pooling_model(improper_com_emb_1)
-    improper_pool_2    = improper_pooling_model(improper_com_emb_2)
-    improper_pool_3    = improper_pooling_model(improper_com_emb_3)
-    improper_pool = improper_pool_1 .+ improper_pool_2 .+ improper_pool_3
-
-    return (
-        bond_pool,
-        angle_pool,
-        proper_pool,
-        improper_pool
-    )
+    feats_mol = map(labels) do label
+        return unique_feats[:, label_to_index[label]]
+    end
+    feats_mol = hcat(feats_mol...)
+    return feats_mol
 
 end
 
-function pool_to_feats(
-    mol_id::String,
-    n_repeats::Int,
-    bond_pool,
-    angle_pool,
-    proper_pool,
-    improper_pool,
-    bond_features_model::Chain,
-    angle_features_model::Chain,
-    proper_features_model::Chain,
-    improper_features_model::Chain
+function predict_bond_features(
+    g,
+    labels,
+    embeds_mol,
+    bond_pooling_model,
+    bond_features_model
 )
-    if any(startswith.(mol_id, ("vapourisation_", "mixing_")))
-        bond_feats     = repeat(bond_features_model(bond_pool), 1, n_repeats)
-        angle_feats    = repeat(angle_features_model(angle_pool), 1, n_repeats)
-        proper_feats   = repeat(proper_features_model(proper_pool), 1, n_repeats)
-        improper_feats = repeat(improper_features_model(improper_pool), 1, n_repeats)
+
+    # First we create a dict that converts bonds represented as indices as bonds represented by molecule type
+    bond_to_key = Dict{Tuple{Int,Int}, Tuple{String,String}}()
+    bond_to_local_idx = Dict{Tuple{Int,Int}, Int}()
     
-    elseif startswith(mol_id, "protein")
-        #TODO: Add this magic
-    else
-        bond_feats     = bond_features_model(bond_pool)
-        angle_feats    = angle_features_model(angle_pool)
-        proper_feats   = proper_features_model(proper_pool)
-        improper_feats = improper_features_model(improper_pool)
+    edges_list = [e for e in edges(g)]
+    bond_key = map(1:length(edges_list)) do k
+        e = edges_list[k]
+        u, v = src(e), dst(e)
+        bond_to_local_idx[(min(u,v), max(u,v))] = k
+        lu, lv = labels[u], labels[v]
+        key = lu < lv ? (lu, lv) : (lv, lu)
+        bond_to_key[(min(u,v), max(u,v))] = key
+        return key
     end
 
-    return(
-        bond_feats,
-        angle_feats,
-        proper_feats,
-        improper_feats
-    )
+    # Then we get the unique bonds represented by atom type
+    unique_keys = Dict{Tuple{String,String}, Int}()
+    unique_bond_keys = Tuple{String,String}[]
+    ignore_derivatives() do
+        for key in bond_key
+            if !haskey(unique_keys, key)
+                push!(unique_bond_keys, key)
+                unique_keys[key] = length(unique_keys) + 1
+            end
+        end
+    end
 
+    # We pass only the unique bonds to the pooling model
+    emb_i = embeds_mol[:, [findfirst(==(l), labels) for (l, _) in unique_bond_keys]]
+    emb_j = embeds_mol[:, [findfirst(==(l), labels) for (_, l) in unique_bond_keys]]
+    bond_pool_1 = bond_pooling_model(cat(emb_i, emb_j; dims=1))
+    bond_pool_2 = bond_pooling_model(cat(emb_j, emb_i; dims=1))
+    bond_pool = bond_pool_1 .+ bond_pool_2 # Bond symmetry preserved
+
+    # Predict features 
+    unique_bond_feats = bond_features_model(bond_pool)
+    bond_feats_mol = map(1:length(edges(g))) do k
+        e = [_ for _  in edges(g)][k]
+        u, v = src(e), dst(e)
+        key = bond_to_key[(min(u,v), max(u,v))]
+        idx = unique_keys[key]
+        return unique_bond_feats[:,idx]
+    end
+    bond_feats_mol = hcat(bond_feats_mol...)
+    return bond_feats_mol, bond_to_local_idx
+end
+
+function predict_angle_features(
+    angles_i, angles_j, angles_k,
+    vs_template,
+    labels,
+    embeds_mol,
+    angle_pooling_model, angle_features_model
+)
+    ### Angle Feature Pooling ###
+    angle_to_key = Dict{NTuple{3,Int}, NTuple{3,String}}()
+    angle_triples = [(i,j,k) for (i,j,k) in zip(angles_i, angles_j, angles_k) if i in vs_template && j in vs_template && k in vs_template]
+    
+    # Map triplets from whole system indexing to local molecule indexing
+    local_map = Dict(glo => loc for (loc, glo) in enumerate(vs_template))
+    angle_triples = [(local_map[i], local_map[j], local_map[k]) for (i,j,k) in angle_triples]
+    
+    # From index to molecule type
+    angle_to_local_idx = Dict{Tuple{Int,Int,Int}, Int}()
+    angle_key = Tuple{String,String,String}[]
+    ignore_derivatives() do
+        for (idx, (i, j, k)) in enumerate(angle_triples)
+            angle_to_local_idx[(i,j,k)] = idx
+            li, lj, lk = labels[i], labels[j], labels[k]
+            key = (li, lj, lk) < (lk, lj, li) ? (li, lj, lk) : (lk, lj, li)
+            push!(angle_key, key)
+            angle_to_key[(i,j,k)] = key
+        end
+    end
+
+    # Get unique representation by molecule type
+    unique_angle_keys = Dict{NTuple{3,String}, Int}()
+    angle_key_order = NTuple{3,String}[]
+    ignore_derivatives() do 
+        for key in angle_key
+            if !haskey(unique_angle_keys, key)
+                push!(angle_key_order, key)
+                unique_angle_keys[key] = length(unique_angle_keys) + 1
+            end
+        end
+    end
+
+    # Get features for just the unique angles
+    angle_emb_i = embeds_mol[:, [findfirst(==(li), labels) for (li, _, _) in angle_key_order]]
+    angle_emb_j = embeds_mol[:, [findfirst(==(lj), labels) for (_, lj, _) in angle_key_order]]
+    angle_emb_k = embeds_mol[:, [findfirst(==(lk), labels) for (_, _, lk) in angle_key_order]]
+
+    # Symmetry preserving pooling
+    angle_com_emb_1 = cat(angle_emb_i, angle_emb_j, angle_emb_k; dims=1)
+    angle_com_emb_2 = cat(angle_emb_k, angle_emb_j, angle_emb_i; dims=1)
+    angle_pool_1 = angle_pooling_model(angle_com_emb_1)
+    angle_pool_2 = angle_pooling_model(angle_com_emb_2)
+
+    # Get features
+    angle_pool = angle_pool_1 .+ angle_pool_2
+    unique_angle_feats = angle_features_model(angle_pool)
+
+    # Broadcast from unique bonds to whole molecule
+    angle_feats_mol = map(1:length(angle_triples)) do idx
+        ijk = angle_triples[idx]
+        key = angle_to_key[ijk]
+        key_idx = unique_angle_keys[key]
+        return unique_angle_feats[:, key_idx]
+    end
+    angle_feats_mol = hcat(angle_feats_mol...)
+    return angle_feats_mol, angle_triples, angle_to_local_idx
+end
+
+function predict_torsion_features(
+    propers_i, propers_j, propers_k, propers_l,
+    impropers_i, impropers_j, impropers_k, impropers_l,
+    vs_template,
+    labels,
+    embeds_mol,
+    proper_pooling_model, proper_features_model,
+    improper_pooling_model, improper_features_model
+)
+    
+    torsion_to_key_proper   = Dict{NTuple{4,Int}, NTuple{4,String}}()
+    torsion_to_key_improper = Dict{NTuple{4,Int}, NTuple{4,String}}()
+
+    # Get global indices that appear in molecular template indices
+    torsion_proper_quads = [(i,j,k,l) for (i,j,k,l) in zip(propers_i, propers_j, propers_k, propers_l) if i in vs_template && j in vs_template && k in vs_template && l in vs_template]
+    torsion_improper_quads = [(i,j,k,l) for (i,j,k,l) in zip(impropers_i, impropers_j, impropers_k, impropers_l) if i in vs_template && j in vs_template && k in vs_template && l in vs_template]
+
+    # Map indices from global to local indexing
+    local_map = Dict(glo => loc for (loc, glo) in enumerate(vs_template))
+    torsion_proper_quads = [(local_map[i], local_map[j], local_map[k], local_map[l]) for (i,j,k,l) in torsion_proper_quads]
+    torsion_improper_quads = [(local_map[i], local_map[j], local_map[k], local_map[l]) for (i,j,k,l) in torsion_improper_quads]
+
+    # From indices to atom types
+    torsion_key_proper = map(torsion_proper_quads) do quad
+        i,j,k,l = quad
+        li, lj, lk, ll = labels[i], labels[j], labels[k], labels[l]
+        key = (li, lj, lk, ll) < (ll, lk, lj, li) ? (li, lj, lk, ll) : (ll, lk, lj, li)
+        torsion_to_key_proper[(i,j,k,l)] = key
+        return key
+    end
+
+    torsion_key_improper = map(torsion_improper_quads) do quad
+        i,j,k,l = quad
+        li, lj, lk, ll = labels[i], labels[j], labels[k], labels[l]
+        key = (li, lj, lk, ll)
+        torsion_to_key_improper[(i,j,k,l)] = key
+        return key
+    end
+
+    # We get the unique torsions depending on atom type
+    unique_proper_keys = Dict{NTuple{4,String}, Int}()
+    unique_improper_keys = Dict{NTuple{4,String}, Int}()
+    proper_key_order = NTuple{4,String}[]
+    improper_key_order = NTuple{4,String}[]
+    ignore_derivatives() do 
+        for key in torsion_key_proper
+            if !haskey(unique_proper_keys, key)
+                push!(proper_key_order, key)
+                unique_proper_keys[key] = length(unique_proper_keys) + 1
+            end
+        end
+
+        for key in torsion_key_improper
+            if !haskey(unique_improper_keys, key)
+                push!(improper_key_order, key)
+                unique_improper_keys[key] = length(unique_improper_keys) + 1
+            end
+        end
+    end
+
+    # Symmetry preserving pooling
+
+    prop_i = embeds_mol[:, [findfirst(==(li), labels) for (li, _, _, _) in proper_key_order]]
+    prop_j = embeds_mol[:, [findfirst(==(lj), labels) for (_, lj, _, _) in proper_key_order]]
+    prop_k = embeds_mol[:, [findfirst(==(lk), labels) for (_, _, lk, _) in proper_key_order]]
+    prop_l = embeds_mol[:, [findfirst(==(ll), labels) for (_, _, _, ll) in proper_key_order]]
+
+    prop_1 = cat(prop_i, prop_j, prop_k, prop_l; dims=1)
+    prop_2 = cat(prop_l, prop_k, prop_j, prop_i; dims=1)
+    proper_pool = proper_pooling_model(prop_1) .+ proper_pooling_model(prop_2)
+    unique_proper_feats = proper_features_model(proper_pool)
+
+    imp_i = embeds_mol[:, [findfirst(==(li), labels) for (li, _, _, _) in improper_key_order]]
+    imp_j = embeds_mol[:, [findfirst(==(lj), labels) for (_, lj, _, _) in improper_key_order]]
+    imp_k = embeds_mol[:, [findfirst(==(lk), labels) for (_, _, lk, _) in improper_key_order]]
+    imp_l = embeds_mol[:, [findfirst(==(ll), labels) for (_, _, _, ll) in improper_key_order]]
+
+    imp_1 = cat(imp_i, imp_j, imp_k, imp_l; dims=1)
+    imp_2 = cat(imp_i, imp_k, imp_j, imp_l; dims=1)
+    imp_3 = cat(imp_i, imp_l, imp_j, imp_k; dims=1)
+    improper_pool = improper_pooling_model(imp_1) .+ improper_pooling_model(imp_2) .+ improper_pooling_model(imp_3)
+    unique_improper_feats = improper_features_model(improper_pool)
+
+    # Broadcast from unique torsions to whole molecule
+    proper_feats_mol = map(1:length(torsion_proper_quads)) do idx
+        quad    = torsion_proper_quads[idx]
+        key     = torsion_to_key_proper[quad]
+        key_idx = unique_proper_keys[key]
+        return unique_proper_feats[:, key_idx]
+    end
+    if !isempty(proper_feats_mol)
+        proper_feats_mol = hcat(proper_feats_mol...)
+    else
+        proper_feats_mol = zeros(T, n_proper_terms, 0)
+    end
+
+    improper_feats_mol = map(1:length(torsion_improper_quads)) do idx
+        quad    = torsion_improper_quads[idx]
+        key     = torsion_to_key_improper[quad]
+        key_idx = unique_improper_keys[key]
+        return unique_improper_feats[:, key_idx]
+    end
+    if !isempty(proper_feats_mol)
+        improper_feats_mol = hcat(improper_feats_mol...)
+    else
+        improper_feats_mol = zeros(T, n_improper_terms, 0)
+    end
+    return proper_feats_mol, improper_feats_mol, torsion_to_key_proper, torsion_to_key_improper, unique_proper_keys, unique_improper_keys
 end

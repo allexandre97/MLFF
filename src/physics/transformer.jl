@@ -77,7 +77,7 @@ function atom_feats_to_vdW(
         vdw_params_size = mean(σs) + mean(ϵs)/2.0
     
         if vdw_functional_form == "lj"
-            return σs, ϵs
+            return σs, ϵs, nothing, nothing
 
         elseif vdw_functional_form == "dexp"
             α = transform_dexp_α(global_params[3])
@@ -94,7 +94,7 @@ function atom_feats_to_vdW(
         As = transform_buck_A.(atom_features[3, :])
         Bs = transform_buck_A.(atom_features[4, :])
         Cs = transform_buck_A.(atom_features[5, :])
-        return As, Bs, Cs
+        return As, Bs, Cs, nothing
     end
 
     #=

@@ -63,6 +63,7 @@ include("./src/io/simread.jl")
 include("./src/io/graphics.jl")
 include("./src/io/forcefield.jl")
 
+include("./src/mol/broadcast.jl")
 include("./src/mol/molbuild.jl")
 include("./src/mol/graphs.jl")
 include("./src/mol/newtypes.jl")
@@ -191,9 +192,9 @@ if !isnothing(out_dir) && !isdir(out_dir)
     end
 end
 
-models, optims = train!(models, optims)
+#models, optims = train!(models, optims)
 
-#= using BenchmarkTools
+using BenchmarkTools
 using ProfileView
 
 begin
@@ -208,7 +209,7 @@ begin
     coords_j, forces_j, energy_j,
     charges_j, has_charges_j = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)[1]
 
-    ProfileView.@profview molly_sys, partial_charges, vdw_dict, torsion_ks_size, elements, mol_inds = mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
+    #= ProfileView.@profview  =#molly_sys, partial_charges, vdw_dict, torsion_ks_size, elements, mol_inds = mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
     println()
 
-end =#
+end
