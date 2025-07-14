@@ -183,7 +183,7 @@ out_dir = MODEL_PARAMS["paths"]["out_dir"]
 const global save_every_epoch = true
 
 if !isnothing(out_dir) && !isdir(out_dir)
-    mkdir(out_dir)
+    mkdpath(out_dir)
     mkdir(joinpath(out_dir, "ff_xml"))
     mkdir(joinpath(out_dir, "training_sims"))
     if save_every_epoch
@@ -192,9 +192,9 @@ if !isnothing(out_dir) && !isdir(out_dir)
     end
 end
 
-#models, optims = train!(models, optims)
+models, optims = train!(models, optims)
 
-using BenchmarkTools
+#= using BenchmarkTools
 using ProfileView
 
 begin
@@ -212,4 +212,4 @@ begin
     #= ProfileView.@profview  =#molly_sys, partial_charges, vdw_dict, torsion_ks_size, elements, mol_inds = mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
     println()
 
-end
+end =#

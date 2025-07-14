@@ -104,7 +104,7 @@ function plot_training(plot_fp, models,
                color=:grey, label="Training simulations start")
     end
     xlims!(ax, low=0.0)
-    ylims!(ax, low=0.0, high=y_max)
+    #ylims!(ax, low=0.0, high=y_max)
     f[1, 3] = Legend(f, ax; framevisible=false)
 
     #= mol_id = "val-val"

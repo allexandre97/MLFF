@@ -387,7 +387,6 @@ function mol_to_system(
         angles_θ0i  = zeros(T, n_angles)
         angles_kj  = zeros(T, n_angles)
         angles_θ0j = zeros(T, n_angles)
-
     end
 
     # Proper and improper torsions

@@ -110,8 +110,9 @@ function feats_to_bonds(
     bond_functional_form = MODEL_PARAMS["physics"]["bond_functional_form"]
 
     if bond_functional_form == "harmonic"
-        k  = transform_bond_k.(bond_feats[1, :], bond_feats[2, :])
-        r0 = transform_bond_r0.(bond_feats[1, :], bond_feats[2, :])
+        k1, k2 = softplus(bond_feats[1, :]), softplus(bond_feats[2, :])
+        k  = transform_bond_k.(k1, k2)
+        r0 = transform_bond_r0.(k2, k2)
         return k, r0, nothing
 
     elseif bond_functional_form == "morse"
