@@ -39,12 +39,12 @@ function fwd_and_loss(
     dft_force_intra, dft_force_inter   = split_forces(dft_forces, coords, mol_inds, elements)
 
     # Calculate the losses
-    forces_loss_intra = force_loss(pred_force_intra, dft_force_intra)
-    forces_loss_inter = force_loss(pred_force_inter, dft_force_inter)
-    charges_loss      = (has_charges ? charge_loss(charges, dft_charges) : zero(T))
-    vdw_loss          = vdw_params_loss(vdw_size)
-    torsions_loss     = torsion_ks_loss(torsion_size)
-    reg_loss          = param_regularisation((models...,))
+    forces_loss_intra::T = force_loss(pred_force_intra, dft_force_intra)
+    forces_loss_inter::T = force_loss(pred_force_inter, dft_force_inter)
+    charges_loss::T      = (has_charges ? charge_loss(charges, dft_charges) : zero(T))
+    vdw_loss::T          = vdw_params_loss(vdw_size)
+    torsions_loss::T     = torsion_ks_loss(torsion_size)
+    reg_loss::T          = param_regularisation((models...,))
     
     return (
         sys,
@@ -61,79 +61,96 @@ function fwd_and_loss(
 end
 
 function loss_update(
+    chunk_id::Int,
 
-    chunk_id,
+    # Per-chunk loss arrays
+    forces_intra_loss_chunks::Vector{Vector{T}},
+    forces_inter_loss_chunks::Vector{Vector{T}},
+    potential_loss_chunks::Vector{Vector{T}},
+    charges_loss_chunks::Vector{Vector{T}},
+    vdw_loss_chunks::Vector{Vector{T}},
+    torsions_loss_chunks::Vector{Vector{T}},
 
-    forces_intra_loss_chunks, forces_inter_loss_chunks,
-    potential_loss_chunks,
-    charges_loss_chunks, vdw_loss_chunks,
-    torsions_loss_chunks,
+    # Running totals
+    forces_intra_loss_sum::T,
+    forces_inter_loss_sum::T,
+    potential_loss_sum::T,
+    charges_loss_sum::T,
+    vdw_loss_sum::T,
+    torsions_loss_sum::T,
+    reg_loss_sum::T,
 
-    forces_intra_loss_sum, forces_inter_loss_sum,
-    potential_loss_sum,
-    charges_loss_sum, vdw_loss_sum,
-    torsions_loss_sum, reg_loss_sum,
+    # Current loss values
+    forces_loss_intra::T,
+    forces_loss_inter::T,
+    charges_loss::T,
+    vdw_loss::T,
+    torsions_loss::T,
+    reg_loss::T,
 
-    forces_loss_intra, forces_loss_inter,
-    charges_loss, vdw_loss,
-    torsions_loss, reg_loss,
+    pair_present::Bool;
 
-    pair_present,
-
-    epoch_n     = nothing,
-    pe_diff     = nothing,
-    dft_pe_diff = nothing,
-
-    test_train = "train"
+    # Optional keyword args
+    epoch_n::Union{Nothing, Int} = nothing,
+    pe_diff::Union{Nothing, T} = nothing,
+    dft_pe_diff::Union{Nothing, T} = nothing,
+    test_train::String = "train"
 )
 
-    # Catch if any of the losses is NaN
-    if isnan(forces_loss_inter) || isnan(forces_loss_intra) ||
-        isnan(charges_loss) || isnan(vdw_loss) || isnan(torsions_loss) || isnan(reg_loss)
+    # Check for NaNs in input loss values
+    if any(isnan, (forces_loss_intra, forces_loss_inter, charges_loss, vdw_loss, torsions_loss, reg_loss))
         return false
+    end
+
+    # Compute potential energy loss if applicable
+    loss_pe = zero(T)
+
+    if pair_present && epoch_n !== nothing && pe_diff !== nothing && dft_pe_diff !== nothing
+        loss_pe_unbound = pe_loss(pe_diff, dft_pe_diff)  # or conditional if needed
+
+        if isnan(loss_pe_unbound)
+            return false
+        end
+
+        threshold = MODEL_PARAMS["training"]["loss_weight_energy_factor"] *
+                    MODEL_PARAMS["training"]["loss_weight_energy"]
+
+        loss_pe = loss_pe_unbound < threshold ? loss_pe_unbound : zero(T)
     else
+        loss_pe = zero(T)
+    end
+
+    # Push current losses into chunked arrays (ignoring gradients)
+    ignore_derivatives() do
+        push!(forces_intra_loss_chunks[chunk_id], forces_loss_intra)
+        push!(forces_inter_loss_chunks[chunk_id], forces_loss_inter)
+        push!(charges_loss_chunks[chunk_id], charges_loss)
+        push!(vdw_loss_chunks[chunk_id], vdw_loss)
+        push!(torsions_loss_chunks[chunk_id], torsions_loss)
         if pair_present
-            if epoch_n > MODEL_PARAMS["training"]["loss_energy_first_epoch"]
-                loss_pe_unbound = pe_loss(pe_diff, dft_pe_diff)
-                if loss_pe_unbound < MODEL_PARAMS["training"]["loss_weight_energy_factor"]*MODEL_PARAMS["training"]["loss_weight_energy"]
-                    loss_pe = loss_pe_unbound
-                else
-                    loss_pe = zero(T)
-                end
-            else
-                loss_pe = zero(T)
-            end
-            if isnan(loss_pe)
-                return false
-            end
-        end
-        # Store the losses in the arrays indexed by chunk
-        ignore_derivatives() do 
-            push!(forces_intra_loss_chunks[chunk_id], forces_loss_intra)
-            push!(forces_inter_loss_chunks[chunk_id], forces_loss_inter)
-            if pair_present
-                push!(potential_loss_chunks[chunk_id], loss_pe)
-            end
-            push!(charges_loss_chunks[chunk_id], charges_loss)
-            push!(vdw_loss_chunks[chunk_id], vdw_loss)
-            push!(torsions_loss_chunks[chunk_id], torsions_loss)
-            #Why is reg loss not pushed into any array?
-        end
-        if test_train == "train"
-            # Add loss to sum of losses
-            forces_intra_loss_sum += forces_loss_intra
-            forces_inter_loss_sum += forces_loss_inter
-            if pair_present
-                potential_loss_sum += loss_pe
-            end
-            charges_loss_sum      += charges_loss
-            vdw_loss_sum          += vdw_loss
-            torsions_loss_sum     += torsions_loss
-            reg_loss_sum          += reg_loss
+            push!(potential_loss_chunks[chunk_id], loss_pe)
         end
     end
-    return true
+
+    # Update cumulative loss values if in training mode
+    if test_train == "train"
+        forces_intra_loss_sum += forces_loss_intra
+        forces_inter_loss_sum += forces_loss_inter
+        charges_loss_sum      += charges_loss
+        vdw_loss_sum          += vdw_loss
+        torsions_loss_sum     += torsions_loss
+        reg_loss_sum          += reg_loss
+        if pair_present
+            potential_loss_sum += loss_pe
+        end
+    end
+
+    return true,
+           forces_intra_loss_sum, forces_inter_loss_sum,
+           potential_loss_sum, charges_loss_sum,
+           vdw_loss_sum, torsions_loss_sum, reg_loss_sum
 end
+
 
 function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
     epochs_mean_fs_intra_train, epochs_mean_fs_intra_val,
@@ -405,18 +422,21 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                         end
                     end
 
-                    loss_success = loss_update(chunk_id, 
-                                               forces_intra_loss_chunks, forces_inter_loss_chunks,
-                                               potential_loss_chunks,
-                                               charges_loss_chunks, vdw_loss_chunks, torsions_loss_chunks,
-                                               forces_intra_loss_sum, forces_inter_loss_sum,
-                                               potential_loss_sum,
-                                               charges_loss_sum, vdw_loss_sum, torsions_loss_sum, reg_loss_sum,
-                                               forces_loss_intra, forces_loss_inter,
-                                               charges_loss, vdw_loss, torsions_loss, reg_loss,
-                                               false)
+                    loss_success,
+                    forces_intra_loss_sum, forces_inter_loss_sum,
+                    potential_loss_sum, charges_loss_sum,
+                    vdw_loss_sum, torsions_loss_sum, reg_loss_sum = loss_update(
+                        chunk_id,
+                        forces_intra_loss_chunks, forces_inter_loss_chunks, potential_loss_chunks,
+                        charges_loss_chunks, vdw_loss_chunks, torsions_loss_chunks,
+                        forces_intra_loss_sum, forces_inter_loss_sum, potential_loss_sum,
+                        charges_loss_sum, vdw_loss_sum, torsions_loss_sum, reg_loss_sum,
+                        forces_loss_intra, forces_loss_inter,
+                        charges_loss, vdw_loss, torsions_loss, reg_loss,
+                        false)
 
                     if !loss_success
+                        println("NaNs found in losses!")
                         return zero(T)
                     end
 
@@ -435,18 +455,25 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                         pe_diff     = potential_j - potential_i
                         dft_pe_diff = energy_j - energy_i
 
-                        loss_success = loss_update(chunk_id,
-                                                   forces_intra_loss_chunks, forces_inter_loss_chunks,
-                                                   potential_loss_chunks,
-                                                   charges_loss_chunks, vdw_loss_chunks, torsions_loss_chunks,
-                                                   forces_intra_loss_sum, forces_inter_loss_sum,
-                                                   potential_loss_sum,
-                                                   charges_loss_sum, vdw_loss_sum, torsions_loss_sum, reg_loss_sum,
-                                                   forces_loss_intra, forces_loss_inter,
-                                                   charges_loss, vdw_loss, torsions_loss, reg_loss,
-                                                   false, epoch_n, pe_diff, dft_pe_diff)
+                        loss_success,
+                        forces_intra_loss_sum, forces_inter_loss_sum,
+                        potential_loss_sum, charges_loss_sum,
+                        vdw_loss_sum, torsions_loss_sum, reg_loss_sum = loss_update(
+                            chunk_id,
+                            forces_intra_loss_chunks, forces_inter_loss_chunks, potential_loss_chunks,
+                            charges_loss_chunks, vdw_loss_chunks, torsions_loss_chunks,
+                            forces_intra_loss_sum, forces_inter_loss_sum, potential_loss_sum,
+                            charges_loss_sum, vdw_loss_sum, torsions_loss_sum, reg_loss_sum,
+                            forces_loss_intra, forces_loss_inter,
+                            charges_loss, vdw_loss, torsions_loss, reg_loss,
+                            true;
+                            epoch_n = 1,
+                            pe_diff = pe_diff,
+                            dft_pe_diff = dft_pe_diff,
+                            test_train = "train")
 
                         if !loss_success
+                            println("NaNs found in losses! Mol j")
                             return zero(T)
                         end
                     end
@@ -456,7 +483,6 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                            potential_loss_sum    * MODEL_PARAMS["training"]["train_on_pe"] +
                            charges_loss_sum      * MODEL_PARAMS["training"]["train_on_charges"] +
                            vdw_loss_sum + torsions_loss_sum + reg_loss_sum 
-                
                 end
 
                 if check_no_nans(grads)
@@ -706,16 +732,18 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                     print_chunks[chunk_id] *="loss forces intra $forces_loss_intra forces inter $forces_loss_inter charge $charges_loss vdw params $vdw_loss torsion ks $torsions_loss regularisation $reg_loss\n"
                 end
 
-                loss_success = loss_update(chunk_id, 
-                                            forces_intra_loss_chunks, forces_inter_loss_chunks,
-                                            potential_loss_chunks,
-                                            charges_loss_chunks, vdw_loss_chunks, torsions_loss_chunks,
-                                            zero(T), zero(T),
-                                            zero(T),
-                                            zero(T), zero(T), zero(T), zero(T),
-                                            forces_loss_intra, forces_loss_inter,
-                                            charges_loss, vdw_loss, torsions_loss, reg_loss,
-                                            false, nothing, nothing, nothing, "test")
+                loss_success,
+                _, _,
+                _, _,
+                _, _, _ = loss_update(
+                    chunk_id,
+                    forces_intra_loss_chunks, forces_inter_loss_chunks, potential_loss_chunks,
+                    charges_loss_chunks, vdw_loss_chunks, torsions_loss_chunks,
+                    zero(T), zero(T), zero(T),
+                    zero(T), zero(T), zero(T), zero(T),
+                    forces_loss_intra, forces_loss_inter,
+                    charges_loss, vdw_loss, torsions_loss, reg_loss,
+                    false)
                 
                 if pair_present
 
@@ -731,16 +759,22 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                     pe_diff     = potential_j - potential_i
                     dft_pe_diff = energy_j - energy_i
 
-                    loss_success = loss_update(chunk_id,
-                                               forces_intra_loss_chunks, forces_inter_loss_chunks,
-                                               potential_loss_chunks,
-                                               charges_loss_chunks, vdw_loss_chunks, torsions_loss_chunks,
-                                               zero(T), zero(T),
-                                               zero(T),
-                                               zero(T), zero(T), zero(T), zero(T),
-                                               forces_loss_intra, forces_loss_inter,
-                                               charges_loss, vdw_loss, torsions_loss, reg_loss,
-                                               false, epoch_n, pe_diff, dft_pe_diff, "test")
+                    loss_success,
+                    _, _,
+                    _, _,
+                    _, _, _ = loss_update(
+                        chunk_id,
+                        forces_intra_loss_chunks, forces_inter_loss_chunks, potential_loss_chunks,
+                        charges_loss_chunks, vdw_loss_chunks, torsions_loss_chunks,
+                        zero(T), zero(T), zero(T),
+                        zero(T), zero(T), zero(T), zero(T),
+                        forces_loss_intra, forces_loss_inter,
+                        charges_loss, vdw_loss, torsions_loss, reg_loss,
+                        true;
+                        epoch_n = 1,
+                        pe_diff = pe_diff,
+                        dft_pe_diff = dft_pe_diff,
+                        test_train = "train")
                 end
             end
         end

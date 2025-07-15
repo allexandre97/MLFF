@@ -49,9 +49,18 @@ function ChainRulesCore.rrule(::typeof(multi_mol_charge_factors), charge_e_inv_s
     return Y, multi_mol_charge_factors_pullback
 end
 
-function atom_feats_to_charges(atom_feats::Matrix{T}, formal_charges::Vector{Int}) where T
+function atom_feats_to_charges(atom_feats::Matrix{T}, formal_charges::Vector{Int})
     e       = atom_feats[1, :]
     inv_s   = inv.(atom_feats[2, :])
+    e_over_s = e .* inv_s
+
+    charge_factor = (sum(formal_charges) + sum(e_over_s)) / sum(inv_s)
+    return -e_over_s .+ inv_s .* charge_factor
+end
+
+function atom_feats_to_charges(charges_k1::Vector{T}, charges_k2::Vector{T}, formal_charges::Vector{Int})
+    e       = charges_k1
+    inv_s   = inv.(charges_k2)
     e_over_s = e .* inv_s
 
     charge_factor = (sum(formal_charges) + sum(e_over_s)) / sum(inv_s)

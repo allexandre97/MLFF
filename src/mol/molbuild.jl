@@ -320,7 +320,11 @@ function mol_to_system(
 
     # Prediction arrays
     #Charges
-    partial_charges = zeros(T, n_atoms)
+    #partial_charges = zeros(T, n_atoms)
+
+    # Let's try to predict the partial charges for the whole system instead for just each mol template
+    charges_k1 = zeros(T, n_atoms)
+    charges_k2 = zeros(T, n_atoms)
 
     #vdW Parameters
     vdw_functional_form = MODEL_PARAMS["physics"]["vdw_functional_form"]
@@ -454,10 +458,11 @@ function mol_to_system(
                 end
                 
                 if vdw_functional_form in ("lj", "lj69")
-                    partial_charges, vdw_σ, vdw_ϵ = broadcast_atom_data!(partial_charges, charges_mol, 
-                                                                         vdw_σ, vdw_mol[1],
-                                                                         vdw_ϵ, vdw_mol[2],
-                                                                         global_to_local)
+                    charges_k1, charges_k2, vdw_σ, vdw_ϵ = broadcast_atom_data!(charges_k1, feats_mol[1,:],
+                                                                                charges_k2, feats_mol[2,:], 
+                                                                                vdw_σ, vdw_mol[1],
+                                                                                vdw_ϵ, vdw_mol[2],
+                                                                                global_to_local)
 
                 elseif vdw_functional_form == "dexp"
                     partial_charges, vdw_σ, vdw_ϵ, vdw_α, vdw_β = broadcast_atom_data!(partial_charges, charges_mol, 
@@ -529,6 +534,8 @@ function mol_to_system(
     # Why is this padding needed?
     proper_feats_pad   = cat(proper_feats, zeros(T, 6 - n_proper_terms, length(propers_i)); dims = 1)
     improper_feats_pad = cat(improper_feats, zeros(T, 6 - n_improper_terms, length(impropers_i)); dims = 1)
+
+    partial_charges = atom_feats_to_charges(charges_k1, charges_k2, formal_charges)
 
     molly_sys = build_sys(mol_id, 
     masses, atom_types, atom_names, mol_inds, coords, boundary, partial_charges, 

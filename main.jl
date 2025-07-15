@@ -212,19 +212,27 @@ begin
     coords_j, forces_j, energy_j,
     charges_j, has_charges_j = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)[1]
 
-    #@btime molly_sys, partial_charges, vdw_dict, torsion_ks_size, elements, mol_inds = mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
+    pair_present = true
+
+    n_chunks = 1
+
+    forces_intra_loss_chunks  = [T[] for _ in 1:n_chunks]
+    forces_inter_loss_chunks  = [T[] for _ in 1:n_chunks]
+    potential_loss_chunks     = [T[] for _ in 1:n_chunks]
+    charges_loss_chunks       = [T[] for _ in 1:n_chunks]
+    vdw_loss_chunks           = [T[] for _ in 1:n_chunks]
+    torsions_loss_chunks      = [T[] for _ in 1:n_chunks]
+    #TODO: Add loss for GEMS dataset
+    enth_vap_loss_chunks     = [T[] for _ in 1:n_chunks]
+    enth_mix_loss_chunks     = [T[] for _ in 1:n_chunks]
+
+    chunk_id = 1
+
+    #molly_sys, partial_charges, vdw_dict, torsion_ks_size, elements, mol_inds = mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
     grads = Zygote.gradient(models...) do models...
 
-        #= molly_sys,
-        partial_charges, 
-        vdw_size,
-        torsion_ks_size,
-        elements,
-        mol_inds = mol_to_system(mol_id,
-                                 feat_df,
-                                 coords_i,
-                                 boundary_inf,
-                                 models...) =#
+        forces_intra_loss_sum, forces_inter_loss_sum = zero(T), zero(T)
+        potential_loss_sum, charges_loss_sum, vdw_loss_sum, torsions_loss_sum, reg_loss_sum = zero(T), zero(T), zero(T), zero(T), zero(T)
 
         sys,
         forces, potential_i, charges,
@@ -234,8 +242,69 @@ begin
         charges_loss, vdw_loss,
         torsions_loss, reg_loss = fwd_and_loss(mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
 
-        # println(partial_charges)
-        return forces_loss_inter + potential_i + forces_loss_intra + charges_loss + vdw_loss + torsions_loss + reg_loss
+        loss_success,
+        forces_intra_loss_sum, forces_inter_loss_sum,
+        potential_loss_sum, charges_loss_sum,
+        vdw_loss_sum, torsions_loss_sum, reg_loss_sum = loss_update(
+            chunk_id,
+            forces_intra_loss_chunks, forces_inter_loss_chunks, potential_loss_chunks,
+            charges_loss_chunks, vdw_loss_chunks, torsions_loss_chunks,
+            forces_intra_loss_sum, forces_inter_loss_sum, potential_loss_sum,
+            charges_loss_sum, vdw_loss_sum, torsions_loss_sum, reg_loss_sum,
+            forces_loss_intra, forces_loss_inter,
+            charges_loss, vdw_loss, torsions_loss, reg_loss,
+            false)
+
+        if !loss_success
+            println("NaNs found in losses!")
+            return zero(T)
+        end
+
+        if pair_present
+            # Forward pass and feat prediction
+            sys,
+            forces, potential_j, charges,
+            vdw_size, torsion_size,
+            elements, mol_inds,
+            forces_loss_inter, forces_loss_intra,
+            charges_loss, vdw_loss,
+            torsions_loss, reg_loss = fwd_and_loss(mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
+            
+
+            pe_diff     = potential_j - potential_i
+            dft_pe_diff = energy_j - energy_i
+
+            loss_success,
+            forces_intra_loss_sum, forces_inter_loss_sum,
+            potential_loss_sum, charges_loss_sum,
+            vdw_loss_sum, torsions_loss_sum, reg_loss_sum = loss_update(
+                chunk_id,
+                forces_intra_loss_chunks, forces_inter_loss_chunks, potential_loss_chunks,
+                charges_loss_chunks, vdw_loss_chunks, torsions_loss_chunks,
+                forces_intra_loss_sum, forces_inter_loss_sum, potential_loss_sum,
+                charges_loss_sum, vdw_loss_sum, torsions_loss_sum, reg_loss_sum,
+                forces_loss_intra, forces_loss_inter,
+                charges_loss, vdw_loss, torsions_loss, reg_loss,
+                true;
+                epoch_n = 1,
+                pe_diff = pe_diff,
+                dft_pe_diff = dft_pe_diff,
+                test_train = "train")
+
+            if !loss_success
+                println("NaNs found in losses!")
+                return zero(T)
+            end
+
+        end
+
+        return forces_intra_loss_sum * MODEL_PARAMS["training"]["train_on_forces_intra"] +
+                           forces_inter_loss_sum * MODEL_PARAMS["training"]["train_on_forces_inter"] +
+                           potential_loss_sum    * MODEL_PARAMS["training"]["train_on_pe"] +
+                           charges_loss_sum      * MODEL_PARAMS["training"]["train_on_charges"] +
+                           vdw_loss_sum + torsions_loss_sum + reg_loss_sum
+
+
     end
     println()
 

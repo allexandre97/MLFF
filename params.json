@@ -32,11 +32,11 @@
         "loss_energy_first_epoch":1,
 
         "train_on_forces_intra":1.0,
-        "train_on_forces_inter":0.0,
-        "train_on_pe":0.0,
-        "train_on_charges":0.0,
-        "train_on_enth_vap":0.0,
-        "train_on_enth_mix":0.0,
+        "train_on_forces_inter":1.0,
+        "train_on_pe":1.0,
+        "train_on_charges":1.0,
+        "train_on_enth_vap":1.0,
+        "train_on_enth_mix":1.0,
 
         "enth_vap_gas_n_samples":10,
 
