@@ -430,7 +430,7 @@ function mol_to_system(
                                                                             improper_pooling_model, improper_features_model)
 
         ### Predict charges from atom features ###
-        charges_mol = atom_feats_to_charges(feats_mol, formal_charges[vs_template])
+        #charges_mol = atom_feats_to_charges(feats_mol, formal_charges[vs_template])
 
         ### Predict vdw params ###
         vdw_mol = atom_feats_to_vdW(feats_mol)

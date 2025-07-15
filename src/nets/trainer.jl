@@ -112,10 +112,8 @@ function loss_update(
             return false
         end
 
-        threshold = MODEL_PARAMS["training"]["loss_weight_energy_factor"] *
-                    MODEL_PARAMS["training"]["loss_weight_energy"]
+        loss_pe = loss_pe_unbound
 
-        loss_pe = loss_pe_unbound < threshold ? loss_pe_unbound : zero(T)
     else
         loss_pe = zero(T)
     end
