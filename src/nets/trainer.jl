@@ -40,7 +40,7 @@ function fwd_and_loss(
 
     # Calculate the losses
     forces_loss_intra::T = force_loss(pred_force_intra, dft_force_intra)
-    forces_loss_inter::T = force_loss(pred_force_inter, dft_force_inter)
+    forces_loss_inter::T = T(MODEL_PARAMS["training"]["loss_weight_force_inter"]) * force_loss(pred_force_inter, dft_force_inter)
     charges_loss::T      = (has_charges ? charge_loss(charges, dft_charges) : zero(T))
     vdw_loss::T          = vdw_params_loss(vdw_size)
     torsions_loss::T     = torsion_ks_loss(torsion_size)
@@ -202,10 +202,8 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
         for mol in unique_mols
             _ = features_to_xml(ff_xml_path, mol,
                                 141, 295, feats, models...)
-            run(`sbatch --partition=agpu --gres=gpu:1 --time=4:0:0 \
-                --output=$log_path --job-name=sim$epoch_n \
-                --wrap="/lmb/home/alexandrebg/miniconda3/envs/rdkit/bin/python \
-                        sim_training.py $submit_dir $ff_xml_path"`)
+            run(`/lmb/home/alexandrebg/miniconda3/envs/rdkit/bin/python \
+                        sim_training.py $submit_dir $ff_xml_path`)
         end
     end
 
