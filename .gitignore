@@ -5,6 +5,8 @@
 *.bson
 *.png
 *.tsv
+*.csv
+hyparams/
 runs/
 old_runs/
 runs_probas/
