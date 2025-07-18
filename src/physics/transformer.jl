@@ -110,7 +110,8 @@ function feats_to_bonds(
     bond_functional_form = MODEL_PARAMS["physics"]["bond_functional_form"]
 
     if bond_functional_form == "harmonic"
-        k1, k2 = softplus(bond_feats[1, :]), softplus(bond_feats[2, :])
+        k1 = T(100000.0)*softplus(bond_feats[1, :])
+        k2 = T(100000.0)*softplus(bond_feats[2, :])
         k  = transform_bond_k.(k1, k2)
         r0 = transform_bond_r0.(k1, k2)
         return k, r0, nothing
@@ -131,8 +132,8 @@ function feats_to_angles(
     angle_functional_form = MODEL_PARAMS["physics"]["angle_functional_form"]
 
     if angle_functional_form == "harmonic"
-        k1 = softplus(angle_feats[1, :])
-        k2 = softplus(angle_feats[2, :])
+        k1 = T(1000.0)*softplus(angle_feats[1, :])
+        k2 = T(1000.0)*softplus(angle_feats[2, :])
         k  = transform_angle_k.(k1, k2)
         θ0 = transform_angle_θ0.(k1, k2)
         return k, θ0, nothing, nothing

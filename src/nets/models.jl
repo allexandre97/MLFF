@@ -280,6 +280,8 @@ function predict_bond_features(
     bond_pool_2 = bond_pooling_model(cat(emb_j, emb_i; dims=1))
     bond_pool = bond_pool_1 .+ bond_pool_2 # Bond symmetry preserved
 
+    println("Size bond_pool: $(size(bond_pool))")
+
     # Predict features 
     unique_bond_feats = bond_features_model(bond_pool)
     bond_feats_mol = map(1:length(edges(g))) do k
@@ -290,6 +292,7 @@ function predict_bond_features(
         return unique_bond_feats[:,idx]
     end
     bond_feats_mol = hcat(bond_feats_mol...)
+    println("Size bond_feats: $(size(bond_feats_mol))")
     return bond_feats_mol, bond_to_local_idx
 end
 
@@ -311,14 +314,13 @@ function predict_angle_features(
     # From index to molecule type
     angle_to_local_idx = Dict{Tuple{Int,Int,Int}, Int}()
     angle_key = Tuple{String,String,String}[]
-    ignore_derivatives() do
-        for (idx, (i, j, k)) in enumerate(angle_triples)
-            angle_to_local_idx[(i,j,k)] = idx
-            li, lj, lk = labels[i], labels[j], labels[k]
-            key = (li, lj, lk) < (lk, lj, li) ? (li, lj, lk) : (lk, lj, li)
-            push!(angle_key, key)
-            angle_to_key[(i,j,k)] = key
-        end
+    angle_key = map(eachindex(angle_triples)) do idx
+        i, j, k = angle_triples[idx]
+        angle_to_local_idx[(i,j,k)] = idx
+        li, lj, lk = labels[i], labels[j], labels[k]
+        key = (li, lj, lk) < (lk, lj, li) ? (li, lj, lk) : (lk, lj, li)
+        angle_to_key[(i,j,k)] = key
+        return key
     end
 
     # Get unique representation by molecule type

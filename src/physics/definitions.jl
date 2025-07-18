@@ -74,7 +74,7 @@ if bond_functional_form == "harmonic"
 elseif bond_functional_form == "morse"
     const n_bonded_params = 3
 else
-    error("unknown bond functional form $bond_functional_form")
+    error("unknown bond functional form $bond_functional_fo19rm")
 end
 
 if angle_functional_form == "harmonic"
@@ -107,7 +107,7 @@ transform_buck_C(x) = sigmoid(x) * T(0.0095) + T(0.0005) # 0.0005 kJ/mol nm^6 ->
 
 transform_bond_k(  k1, k2) = max(k1 + k2, zero(T))
 transform_angle_k( k1, k2) = max(k1 + k2, zero(T))
-bond_r1, bond_r2 = T(MODEL_PARAMS["physics"]["bond_r1"]), T(MODEL_PARAMS["physics"]["bond_r2"])
+bond_r1, bond_r2   = T(MODEL_PARAMS["physics"]["bond_r1"]), T(MODEL_PARAMS["physics"]["bond_r2"])
 angle_r1, angle_r2 = T(MODEL_PARAMS["physics"]["angle_r1"]), T(MODEL_PARAMS["physics"]["angle_r2"])
 transform_bond_r0( k1, k2) = max(T((k1 * bond_r1  + k2 * bond_r2 ) / (k1 + k2)), zero(T))
 transform_angle_θ0(k1, k2) = max(T((k1 * deg2rad(angle_r1) + k2 * deg2rad(angle_r2)) / (k1 + k2)), zero(T))

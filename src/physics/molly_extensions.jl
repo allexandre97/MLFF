@@ -596,6 +596,7 @@ function ChainRulesCore.rrule(::typeof(forces_wrap), atoms, coords, velocities, 
             Enzyme.Const(neighbors),
         )[1]
         pair_grad = (vdw_functional_form == "nn" ? d_pairwise_inters_nl : grads[6])
+
         return NoTangent(), d_atoms, d_coords, NoTangent(), NoTangent(), pair_grad,
                d_sils_2_atoms, d_sils_3_atoms, d_sils_4_atoms, NoTangent()
     end

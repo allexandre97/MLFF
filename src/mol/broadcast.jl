@@ -290,7 +290,9 @@ function ChainRulesCore.rrule(
             Enzyme.Const(bond_global_to_local)
         )
 
-        #println("BONDS PULLBACK")
+        println("k: $d_bonds_k_mol")
+        println("r0: $d_bonds_r0_mol")
+        println("a: $d_bonds_a_mol")
 
         return NoTangent(),
                NoTangent(), NoTangent(), NoTangent(),
@@ -387,9 +389,7 @@ function ChainRulesCore.rrule(
             Enzyme.Const(angle_global_to_local)
         )
 
-        #println("ANGLE PULLBACK")
-
-        return NoTangent()
+        return NoTangent(),
                NoTangent(), NoTangent(), NoTangent(), NoTangent(),
                d_angles_ki_mol, d_angles_θ0i_mol, d_angles_kj_mol, d_angles_θ0j_mol,
                NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent()

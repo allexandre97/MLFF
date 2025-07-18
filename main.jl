@@ -171,13 +171,13 @@ const global COND_MOL_TRAIN = COND_MOLECULES[(MODEL_PARAMS["training"]["n_frames
 # Molly Constants. TODO: How can I pack these in a json?
 const global boundary_inf = CubicBoundary(T(Inf))
 
-#= models, optims     = build_models()
+models, optims     = build_models()
 
-BSON.@save "init_models.bson" models
+#= BSON.@save "init_models.bson" models
 BSON.@save "init_optims.bson" optims =#
 
-BSON.@load "init_models.bson" models
-BSON.@load "init_optims.bson" optims
+#= BSON.@load "../MLFF_hyp/runs/only_forces_own_sims/models/model_ep_9.bson" models
+BSON.@load "../MLFF_hyp/runs/only_forces_own_sims/optims/optim_ep_9.bson" optims =#
 
 @non_differentiable Molly.find_neighbors(args...)
 
@@ -196,3 +196,72 @@ if !isnothing(out_dir) && !isdir(out_dir)
 end
 
 models, optims = train!(models, optims)
+
+#= mol_id = "water"
+
+feat_df = FEATURE_DATAFRAMES[1]
+feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
+
+coords_i, forces_i, energy_i,
+charges_i, has_charges_i,
+coords_j, forces_j, energy_j,
+charges_j, has_charges_j = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)[1]
+println()
+
+begin 
+    grads = Zygote.gradient(models...) do models...
+
+        sys, partial_charges, vdw_size, ks_size, elements, mol_inds = mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
+
+        neighbors = ignore_derivatives() do
+            return find_neighbors(sys; n_threads = 1)
+        end
+        # Get interaction lists separate depending on the number of atoms involves
+        sils_2_atoms = filter(il -> il isa InteractionList2Atoms, values(sys.specific_inter_lists))
+        sils_3_atoms = filter(il -> il isa InteractionList3Atoms, values(sys.specific_inter_lists))
+        sils_4_atoms = filter(il -> il isa InteractionList4Atoms, values(sys.specific_inter_lists))
+        forces = forces_wrap(sys.atoms, sys.coords, sys.velocities, sys.boundary, sys.pairwise_inters,
+                            sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+
+        dft_forces_intra, dft_forces_inter = split_forces(forces_i, coords_i, mol_inds, elements)
+        forces_intra, forces_inter         = split_forces(forces, coords_i, mol_inds, elements)
+
+        return force_loss(forces_intra, dft_forces_intra)
+    end
+
+    for (i, model_grads) in enumerate(grads)
+        println("Model $i:")
+        if isnothing(model_grads)
+            println("No gradients for this model")
+            continue
+        end
+        for (j, layer_grads) in enumerate(model_grads.layers)
+            has_weight = hasfield(typeof(layer_grads), :weight)
+            has_bias   = hasfield(typeof(layer_grads), :bias)
+
+            w_grad = has_weight ? getfield(layer_grads, :weight) : nothing
+            b_grad = has_bias   ? getfield(layer_grads, :bias)   : nothing
+
+            has_w = w_grad !== nothing && any(!iszero, w_grad)
+            has_b = b_grad !== nothing && any(!iszero, b_grad)
+
+            println("  Layer $j - weight grad: ", has_w, ", bias grad: ", has_b)
+        end
+    end
+
+end
+
+println(grads[7].layers[1].weight)
+
+begin
+    f = open("grad_angle_feature_layer_2.tsv", "w")
+    Is, Js = size(grads[8].layers[2].weight)
+    for i in 1:Is
+        for j in 1:Js
+            print(f, grads[8].layers[2].weight[i,j])
+            print(f, "\t")
+        end
+        println()
+    end
+    close(f)
+end =#

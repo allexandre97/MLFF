@@ -35,7 +35,9 @@ function mol_to_preds(
 )
 
     sys, partial_charges, vdw_size, torsion_size, elements, mol_inds = mol_to_system(mol_id, args...)
-    neighbors = find_neighbors(sys; n_threads = 1)
+    neighbors = ignore_derivatives() do
+        return find_neighbors(sys; n_threads = 1)
+    end
     # Get interaction lists separate depending on the number of atoms involves
     sils_2_atoms = filter(il -> il isa InteractionList2Atoms, values(sys.specific_inter_lists))
     sils_3_atoms = filter(il -> il isa InteractionList3Atoms, values(sys.specific_inter_lists))
@@ -413,6 +415,7 @@ function mol_to_system(
 
         ### Atom pooling and feature prediction ###
         embeds_mol = calc_embeddings(adj_mol, feat_mol, atom_embedding_model)
+
         feats_mol  = predict_atom_features(labels, embeds_mol, atom_features_model)
 
         ### Bonds pooling and feature prediction ###

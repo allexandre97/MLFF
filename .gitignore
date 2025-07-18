@@ -3,7 +3,11 @@
 *.py
 *.sh
 *.bson
+*.png
+*.tsv
 runs/
+old_runs/
+runs_probas/
 .vscode
 mlff_env/
 cacolas/

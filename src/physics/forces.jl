@@ -71,12 +71,16 @@ function ChainRulesCore.rrule(::typeof(split_forces), fs, coords, molecule_inds,
     function split_forces_pullback(d_fs_both)
         d_coords = zero(coords)
         d_fs = zero(fs)
+
+        df1 = typeof(d_fs_both[1]) == ZeroTangent ? zero(fs) : d_fs_both[1]
+        df2 = typeof(d_fs_both[2]) == ZeroTangent ? zero(fs) : d_fs_both[2]
+
         grads = Enzyme.autodiff(
             Enzyme.set_runtime_activity(Enzyme.Reverse),
             split_forces!,
             Enzyme.Const,
-            Enzyme.Duplicated(zero(fs), d_fs_both[1]),
-            Enzyme.Duplicated(zero(fs), d_fs_both[2]),
+            Enzyme.Duplicated(zero(fs), df1),
+            Enzyme.Duplicated(zero(fs), df2),
             Enzyme.Duplicated(fs, d_fs),
             Enzyme.Duplicated(coords, d_coords),
             Enzyme.Const(molecule_inds),
