@@ -15,7 +15,8 @@
 
         "n_epochs":300,
 
-        "training_sims_first_epoch":1000,
+        "training_sims_first_epoch":200,
+        "condensed_data_first_epoch":150,
 
         "n_minibatch":256,
 
