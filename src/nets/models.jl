@@ -280,8 +280,6 @@ function predict_bond_features(
     bond_pool_2 = bond_pooling_model(cat(emb_j, emb_i; dims=1))
     bond_pool = bond_pool_1 .+ bond_pool_2 # Bond symmetry preserved
 
-    println("Size bond_pool: $(size(bond_pool))")
-
     # Predict features 
     unique_bond_feats = bond_features_model(bond_pool)
     bond_feats_mol = map(1:length(edges(g))) do k
@@ -292,7 +290,6 @@ function predict_bond_features(
         return unique_bond_feats[:,idx]
     end
     bond_feats_mol = hcat(bond_feats_mol...)
-    println("Size bond_feats: $(size(bond_feats_mol))")
     return bond_feats_mol, bond_to_local_idx
 end
 
