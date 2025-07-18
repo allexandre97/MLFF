@@ -92,6 +92,7 @@ const global SUBSET_N_REPEATS = Dict(
     "SPICE Amino Acid Ligand v1.0"                          => 2  , # 194,174 -> 388,348
     "SPICE Solvated PubChem Set 1 v1.0"                     => 20 , # 13,934  -> 278,680
     "SPICE Water Clusters v1.0"                             => 1, #100, # 1,000   -> 100,000
+    "SPICE DES370K Single Points Dataset v1.0"              => 1,
     # Takaba2024 Espaloma
     "RNA Single Point Dataset v1.0"                         => 10 , # 8,560   -> 85,600
     "RNA Nucleoside Single Point Dataset v1.0"              => 10 , # 120     -> 1,200

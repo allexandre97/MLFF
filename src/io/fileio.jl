@@ -139,7 +139,8 @@ function read_conf_data()
         for each one of those.
         =#
 
-        species = "water"
+        species = "ccl o"
+        #species = "water"
 
         subset, n_confs, atom_numbers,
         conformations, energies, forces,

@@ -1,6 +1,6 @@
 {
     "paths":{
-        "out_dir":"./runs/ccl_o"
+        "out_dir":"/lmb/home/alexandrebg/Documents/MLFF_hyp/runs_only_forces_own_sims/job_5852271_3"
     },
 
     "training":{
@@ -13,16 +13,16 @@
 
         "train_size":0.9,
 
-        "n_epochs":300,
+        "n_epochs":20,
 
-        "training_sims_first_epoch":1000,
+        "training_sims_first_epoch":10,
 
         "n_minibatch":256,
 
-        "loss_weight_force":1e-3,
-        "loss_weight_force_inter":10.0,
-        "loss_weight_energy":1e-2,
-        "loss_weight_charge":5.0,
+        "loss_weight_force":0.001121458467281953,
+        "loss_weight_force_inter":0.0,
+        "loss_weight_energy":0.0,
+        "loss_weight_charge":0.0,
         "loss_weight_torsion_ks":1e-2,
         "loss_weight_enth_vap":0.15,
         "loss_weight_enth_mixing":0.1,
@@ -31,11 +31,11 @@
         "loss_energy_first_epoch":1,
 
         "train_on_forces_intra":1.0,
-        "train_on_forces_inter":1.0,
-        "train_on_pe":1.0,
-        "train_on_charges":1.0,
-        "train_on_enth_vap":1.0,
-        "train_on_enth_mix":1.0,
+        "train_on_forces_inter":0.0,
+        "train_on_pe":0.0,
+        "train_on_charges":0.0,
+        "train_on_enth_vap":0.0,
+        "train_on_enth_mix":0.0,
 
         "enth_vap_gas_n_samples":10,
 
@@ -44,7 +44,7 @@
 
     "networks":{
 
-        "learning_rate":1e-5,
+        "learning_rate":1e-4,
 
         "n_atom_features_in": 29,
 
@@ -68,8 +68,8 @@
         "mixing_function":"lb",
         "dist_nb_cutoff":1.0,
         "bond_functional_form":"harmonic",
-        "bond_r1":0.05,
-        "bond_r2":0.30,
+        "bond_r1":0.08,
+        "bond_r2":0.15,
         "angle_functional_form":"harmonic",
         "angle_r1":0.0,
         "angle_r2":180.0,

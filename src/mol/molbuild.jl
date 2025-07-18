@@ -281,6 +281,8 @@ function get_molecule_names(mol_id::String)::Vector{String}
 
         if occursin("water", mol_id)
             mol_names = ["water"]
+	else
+	    mol_names = ["CH3Cl", "water"]
         end
     end
 end
