@@ -290,10 +290,6 @@ function ChainRulesCore.rrule(
             Enzyme.Const(bond_global_to_local)
         )
 
-        println("k: $d_bonds_k_mol")
-        println("r0: $d_bonds_r0_mol")
-        println("a: $d_bonds_a_mol")
-
         return NoTangent(),
                NoTangent(), NoTangent(), NoTangent(),
                d_bonds_k_mol, d_bonds_r0_mol, d_bonds_a_mol,
