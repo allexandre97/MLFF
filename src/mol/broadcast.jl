@@ -75,7 +75,7 @@ function broadcast_atom_data!(
     vdw_C::Vector{T}, vdw_C_mol::Vector{T},
     global_to_local::Dict{Int, Int}
 )
-    for global_i in 1:length(charges_sys)
+    for global_i in 1:length(charges_k1_sys)
         local_i = get(global_to_local, global_i, nothing)
         if !isnothing(local_i)
             charges_k1_sys[global_i] = charges_k1_mol[local_i]
@@ -147,7 +147,7 @@ function broadcast_atom_data!(
     vdw_β::Base.RefValue{T}, vdw_β_mol::Base.RefValue{T},
     global_to_local::Dict{Int, Int}
 )
-    for global_i in 1:length(charges_sys)
+    for global_i in 1:length(charges_k1_sys)
         local_i = get(global_to_local, global_i, nothing)
         if !isnothing(local_i)
             charges_k1_sys[global_i] = charges_k1_mol[local_i]

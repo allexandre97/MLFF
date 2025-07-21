@@ -29,15 +29,36 @@ end
 
 function collect_atoms(sys::Molly.System)
     data = BundledAtomData[]
+    
+    α = vdw_functional_form == "dexp" ? sys.pairwise_inters[1].α : nothing
+    β = vdw_functional_form == "dexp" ? sys.pairwise_inters[1].β : nothing
+    δ = vdw_functional_form == "buff" ? sys.pairwise_inters[1].δ : nothing
+    γ = vdw_functional_form == "buff" ? sys.pairwise_inters[1].γ : nothing
+
     for (atom, atom_data) in zip(sys.atoms, sys.atoms_data)
+
+        
+        σ = vdw_functional_form == "buck" ? nothing : atom.σ
+        ϵ = vdw_functional_form == "buck" ? nothing : atom.ϵ
+        A = vdw_functional_form == "buck" ? atom.A  : nothing
+        B = vdw_functional_form == "buck" ? atom.B  : nothing
+        C = vdw_functional_form == "buck" ? atom.C  : nothing
+
         push!(data, BundledAtomData(
             atom_data.atom_name,
             atom_data.atom_type,
             atom_data.res_name,
             atom.mass,
             atom.charge,
-            atom.σ,
-            atom.ϵ
+            α,
+            β,
+            δ,
+            γ,
+            σ,
+            ϵ,
+            A,
+            B,
+            C
         ))
     end
     return data
@@ -252,25 +273,185 @@ function build_improper_forces(root, all_atoms, canon_mols, sys)
 end
 
 function build_nonbonded_force(root, atomtypes_list, unique_atoms)
-    nb = ElementNode("NonbondedForce")
-    link!(nb, AttributeNode("coulomb14scale", "0.833333"))
-    link!(nb, AttributeNode("lj14scale", "0.5"))
 
-    # Properly create and attach the UseAttributeFromResidue node with its attribute
-    use_charge = ElementNode("UseAttributeFromResidue")
-    link!(use_charge, AttributeNode("name", "charge"))
-    link!(nb, use_charge)
+    if vdw_functional_form == "lj"
 
-    for (typ, _, _) in atomtypes_list
-        atom = unique_atoms[typ]
-        nb_atom = ElementNode("Atom")
-        link!(nb_atom, AttributeNode("type", typ))
-        link!(nb_atom, AttributeNode("sigma", string(atom.σ)))
-        link!(nb_atom, AttributeNode("epsilon", string(atom.ϵ)))
-        link!(nb, nb_atom)
+        nb = ElementNode("NonbondedForce")
+        link!(nb, AttributeNode("coulomb14scale", "$(global_params[2])"))
+        link!(nb, AttributeNode("lj14scale", "0.5"))
+
+        # Properly create and attach the UseAttributeFromResidue node with its attribute
+        use_charge = ElementNode("UseAttributeFromResidue")
+        link!(use_charge, AttributeNode("name", "charge"))
+        link!(nb, use_charge)
+
+        for (typ, _, _) in atomtypes_list
+            atom = unique_atoms[typ]
+            nb_atom = ElementNode("Atom")
+            link!(nb_atom, AttributeNode("type", typ))
+            link!(nb_atom, AttributeNode("sigma", string(atom.σ)))
+            link!(nb_atom, AttributeNode("epsilon", string(atom.ϵ)))
+            link!(nb, nb_atom)
+        end
+
+        link!(root, nb)
+    
+    else
+        nb = ElementNode("NonbondedForce")
+        link!(nb, AttributeNode("coulomb14scale", "$(global_params[2])"))
+        link!(nb, AttributeNode("lj14scale", "0.5"))
+        use_charge = ElementNode("UseAttributeFromResidue")
+        link!(use_charge, AttributeNode("name", "charge"))
+        link!(nb, use_charge)
+        for (typ, _, _) in atomtypes_list
+            atom = unique_atoms[typ]
+            nb_atom = ElementNode("Atom")
+            link!(nb_atom, AttributeNode("type", typ))
+            link!(nb_atom, AttributeNode("sigma", "1"))
+            link!(nb_atom, AttributeNode("epsilon", "0"))
+            link!(nb, nb_atom)
+        end
+        link!(root, nb)
+
+        if vdw_functional_form == "lj69"
+
+            nb = ElementNode("CustomNonbondedForce")
+            link!(nb, AttributeNode("energy", "sqrt(epsilon1*epsilon2)*((((sigma1 + sigma2) / 2) / r)^9 - (((sigma1 + sigma2) / 2) / r)^6)"))
+            link!(nb, AttributeNode("bondCutoff", "3"))
+
+            # Properly create and attach the UseAttributeFromResidue node with its attribute
+            perpar = ElementNode("PerParticleParameter")
+            link!(perpar, AttributeNode("name", "sigma"))
+            link!(nb, perpar)
+
+            perpar = ElementNode("PerParticleParameter")
+            link!(perpar, AttributeNode("name", "epsilon"))
+            link!(nb, perpar)
+
+            for (typ, _, _) in atomtypes_list
+                atom = unique_atoms[typ]
+                nb_atom = ElementNode("Atom")
+                link!(nb_atom, AttributeNode("type", typ))
+                link!(nb_atom, AttributeNode("sigma", string(atom.σ)))
+                link!(nb_atom, AttributeNode("epsilon", string(atom.ϵ)))
+                link!(nb, nb_atom)
+            end
+
+            link!(root, nb)
+
+        elseif vdw_functional_form == "dexp"
+
+            α = unique_atoms[atomtypes_list[1][1]].α
+            β = unique_atoms[atomtypes_list[1][1]].α
+
+            nb = ElementNode("CustomNonbondedForce")
+            link!(nb, AttributeNode("energy", "sqrt(epsilon1*epsilon2)*(((β*exp(α))/(α-β))*exp(-α*(r/((2^(1/6))*(sigma1+sigma2)/2)))-((α*exp(β))/(α-β))*exp(-β*(r/((2^(1/6))*(sigma1+sigma2)/2))))"))
+            link!(nb, AttributeNode("bondCutoff", "3"))
+
+            # Properly create and attach the UseAttributeFromResidue node with its attribute
+            globpar = ElementNode("GlobalParameter")
+            link!(globpar, AttributeNode("name", "α"))
+            link!(globpar, AttributeNode("defaultValue", string(α)))
+            link!(nb, globpar)
+
+            globpar = ElementNode("GlobalParameter")
+            link!(globpar, AttributeNode("name", "β"))
+            link!(globpar, AttributeNode("defaultValue", string(β)))
+            link!(nb, globpar)
+
+            perpar = ElementNode("PerParticleParameter")
+            link!(perpar, AttributeNode("name", "sigma"))
+            link!(nb, perpar)
+
+            perpar = ElementNode("PerParticleParameter")
+            link!(perpar, AttributeNode("name", "epsilon"))
+            link!(nb, perpar)
+
+            for (typ, _, _) in atomtypes_list
+                atom = unique_atoms[typ]
+                nb_atom = ElementNode("Atom")
+                link!(nb_atom, AttributeNode("type", typ))
+                link!(nb_atom, AttributeNode("sigma", string(atom.σ)))
+                link!(nb_atom, AttributeNode("epsilon", string(atom.ϵ)))
+                link!(nb, nb_atom)
+            end
+
+            link!(root, nb)
+
+        elseif vdw_functional_form == "buff"
+
+            δ = unique_atoms[atomtypes_list[1][1]].δ
+            γ = unique_atoms[atomtypes_list[1][1]].γ
+
+            nb = ElementNode("CustomNonbondedForce")
+            link!(nb, AttributeNode("energy", "sqrt(epsilon1*epsilon2)*(((1+δ)/((r/(((sigma1+sigma2)/2)*(2^(1/6))))+δ))^7)*(((1+γ)/(((r/(((sigma1+sigma2)/2)*(2^(1/6))))^7)+γ))-2)"))
+            link!(nb, AttributeNode("bondCutoff", "3"))
+
+            # Properly create and attach the UseAttributeFromResidue node with its attribute
+            globpar = ElementNode("GlobalParameter")
+            link!(globpar, AttributeNode("name", "δ"))
+            link!(globpar, AttributeNode("defaultValue", string(δ)))
+            link!(nb, globpar)
+
+            globpar = ElementNode("GlobalParameter")
+            link!(globpar, AttributeNode("name", "γ"))
+            link!(globpar, AttributeNode("defaultValue", string(γ)))
+            link!(nb, globpar)
+
+            perpar = ElementNode("PerParticleParameter")
+            link!(perpar, AttributeNode("name", "sigma"))
+            link!(nb, perpar)
+
+            perpar = ElementNode("PerParticleParameter")
+            link!(perpar, AttributeNode("name", "epsilon"))
+            link!(nb, perpar)
+
+            for (typ, _, _) in atomtypes_list
+                atom = unique_atoms[typ]
+                nb_atom = ElementNode("Atom")
+                link!(nb_atom, AttributeNode("type", typ))
+                link!(nb_atom, AttributeNode("sigma", string(atom.σ)))
+                link!(nb_atom, AttributeNode("epsilon", string(atom.ϵ)))
+                link!(nb, nb_atom)
+            end
+
+            link!(root, nb)
+
+        elseif vdw_functional_form == "buck"
+
+            nb = ElementNode("CustomNonbondedForce")
+            link!(nb, AttributeNode("energy", "W1*W2*(((A1+A2)/2)*exp(((B1+B2)/2)*(-r)) - ((C1+C2)/2)/(r^6))"))
+            link!(nb, AttributeNode("bondCutoff", "3"))
+
+            # Properly create and attach the UseAttributeFromResidue node with its attribute
+            perpar = ElementNode("PerParticleParameter")
+            link!(perpar, AttributeNode("name", "A"))
+            link!(nb, perpar)
+
+            perpar = ElementNode("PerParticleParameter")
+            link!(perpar, AttributeNode("name", "B"))
+            link!(nb, perpar)
+
+            perpar = ElementNode("PerParticleParameter")
+            link!(perpar, AttributeNode("name", "C"))
+            link!(nb, perpar)
+
+            for (typ, _, _) in atomtypes_list
+                atom = unique_atoms[typ]
+                nb_atom = ElementNode("Atom")
+                link!(nb_atom, AttributeNode("type", typ))
+                link!(nb_atom, AttributeNode("A", string(atom.A)))
+                link!(nb_atom, AttributeNode("B", string(atom.B)))
+                link!(nb_atom, AttributeNode("C", string(atom.C)))
+                link!(nb, nb_atom)
+            end
+
+            link!(root, nb)
+
+        end
+
     end
 
-    link!(root, nb)
 end
 
 # Helper to map type=>BundledAtomData

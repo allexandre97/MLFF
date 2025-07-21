@@ -76,7 +76,7 @@ function atom_feats_to_vdW(
         ϵs = transform_lj_ϵ.(atom_features[4, :])
         vdw_params_size = mean(σs) + mean(ϵs)/2.0
     
-        if vdw_functional_form == "lj"
+        if vdw_functional_form in ("lj", "lj69")
             return σs, ϵs, nothing, nothing
 
         elseif vdw_functional_form == "dexp"

@@ -160,7 +160,7 @@ function build_sys(
         end
 
     elseif vdw_functional_form == "buck"
-        atoms = [BuckinghamAtom(i, one(T), T(masses[i]), T(partial_charges[i]), T(A[i]), T(B[i]), T(C[i])) for i in 1:n_atoms]
+        atoms = [BuckinghamAtom(i, one(Int), T(masses[i]), T(partial_charges[i]), T(A[i]), T(B[i]), T(C[i])) for i in 1:n_atoms]
         inter_vdw = Buckingham(weight_vdw, dist_nb_cutoff)
 
     elseif vdw_functional_form == "nn"
@@ -196,6 +196,8 @@ function build_sys(
     ########## Angle Interactions section ##########
     if angle_functional_form == "harmonic"
         angle_inter = HarmonicAngle.(T.(angle_k), T.(angle_θ0))
+    elseif angle_functional_form == "ub"
+        angle_inter = UreyBradley.(T.(angle_k), T.(angle_θ0), T.(angle_kj), T.(angle_θ0j))
     end
     angles = InteractionList3Atoms(angles_i, angles_j, angles_k, angle_inter)
 
@@ -353,7 +355,9 @@ function mol_to_system(
         vdw_σ = zeros(T, n_atoms)
         vdw_ϵ = zeros(T, n_atoms)
         vdw_α = zero(T)
+        #Ref(vdw_α)
         vdw_β = zero(T)
+        #Ref(vdw_β)
     elseif vdw_functional_form == "buff"
         vdw_σ = zeros(T, n_atoms)
         vdw_ϵ = zeros(T, n_atoms)
@@ -470,27 +474,32 @@ function mol_to_system(
                                                                                 global_to_local)
 
                 elseif vdw_functional_form == "dexp"
-                    partial_charges, vdw_σ, vdw_ϵ, vdw_α, vdw_β = broadcast_atom_data!(partial_charges, charges_mol, 
-                                                                                       vdw_σ, vdw_mol[1],
-                                                                                       vdw_ϵ, vdw_mol[2],
-                                                                                       Ref(vdw_α), Ref(vdw_mol[3]),
-                                                                                       Ref(vdw_β), Ref(vdw_mol[4]),
-                                                                                       global_to_local)
+                    charges_k1, charges_k2, vdw_σ, vdw_ϵ, vdw_α, vdw_β = broadcast_atom_data!(charges_k1, feats_mol[1,:],
+                                                                                              charges_k2, feats_mol[2,:], 
+                                                                                              vdw_σ, vdw_mol[1],
+                                                                                              vdw_ϵ, vdw_mol[2],
+                                                                                              Ref(vdw_α), Ref(vdw_mol[3]),
+                                                                                              Ref(vdw_β), Ref(vdw_mol[4]),
+                                                                                              global_to_local)
+                    vdw_α, vdw_β = vdw_α[], vdw_β[]
 
                 elseif vdw_functional_form == "buff"
-                    partial_charges, vdw_σ, vdw_ϵ, vdw_δ, vdw_γ = broadcast_atom_data!(partial_charges, charges_mol, 
-                                                                                       vdw_σ, vdw_mol[1],
-                                                                                       vdw_ϵ, vdw_mol[2],
-                                                                                       Ref(vdw_δ), Ref(vdw_mol[3]),
-                                                                                       Ref(vdw_γ), Ref(vdw_mol[4]),
-                                                                                       global_to_local)
+                    charges_k1, charges_k2, vdw_σ, vdw_ϵ, vdw_δ, vdw_γ = broadcast_atom_data!(charges_k1, feats_mol[1,:],
+                                                                                              charges_k2, feats_mol[2,:],
+                                                                                              vdw_σ, vdw_mol[1],
+                                                                                              vdw_ϵ, vdw_mol[2],
+                                                                                              Ref(vdw_δ), Ref(vdw_mol[3]),
+                                                                                              Ref(vdw_γ), Ref(vdw_mol[4]),
+                                                                                              global_to_local)
+                    vdw_δ, vdw_γ = vdw_δ[], vdw_γ[]
 
                 elseif vdw_functional_form == "buck"
-                    partial_charges, vdw_A, vdw_B, vdw_C = broadcast_atom_data!(partial_charges, charges_mol, 
-                                                                                vdw_A, vdw_mol[1],
-                                                                                vdw_B, vdw_mol[2],
-                                                                                vdw_C, vdw_mol[3],
-                                                                                global_to_local)
+                    charges_k1, charges_k2, vdw_A, vdw_B, vdw_C = broadcast_atom_data!(charges_k1, feats_mol[1,:],
+                                                                                       charges_k2, feats_mol[2,:],
+                                                                                       vdw_A, vdw_mol[1],
+                                                                                       vdw_B, vdw_mol[2],
+                                                                                       vdw_C, vdw_mol[3],
+                                                                                       global_to_local)
                 end
 
                 mapping = Dict(i => vs_instance[i] for i in eachindex(vs_instance))
