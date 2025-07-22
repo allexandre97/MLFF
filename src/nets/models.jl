@@ -118,11 +118,11 @@ end
 
 # Not sharing
 PARAM_LAYOUT = Dict(
-    :lj   => (1:2,),
-    :lj69 => (3:4,),
-    :dexp => (5:6,),
-    :buff => (7:8,),
-    :buck => (9:11,)
+    :lj   => (1:2,  [:σ, :ϵ]),
+    :lj69 => (3:4,  [:σ, :ϵ]),
+    :dexp => (5:6,  [:σ, :ϵ]),
+    :buff => (7:8,  [:σ, :ϵ]),
+    :buck => (9:11, [:A, :B, :C]),
 )
 
 # Sharing
@@ -226,11 +226,33 @@ function build_models()
 
 end
 
-function gumbel_softmax(logits::Matrix{T}, τ::T = T(1e-1))
-    noise = -log.(-log.(rand(T, size(logits))))
+function gumbel_softmax_symmetric(logits::Matrix{T}, labels::Vector{String}, τ::T = T(1e-1))
+    n_forms, n_atoms = size(logits)
+    
+    noise = ignore_derivatives() do
+        noise = zeros(T, n_forms, n_atoms)
+
+        # Group atoms by label
+        label_to_inds = Dict{String, Vector{Int}}()
+        for (i, label) in enumerate(labels)
+            push!(get!(label_to_inds, label, Int[]), i)
+        end
+
+        # Assign same noise to all atoms in a label group
+        for (_, inds) in label_to_inds
+            shared_noise = -log.(-log.(rand(T, n_forms)))
+            for j in inds
+                noise[:, j] = shared_noise
+            end
+        end
+
+        noise
+    end
+
     y = softmax((logits + noise) / τ; dims=1)
-    return y  # Shape: (n_forms, n_atoms)
+    return y
 end
+
 
 function calc_embeddings(
     adj_list::Vector{Vector{Int}},

@@ -555,9 +555,35 @@ struct GeneralAtom{T}
     γ::T
 end
 
+Base.zero(::Type{GeneralAtom{T}}) = GeneralAtom{T}(0, 0, zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T))
+Base.zero(x::GeneralAtom{T}) = zero(GeneralAtom{T})
+
+function ChainRulesCore.rrule(TY::Type{<:GeneralAtom}, vs...)
+
+    Y = TY(vs...)
+
+    function pullback(Ȳ)
+
+        return NoTangent(), NoTangent(), NoTangent(), Ȳ.mass, Ȳ.charge, Ȳ.σ, Ȳ.ϵ, Ȳ.A, Ȳ.B, Ȳ.C, Ȳ.α, Ȳ.β, Ȳ.δ, Ȳ.γ
+        
+    end
+
+    return Y, pullback
+    
+end
+
+
 struct GroupInter{I}
     inters::I
     weights::SVector{5, T}
+end
+
+function ChainRulesCore.rrule(TY::Type{<:GroupInter}, vs...)
+    Y = TY(vs...)
+    function pullback(Ȳ)
+        return NoTangent(), Ȳ.inters, Ȳ.weights
+    end
+    return Y, pullback
 end
 
 function Molly.force(inter::GroupInter{<:Tuple}, dr, a1::GeneralAtom, a2::GeneralAtom,

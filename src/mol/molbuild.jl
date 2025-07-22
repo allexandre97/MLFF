@@ -168,7 +168,7 @@ function build_sys(
     if vdw_functional_form == "nn"
         # Placeholder
     else
-        weight_14_coul = sigmoid(global_params[2])
+        weight_14_coul = sigmoid(model_global_params.params[2])
 
         if MODEL_PARAMS["physics"]["use_reaction_field"] &&
             any(startswith.(mol_id, ("vapourisation_liquid_", "mixing_", "protein_")))
@@ -240,7 +240,6 @@ function build_sys(
         atoms, coords, boundary, velocities, atoms_data, topo, pairwise_inter, specific_inter_lists,
         (), (), neighbor_finder, (), 1, NoUnits, NoUnits, one(T), zeros(T, n_atoms), nothing)
 
-    println(sys.coords)
     return sys
 end
 
@@ -341,11 +340,12 @@ function mol_to_system(
     vdw_A      = zeros(T, n_atoms)
     vdw_B      = zeros(T, n_atoms)
     vdw_C      = zeros(T, n_atoms)
-    vdw_α      = zero(T)
-    vdw_β      = zero(T)
-    vdw_δ      = zero(T)
-    vdw_γ      = zero(T)
-
+    
+    α = transform_dexp_α(global_params.params[3])
+    β = transform_dexp_β(global_params.params[4])
+    δ = transform_buff_δ(global_params.params[5])
+    γ = transform_buff_γ(global_params.params[6])
+    
     #Bond Parameters
     bond_functional_form = MODEL_PARAMS["physics"]["bond_functional_form"]
     n_bonds = length(bonds_i)
@@ -398,9 +398,9 @@ function mol_to_system(
 
         ### Atom pooling and feature prediction ###
         embeds_mol = calc_embeddings(adj_mol, feat_mol, atom_embedding_model)
-
         logits         = nonbonded_selection_model(embeds_mol)  # (5, n_atoms)
-        func_probs_mol = gumbel_softmax(logits)                 # (5, n_atoms)
+        func_probs_mol = gumbel_softmax_symmetric(logits, labels)                 # (5, n_atoms)
+        func_probs_mol = func_probs_mol ./ sum(func_probs_mol; dims = 1)
 
         feats_mol  = predict_atom_features(labels, embeds_mol, atom_features_model)
 
@@ -424,8 +424,8 @@ function mol_to_system(
         ### Predict vdw params ###
         #vdw_mol = atom_feats_to_vdW(feats_mol)
         vdw_params_all = feats_mol[3:end, :]            # remove charge predictions
-        vdw_mol = combine_vdw_params_gumbel(vdw_params_all, func_probs_mol, model_global_params)
-        
+        vdw_mol = combine_vdw_params_gumbel(vdw_params_all, func_probs_mol)
+
         ### Predict bonds params ###
         bonds_mol = feats_to_bonds(bond_feats_mol)
 
@@ -451,26 +451,15 @@ function mol_to_system(
                 charges_k1, charges_k2,
                 func_probs,
                 vdw_σ, vdw_ϵ,
-                vdw_A, vdw_B, vdw_C,
-                vdw_α, vdw_β, 
-                vdw_δ, vdw_γ = broadcast_atom_data!(charges_k1, feats_mol[:,1],
-                                                    charges_k1, feats_mol[:,2],
-                                                    func_probs, func_probs_mol,
-                                                    vdw_σ,      vdw_mol[1],
-                                                    vdw_ϵ,      vdw_mol[2],
-                                                    vdw_A,      vdw_mol[3],
-                                                    vdw_B,      vdw_mol[4],
-                                                    vdw_C,      vdw_mol[5],
-                                                    Ref(vdw_α), Ref(vdw_mol[6]),
-                                                    Ref(vdw_β), Ref(vdw_mol[7]),
-                                                    Ref(vdw_δ), Ref(vdw_mol[8]),
-                                                    Ref(vdw_γ), Ref(vdw_mol[9]),
-                                                    global_to_local)
-                
-                vdw_α = vdw_α[]
-                vdw_β = vdw_β[]
-                vdw_δ = vdw_δ[]
-                vdw_γ = vdw_γ[]
+                vdw_A, vdw_B, vdw_C  = broadcast_atom_data!(charges_k1, feats_mol[1,:],
+                                                            charges_k2, feats_mol[2,:],
+                                                            func_probs, func_probs_mol,
+                                                            vdw_σ,      vdw_mol[1],
+                                                            vdw_ϵ,      vdw_mol[2],
+                                                            vdw_A,      vdw_mol[3],
+                                                            vdw_B,      vdw_mol[4],
+                                                            vdw_C,      vdw_mol[5],
+                                                            global_to_local)
 
                 mapping = Dict(i => vs_instance[i] for i in eachindex(vs_instance))
                 bond_global_to_local = Dict{Tuple{Int,Int}, Int}()
@@ -523,8 +512,8 @@ function mol_to_system(
 
     molly_sys = build_sys(mol_id, 
     masses, atom_types, atom_names, mol_inds, coords, boundary, partial_charges, 
-    weight_vdw, func_probs, vdw_σ, vdw_ϵ, vdw_A, vdw_B, vdw_C, vdw_α, vdw_β,
-    vdw_δ, vdw_γ, bond_functional_form, bonds_k, bonds_r0, bonds_a, angle_functional_form,
+    weight_vdw, func_probs, vdw_σ, vdw_ϵ, vdw_A, vdw_B, vdw_C, α, β,
+    δ, γ, bond_functional_form, bonds_k, bonds_r0, bonds_a, angle_functional_form,
     angles_ki, angles_θ0i, angles_kj, angles_θ0j, bonds_i, bonds_j, angles_i, angles_j, angles_k, proper_feats_pad,
     improper_feats_pad, propers_i, propers_j, propers_k, propers_l, impropers_i, impropers_j, impropers_k,
     impropers_l)

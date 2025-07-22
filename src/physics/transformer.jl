@@ -62,37 +62,90 @@ function extract_vdw_params(feats::Matrix{T}, layout::Dict{Symbol,Tuple{UnitRang
     return Dict(k => feats[i, :] for (k, (i,)) in layout)
 end
 
-function combine_vdw_params_gumbel(feats::Matrix{T}, func_probs::Matrix{T}, global_params::GlobalParams{Float32})
-    n_atoms = size(feats, 2)
-
-    σs = zeros(T, n_atoms)
-    ϵs = zeros(T, n_atoms)
-    A  = zeros(T, n_atoms)
-    B  = zeros(T, n_atoms)
-    C  = zeros(T, n_atoms)
-
-    α = global_params.params[3]
-    β = global_params.params[4]
-    δ = global_params.params[5]
-    γ = global_params.params[6]
+function combine_vdw_params_gumbel!(
+    σs::Vector{T},
+    ϵs::Vector{T},
+    A::Vector{T},
+    B::Vector{T},
+    C::Vector{T},
+    feats::Matrix{T},
+    func_probs::Matrix{T}
+)
 
     for (f_idx, f) in enumerate(keys(PARAM_LAYOUT))
         inds = PARAM_LAYOUT[f][1]
-        w = func_probs[f_idx, :]  # shape (n_atoms,)
-        p = feats[inds, :]        # shape (n_params_f, n_atoms)
+        w = func_probs[f_idx, :]
+        p = feats[inds, :]
 
         if f in (:lj, :lj69, :dexp, :buff)
-            σs .+= w .* p[1, :]
-            ϵs .+= w .* p[2, :]
+            σs .+= transform_lj_σ.(w .* p[1, :])
+            ϵs .+= transform_lj_ϵ.(w .* p[2, :])
         end
         if f == :buck
-            A .+= w .* p[1, :]
-            B .+= w .* p[2, :]
-            C .+= w .* p[3, :]
+            A .+= transform_buck_A.(w .* p[1, :])
+            B .+= transform_buck_B.(w .* p[2, :])
+            C .+= transform_buck_C.(w .* p[3, :])
         end
     end
+end
 
-    return σs, ϵs, A, B, C, α, β, δ, γ
+function combine_vdw_params_gumbel(
+    feats::Matrix{T},
+    func_probs::Matrix{T}
+)
+
+    n_atoms = size(feats, 2)
+    σs, ϵs, A, B, C = zeros(T, n_atoms), zeros(T, n_atoms), zeros(T, n_atoms), zeros(T, n_atoms), zeros(T, n_atoms)
+
+    combine_vdw_params_gumbel!(σs, ϵs, A, B, C, feats, func_probs)
+
+    return σs, ϵs, A, B, C
+end
+
+
+function ChainRulesCore.rrule(
+    ::typeof(combine_vdw_params_gumbel),
+    feats::Matrix{T},
+    func_probs::Matrix{T}
+)
+
+    Y = combine_vdw_params_gumbel(feats, func_probs)
+
+    function pullback(ŷ)
+        n_atoms = size(feats, 2)
+
+        σs = zeros(T, n_atoms)
+        ϵs = zeros(T, n_atoms)
+        A  = zeros(T, n_atoms)
+        B  = zeros(T, n_atoms)
+        C  = zeros(T, n_atoms)
+
+        d_σs = iszero(ŷ[1]) ? zero(σs) : ŷ[1]
+        d_ϵs = iszero(ŷ[2]) ? zero(ϵs) : ŷ[2]
+        d_A  = iszero(ŷ[3]) ? zero(A)  : ŷ[3]
+        d_B  = iszero(ŷ[4]) ? zero(B)  : ŷ[4]
+        d_C  = iszero(ŷ[5]) ? zero(C)  : ŷ[5]
+
+        d_feats = zeros(T, size(feats))
+        d_func_probs = zeros(T, size(func_probs))
+
+        Enzyme.autodiff(
+            Enzyme.Reverse,
+            combine_vdw_params_gumbel!,
+            Enzyme.Const,  # function itself
+            Enzyme.Duplicated(σs, d_σs),
+            Enzyme.Duplicated(ϵs, d_ϵs),
+            Enzyme.Duplicated(A,  d_A),
+            Enzyme.Duplicated(B,  d_B),
+            Enzyme.Duplicated(C,  d_C),
+            Enzyme.Duplicated(feats, d_feats),
+            Enzyme.Duplicated(func_probs, d_func_probs)
+        )
+
+        return NoTangent(), d_feats, d_func_probs
+    end
+
+    return Y, pullback
 end
 
 

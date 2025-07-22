@@ -196,9 +196,9 @@ if !isnothing(out_dir) && !isdir(out_dir)
     end
 end
 
-#models, optims = train!(models, optims)
+models, optims = train!(models, optims)
 
-mol_id = "water"
+#= mol_id = "water"
 feat_df = FEATURE_DATAFRAMES[1]
 feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
 
@@ -208,10 +208,15 @@ coords_j, forces_j, energy_j,
 charges_j, has_charges_j,
 exceeds_force, pair_present = read_conformation(CONF_DATAFRAME, [(1, 2, 1)], 1, 1)[1]
 
-sys,
-forces, potential_i, charges,
-vdw_size, torsion_size,
-elements, mol_inds,
-forces_loss_inter, forces_loss_intra,
-charges_loss, vdw_loss,
-torsions_loss, reg_loss = fwd_and_loss(mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
+grads = Zygote.gradient(models...) do models...
+
+    sys,
+    forces, potential_i, charges,
+    vdw_size, torsion_size,
+    elements, mol_inds,
+    forces_loss_inter, forces_loss_intra,
+    charges_loss, vdw_loss,
+    torsions_loss, reg_loss = fwd_and_loss(mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
+
+    return forces_loss_inter
+end =#

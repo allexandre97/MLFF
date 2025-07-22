@@ -38,13 +38,18 @@ global NAME_TO_MASS = Dict(Pair(e, m) for (e,m) in zip(ELEMENT_TO_NAME, ATOMIC_M
 
 # Initialize some constants for non bonded interactions. Now we let the model choose the best functional form for vdw
 const  global n_vdw_atom_params = 11
-global_params = [inverse_sigmoid(T(0.5)), inverse_sigmoid(T(0.833)), zero(T), zero(T), zero(T), zero(T)] # vdw_mix, coul_mix, alpha, beta, delta, gamma
 
 struct GlobalParams{T}
     params::Vector{T}
 end
 (model::GlobalParams)() = model.params
-global model_global_params = GlobalParams(global_params)
+
+init_global_params = [inverse_sigmoid(T(0.5)),
+                      inverse_sigmoid(T(0.833)),
+                      zero(T), zero(T), zero(T), zero(T)]
+
+global model_global_params = GlobalParams(init_global_params)
+
 
 if mixing_function == "lb"
     const σ_mixing = Molly.lorentz_σ_mixing
