@@ -36,24 +36,15 @@ const ATOMIC_MASSES = [
 
 global NAME_TO_MASS = Dict(Pair(e, m) for (e,m) in zip(ELEMENT_TO_NAME, ATOMIC_MASSES))
 
-# Initialize some constants depending on the functional form of vdW interactions
-if vdw_functional_form in ("lj", "lj69")
-    const n_vdw_atom_params = 2
-    const global_params = [starting_weight14_vdw, starting_weight14_coul]
-elseif vdw_functional_form in ("dexp", "buff")
-    const n_vdw_atom_params = 2
-    const global_params = [starting_weight14_vdw, starting_weight14_coul, zero(T), zero(T)]
-elseif vdw_functional_form == "buck"
-    const n_vdw_atom_params = 3
-    const global_params = [starting_weight14_vdw, starting_weight14_coul]
-elseif vdw_functional_form == "nn"
-    training_sims_first_epoch == 0 || error("cannot run training simulations with vdw functional form nn")
-    const n_vdw_atom_params = nn_dim_atom
-    const n_params_pairwise = (2 * nn_dim_atom + 3 + 1 + 1) * dim_hidden_pairwise
-    const global_params = vcat(starting_weight14_vdw, T.(Flux.kaiming_uniform(n_params_pairwise)))
-else
-    error("unknown vdw functional form $vdw_functional_form")
+# Initialize some constants for non bonded interactions. Now we let the model choose the best functional form for vdw
+const  global n_vdw_atom_params = 11
+global_params = [inverse_sigmoid(T(0.5)), inverse_sigmoid(T(0.833)), zero(T), zero(T), zero(T), zero(T)] # vdw_mix, coul_mix, alpha, beta, delta, gamma
+
+struct GlobalParams{T}
+    params::Vector{T}
 end
+(model::GlobalParams)() = model.params
+global model_global_params = GlobalParams(global_params)
 
 if mixing_function == "lb"
     const σ_mixing = Molly.lorentz_σ_mixing

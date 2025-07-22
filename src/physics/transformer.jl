@@ -58,6 +58,43 @@ function atom_feats_to_charges(charges_k1::Vector{T}, charges_k2::Vector{T}, for
     return -one(T)*(-e_over_s .+ inv_s .* charge_factor)
 end
 
+function extract_vdw_params(feats::Matrix{T}, layout::Dict{Symbol,Tuple{UnitRange{Int}}}) where {T}
+    return Dict(k => feats[i, :] for (k, (i,)) in layout)
+end
+
+function combine_vdw_params_gumbel(feats::Matrix{T}, func_probs::Matrix{T}, global_params::GlobalParams{Float32})
+    n_atoms = size(feats, 2)
+
+    σs = zeros(T, n_atoms)
+    ϵs = zeros(T, n_atoms)
+    A  = zeros(T, n_atoms)
+    B  = zeros(T, n_atoms)
+    C  = zeros(T, n_atoms)
+
+    α = global_params.params[3]
+    β = global_params.params[4]
+    δ = global_params.params[5]
+    γ = global_params.params[6]
+
+    for (f_idx, f) in enumerate(keys(PARAM_LAYOUT))
+        inds = PARAM_LAYOUT[f][1]
+        w = func_probs[f_idx, :]  # shape (n_atoms,)
+        p = feats[inds, :]        # shape (n_params_f, n_atoms)
+
+        if f in (:lj, :lj69, :dexp, :buff)
+            σs .+= w .* p[1, :]
+            ϵs .+= w .* p[2, :]
+        end
+        if f == :buck
+            A .+= w .* p[1, :]
+            B .+= w .* p[2, :]
+            C .+= w .* p[3, :]
+        end
+    end
+
+    return σs, ϵs, A, B, C, α, β, δ, γ
+end
+
 
 function atom_feats_to_vdW(
     atom_features
@@ -92,8 +129,8 @@ function atom_feats_to_vdW(
 
     elseif vdw_functional_form == "buck"
         As = transform_buck_A.(atom_features[3, :])
-        Bs = transform_buck_A.(atom_features[4, :])
-        Cs = transform_buck_A.(atom_features[5, :])
+        Bs = transform_buck_B.(atom_features[4, :])
+        Cs = transform_buck_C.(atom_features[5, :])
         return As, Bs, Cs, nothing
     end
 

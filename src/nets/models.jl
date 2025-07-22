@@ -116,6 +116,24 @@ end
 
 ########## MODELS ##########
 
+# Not sharing
+PARAM_LAYOUT = Dict(
+    :lj   => (1:2,),
+    :lj69 => (3:4,),
+    :dexp => (5:6,),
+    :buff => (7:8,),
+    :buck => (9:11,)
+)
+
+# Sharing
+#= PARAM_LAYOUT = Dict(
+    :lj   => (1:2,),
+    :lj69 => (1:2,),
+    :dexp => (1:2,),
+    :buff => (1:2,),
+    :buck => (3:5,)
+) =#
+
 function build_models()
     # Pooling step
     atom_embedding_model = GNNChain(
@@ -154,6 +172,12 @@ function build_models()
     )
 
     #
+    nonbonded_selection_model = Chain(
+        Dense(NET_PARAMS["dim_embed_atom"] => NET_PARAMS["dim_hidden_dense"],
+              activation_dense; init=init_dense),
+        generate_dense_layers(NET_PARAMS["n_layers_nn"] - 2)...,
+        Dense(NET_PARAMS["dim_hidden_dense"] => 5)
+    )
 
     # Feature prediction step
     atom_features_model = Chain(
@@ -192,12 +216,20 @@ function build_models()
     )
 
     models = [atom_embedding_model, bond_pooling_model, angle_pooling_model, proper_pooling_model, improper_pooling_model,
-              atom_features_model, bond_features_model, angle_features_model, proper_features_model, improper_features_model]
+              nonbonded_selection_model,
+              atom_features_model, bond_features_model, angle_features_model, proper_features_model, improper_features_model,
+              model_global_params]
 
     optims = [Flux.setup(Adam(NET_PARAMS["learning_rate"]), m) for m in models]
 
     return models, optims
 
+end
+
+function gumbel_softmax(logits::Matrix{T}, τ::T = T(1e-1))
+    noise = -log.(-log.(rand(T, size(logits))))
+    y = softmax((logits + noise) / τ; dims=1)
+    return y  # Shape: (n_forms, n_atoms)
 end
 
 function calc_embeddings(

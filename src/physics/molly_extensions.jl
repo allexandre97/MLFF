@@ -537,6 +537,53 @@ function ChainRulesCore.rrule(::typeof(pe_wrap), atoms, coords, velocities, boun
     return Y, pe_wrap_pullback
 end
 
+########## A GENERAL ATOM STRUCT TO ACCOMODATE THE DIFFERENT FUNCTIONAL FORMS ##########
+
+struct GeneralAtom{T}
+    index::Int
+    type::Int
+    mass::T
+    charge::T
+    σ::T
+    ϵ::T
+    A::T
+    B::T
+    C::T
+    α::T
+    β::T
+    δ::T
+    γ::T
+end
+
+struct GroupInter{I}
+    inters::I
+    weights::SVector{5, T}
+end
+
+function Molly.force(inter::GroupInter{<:Tuple}, dr, a1::GeneralAtom, a2::GeneralAtom,
+                     force_units, special, x1, x2, boundary, v1, v2, step_n)
+
+    f_total = zero(SVector{3, typeof(a1.mass)})
+
+    for (idx, sub_inter) in enumerate(inter.inters)
+        w = inter.weights[idx]
+        f_total += w * Molly.force(sub_inter, dr, a1, a2, force_units, special, x1, x2, boundary, v1, v2, step_n)
+    end
+
+    return f_total
+end
+
+function Molly.potential_energy(inter::GroupInter{<:Tuple}, dr, a1::GeneralAtom, a2::GeneralAtom,
+                                energy_units, special, x1, x2, boundary, v1, v2, step_n)
+    pe_total = zero(typeof(a1.mass))
+    for (idx, sub_inter) in enumerate(inter.inters)
+        w = inter.weights[idx]
+        pe_total += w * Molly.potential_energy(sub_inter, dr, a1, a2, energy_units, special,
+                                               x1, x2, boundary, v1, v2, step_n)
+    end
+    return pe_total
+end
+
 ########## WRAPPERS TO CALCULATE FORCES ##########
 
 function forces_wrap(atoms, coords, velocities, boundary, pairwise_inters_nl,

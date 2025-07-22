@@ -56,6 +56,11 @@ const T = Float32
 parsed_args::Dict{String, Any} = parse_commandline() # Read args from cli
 global MODEL_PARAMS::Dict = JSON.parsefile(parsed_args["json"]) # Read model parameters from JSON file
 
+include("./src/physics/definitions.jl")
+include("./src/physics/forces.jl")
+include("./src/physics/molly_extensions.jl")
+include("./src/physics/transformer.jl")
+
 include("./src/io/conformations.jl")
 include("./src/io/fileio.jl")
 include("./src/io/logging.jl")
@@ -71,11 +76,6 @@ include("./src/mol/newtypes.jl")
 include("./src/nets/losses.jl")
 include("./src/nets/models.jl")
 include("./src/nets/trainer.jl")
-
-include("./src/physics/definitions.jl")
-include("./src/physics/forces.jl")
-include("./src/physics/molly_extensions.jl")
-include("./src/physics/transformer.jl")
 
 ############### MAIN LOGIC ###############
 
@@ -198,8 +198,20 @@ end
 
 #models, optims = train!(models, optims)
 
-mol_id = "vapourisation_liquid_O"
+mol_id = "water"
+feat_df = FEATURE_DATAFRAMES[1]
+feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
 
-ff_xml_path = "./ff_probas.xml"
+coords_i, forces_i, energy_i, 
+charges_i, has_charges_i,
+coords_j, forces_j, energy_j,
+charges_j, has_charges_j,
+exceeds_force, pair_present = read_conformation(CONF_DATAFRAME, [(1, 2, 1)], 1, 1)[1]
 
-_ = features_to_xml(ff_xml_path, mol_id, 141, 295, FEATURE_DATAFRAMES[3], models...)
+sys,
+forces, potential_i, charges,
+vdw_size, torsion_size,
+elements, mol_inds,
+forces_loss_inter, forces_loss_intra,
+charges_loss, vdw_loss,
+torsions_loss, reg_loss = fwd_and_loss(mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)

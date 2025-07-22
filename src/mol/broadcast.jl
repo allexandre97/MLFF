@@ -1,216 +1,147 @@
-# For LJ, LJ69, but using charge features instead of partial charges
+# Broadcasts data stored in atoms (charges, vdW params) from template molecule space to whole molecular system space
 function broadcast_atom_data!(
-    charges_k1_sys::Vector{T}, charges_k1_mol::Vector{T},
-    charges_k2_sys::Vector{T}, charges_k2_mol::Vector{T},
-    vdw_σ::Vector{T}, vdw_σ_mol::Vector{T},
-    vdw_ϵ::Vector{T}, vdw_ϵ_mol::Vector{T},
+    charges_k1::Vector{T},   charges_k1_mol::Vector{T},
+    charges_k2::Vector{T},   charges_k2_mol::Vector{T},
+    func_probs::Matrix{T},   func_probs_mol::Matrix{T},
+    vdw_σ::Vector{T},        vdw_σ_mol::Vector{T},
+    vdw_ϵ::Vector{T},        vdw_ϵ_mol::Vector{T},
+    vdw_A::Vector{T},        vdw_A_mol::Vector{T},
+    vdw_B::Vector{T},        vdw_B_mol::Vector{T},
+    vdw_C::Vector{T},        vdw_C_mol::Vector{T},
+    vdw_α::Base.RefValue{T}, vdw_α_mol::Base.RefValue{T},
+    vdw_β::Base.RefValue{T}, vdw_β_mol::Base.RefValue{T},
+    vdw_δ::Base.RefValue{T}, vdw_δ_mol::Base.RefValue{T},
+    vdw_γ::Base.RefValue{T}, vdw_γ_mol::Base.RefValue{T},
     global_to_local::Dict{Int, Int}
 )
 
-    for global_i in 1:length(charges_k1_sys)
+    for global_i in 1:length(charges_k1)
         local_i = get(global_to_local, global_i, nothing)
         if !isnothing(local_i)
-            charges_k1_sys[global_i] = charges_k1_mol[local_i]
-            charges_k2_sys[global_i] = charges_k2_mol[local_i]
-            vdw_σ[global_i] = vdw_σ_mol[local_i]
-            vdw_ϵ[global_i] = vdw_ϵ_mol[local_i]
+            charges_k1[global_i]    = charges_k1_mol[local_i]
+            charges_k2[global_i]    = charges_k2_mol[local_i]
+            func_probs[:,global_i] .= func_probs_mol[:,local_i]
+            vdw_σ[global_i]         = vdw_σ_mol[local_i]
+            vdw_ϵ[global_i]         = vdw_ϵ_mol[local_i]
+            vdw_A[global_i]         = vdw_A_mol[local_i]
+            vdw_B[global_i]         = vdw_B_mol[local_i]
+            vdw_C[global_i]         = vdw_C_mol[local_i]
         end
     end
-    return charges_k1_sys, charges_k2_sys, vdw_σ, vdw_ϵ
+
+    vdw_α[] = vdw_α_mol[]
+    vdw_β[] = vdw_β_mol[]
+    vdw_δ[] = vdw_δ_mol[]
+    vdw_γ[] = vdw_γ_mol[]
+
+    return charges_k1, charges_k2, func_probs, vdw_σ, vdw_ϵ, vdw_A, vdw_B, vdw_C, vdw_α, vdw_β, vdw_δ, vdw_γ
 end
 
 function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
-               charges_k1_sys::Vector{T}, charges_k1_mol::Vector{T},
-               charges_k2_sys::Vector{T}, charges_k2_mol::Vector{T},
-               vdw_σ::Vector{T}, vdw_σ_mol::Vector{T},
-               vdw_ϵ::Vector{T}, vdw_ϵ_mol::Vector{T},
-               global_to_local::Dict{Int, Int})
+    charges_k1::Vector{T},     charges_k1_mol::Vector{T},
+    charges_k2::Vector{T},     charges_k2_mol::Vector{T},
+    func_probs::Matrix{T},     func_probs_mol::Matrix{T},
+    vdw_σ::Vector{T},          vdw_σ_mol::Vector{T},
+    vdw_ϵ::Vector{T},          vdw_ϵ_mol::Vector{T},
+    vdw_A::Vector{T},          vdw_A_mol::Vector{T},
+    vdw_B::Vector{T},          vdw_B_mol::Vector{T},
+    vdw_C::Vector{T},          vdw_C_mol::Vector{T},
+    vdw_α::Base.RefValue{T},   vdw_α_mol::Base.RefValue{T},
+    vdw_β::Base.RefValue{T},   vdw_β_mol::Base.RefValue{T},
+    vdw_δ::Base.RefValue{T},   vdw_δ_mol::Base.RefValue{T},
+    vdw_γ::Base.RefValue{T},   vdw_γ_mol::Base.RefValue{T},
+    global_to_local::Dict{Int, Int}
+)
 
-    Y = broadcast_atom_data!(charges_k1_sys, charges_k1_mol, charges_k2_sys, charges_k2_mol, vdw_σ, vdw_σ_mol, vdw_ϵ, vdw_ϵ_mol, global_to_local)
+    Y = broadcast_atom_data!(charges_k1, charges_k1_mol,
+                             charges_k2, charges_k2_mol,
+                             func_probs, func_probs_mol,
+                             vdw_σ,      vdw_σ_mol,
+                             vdw_ϵ,      vdw_ϵ_mol,
+                             vdw_A,      vdw_A_mol,
+                             vdw_B,      vdw_B_mol,
+                             vdw_C,      vdw_C_mol,
+                             vdw_α,      vdw_α_mol,
+                             vdw_β,      vdw_β_mol,
+                             vdw_δ,      vdw_δ_mol,
+                             vdw_γ,      vdw_γ_mol, 
+                             global_to_local)
 
     function pullback(y_hat)
 
-        d_charges_k1_sys = iszero(y_hat[1]) ? zero(charges_k1_sys) : y_hat[1]
-        d_charges_k2_sys = iszero(y_hat[2]) ? zero(charges_k2_sys) : y_hat[2]
-        d_vdw_σ          = iszero(y_hat[3]) ? zero(vdw_σ)          : y_hat[3]
-        d_vdw_ϵ          = iszero(y_hat[4]) ? zero(vdw_ϵ)          : y_hat[4]
+        d_charges_k1 = iszero(y_hat[1]) ? zero(charges_k1) : y_hat[1]
+        d_charges_k2 = iszero(y_hat[2]) ? zero(charges_k2) : y_hat[2]
+        d_func_probs = iszero(y_hat[3]) ? zero(func_probs) : y_hat[3]
+        d_vdw_σ      = iszero(y_hat[4]) ? zero(vdw_σ)      : y_hat[4]
+        d_vdw_ϵ      = iszero(y_hat[5]) ? zero(vdw_ϵ)      : y_hat[5]
+        d_vdw_A      = iszero(y_hat[6]) ? zero(vdw_A)      : y_hat[6]
+        d_vdw_B      = iszero(y_hat[7]) ? zero(vdw_B)      : y_hat[7]
+        d_vdw_C      = iszero(y_hat[8]) ? zero(vdw_C)      : y_hat[8]
+        
+        d_vdw_α = Ref(zero(T))
+        d_vdw_β = Ref(zero(T))
+        d_vdw_δ = Ref(zero(T))
+        d_vdw_γ = Ref(zero(T))
 
         d_charges_k1_mol = zeros(T, length(charges_k1_mol))
         d_charges_k2_mol = zeros(T, length(charges_k2_mol))
+        d_func_probs_mol = zeros(T, size(func_probs_mol))
         d_vdw_σ_mol      = zeros(T, length(vdw_σ_mol))
         d_vdw_ϵ_mol      = zeros(T, length(vdw_ϵ_mol))
+        d_vdw_A_mol      = zeros(T, length(vdw_A_mol))
+        d_vdw_B_mol      = zeros(T, length(vdw_B_mol))
+        d_vdw_C_mol      = zeros(T, length(vdw_C_mol))
+
+        d_vdw_α_mol = Ref(zero(T))
+        d_vdw_β_mol = Ref(zero(T))
+        d_vdw_δ_mol = Ref(zero(T))
+        d_vdw_γ_mol = Ref(zero(T))
 
         Enzyme.autodiff(
             Enzyme.Reverse,
             broadcast_atom_data!,
             Enzyme.Const,
-            Enzyme.Duplicated(charges_k1_sys, d_charges_k1_sys),
+            Enzyme.Duplicated(charges_k1,     d_charges_k1),
             Enzyme.Duplicated(charges_k1_mol, d_charges_k1_mol),
-            Enzyme.Duplicated(charges_k2_sys, d_charges_k2_sys),
+            Enzyme.Duplicated(charges_k2,     d_charges_k2),
             Enzyme.Duplicated(charges_k2_mol, d_charges_k2_mol),
-            Enzyme.Duplicated(vdw_σ, d_vdw_σ),
-            Enzyme.Duplicated(vdw_σ_mol, d_vdw_σ_mol),
-            Enzyme.Duplicated(vdw_ϵ, d_vdw_ϵ),
-            Enzyme.Duplicated(vdw_ϵ_mol, d_vdw_ϵ_mol),
+            Enzyme.Duplicated(func_probs,     d_func_probs),
+            Enzyme.Duplicated(func_probs_mol, d_func_probs_mol),
+            Enzyme.Duplicated(vdw_σ,          d_vdw_σ),
+            Enzyme.Duplicated(vdw_σ_mol,      d_vdw_σ_mol),
+            Enzyme.Duplicated(vdw_ϵ,          d_vdw_ϵ),
+            Enzyme.Duplicated(vdw_ϵ_mol,      d_vdw_ϵ_mol),
+            Enzyme.Duplicated(vdw_A,          d_vdw_A),
+            Enzyme.Duplicated(vdw_A_mol,      d_vdw_A_mol),
+            Enzyme.Duplicated(vdw_B,          d_vdw_B),
+            Enzyme.Duplicated(vdw_B_mol,      d_vdw_B_mol),
+            Enzyme.Duplicated(vdw_C,          d_vdw_C),
+            Enzyme.Duplicated(vdw_C_mol,      d_vdw_C_mol),
+            Enzyme.Duplicated(vdw_α,          d_vdw_α),
+            Enzyme.Duplicated(vdw_α_mol,      d_vdw_α_mol),
+            Enzyme.Duplicated(vdw_β,          d_vdw_β),
+            Enzyme.Duplicated(vdw_β_mol,      d_vdw_β_mol),
+            Enzyme.Duplicated(vdw_δ,          d_vdw_δ),
+            Enzyme.Duplicated(vdw_δ_mol,      d_vdw_δ_mol),
+            Enzyme.Duplicated(vdw_γ,          d_vdw_γ),
+            Enzyme.Duplicated(vdw_γ_mol,      d_vdw_γ_mol),
             Enzyme.Const(global_to_local)
         )
-        #println("ATOM PULLBACK")
+
         return NoTangent(), 
                NoTangent(), d_charges_k1_mol,
                NoTangent(), d_charges_k2_mol,
                NoTangent(), d_vdw_σ_mol,
                NoTangent(), d_vdw_ϵ_mol,
-               NoTangent()
-    end
-
-    return Y, pullback
-end
-
-# For BUCK
-function broadcast_atom_data!(
-    charges_k1_sys::Vector{T}, charges_k1_mol::Vector{T},
-    charges_k2_sys::Vector{T}, charges_k2_mol::Vector{T},
-    vdw_A::Vector{T}, vdw_A_mol::Vector{T},
-    vdw_B::Vector{T}, vdw_B_mol::Vector{T},
-    vdw_C::Vector{T}, vdw_C_mol::Vector{T},
-    global_to_local::Dict{Int, Int}
-)
-    for global_i in 1:length(charges_k1_sys)
-        local_i = get(global_to_local, global_i, nothing)
-        if !isnothing(local_i)
-            charges_k1_sys[global_i] = charges_k1_mol[local_i]
-            charges_k2_sys[global_i] = charges_k2_mol[local_i]
-            vdw_A[global_i] = vdw_A_mol[local_i]
-            vdw_B[global_i] = vdw_B_mol[local_i]
-            vdw_C[global_i] = vdw_C_mol[local_i]
-        end
-    end
-    return charges_k1_sys, charges_k2_sys, vdw_A, vdw_B, vdw_C
-end
-
-function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
-               charges_k1_sys::Vector{T}, charges_k1_mol::Vector{T},
-               charges_k2_sys::Vector{T}, charges_k2_mol::Vector{T},
-               vdw_A::Vector{T}, vdw_A_mol::Vector{T},
-               vdw_B::Vector{T}, vdw_B_mol::Vector{T},
-               vdw_C::Vector{T}, vdw_C_mol::Vector{T},
-               global_to_local::Dict{Int, Int})
-
-    Y = broadcast_atom_data!(charges_k1_sys, charges_k1_mol, charges_k2_sys, charges_k2_mol, vdw_A, vdw_A_mol, vdw_B, vdw_B_mol, vdw_C, vdw_C_mol, global_to_local)
-
-    function pullback(y_hat)
-
-        d_charges_k1_sys, d_charges_k2_sys, d_vdw_A, d_vdw_B, d_vdw_C = y_hat
-
-        d_charges_k1_mol = zeros(T, length(charges_k1_mol))
-        d_charges_k2_mol = zeros(T, length(charges_k2_mol))
-        d_vdw_A_mol   = zeros(T, length(vdw_A_mol))
-        d_vdw_B_mol   = zeros(T, length(vdw_B_mol))
-        d_vdw_C_mol   = zeros(T, length(vdw_C_mol))
-
-        Enzyme.autodiff(
-            Enzyme.Reverse,
-            broadcast_atom_data!,
-            Enzyme.Const,
-            Enzyme.Duplicated(charges_k1_sys, d_charges_k1_sys),
-            Enzyme.Duplicated(charges_k1_mol, d_charges_k1_mol),
-            Enzyme.Duplicated(charges_k2_sys, d_charges_k2_sys),
-            Enzyme.Duplicated(charges_k2_mol, d_charges_k2_mol),
-            Enzyme.Duplicated(vdw_A, d_vdw_A),
-            Enzyme.Duplicated(vdw_A_mol, d_vdw_A_mol),
-            Enzyme.Duplicated(vdw_B, d_vdw_B),
-            Enzyme.Duplicated(vdw_B_mol, d_vdw_B_mol),
-            Enzyme.Duplicated(vdw_C, d_vdw_C),
-            Enzyme.Duplicated(vdw_C_mol, d_vdw_C_mol),
-            Enzyme.Const(global_to_local)
-        )
-
-        return NoTangent(),
-               NoTangent(), d_charges_k1_mol,
-               NoTangent(), d_charges_k2_mol,
                NoTangent(), d_vdw_A_mol,
                NoTangent(), d_vdw_B_mol,
                NoTangent(), d_vdw_C_mol,
-               NoTangent()
-    end
-
-    return Y, pullback
-end
-
-# For DEXP and BUFF
-function broadcast_atom_data!(
-    charges_k1_sys::Vector{T}, charges_k1_mol::Vector{T},
-    charges_k2_sys::Vector{T}, charges_k2_mol::Vector{T},
-    vdw_σ::Vector{T}, vdw_σ_mol::Vector{T},
-    vdw_ϵ::Vector{T}, vdw_ϵ_mol::Vector{T},
-    vdw_α::Base.RefValue{T}, vdw_α_mol::Base.RefValue{T},
-    vdw_β::Base.RefValue{T}, vdw_β_mol::Base.RefValue{T},
-    global_to_local::Dict{Int, Int}
-)
-    for global_i in 1:length(charges_k1_sys)
-        local_i = get(global_to_local, global_i, nothing)
-        if !isnothing(local_i)
-            charges_k1_sys[global_i] = charges_k1_mol[local_i]
-            charges_k2_sys[global_i] = charges_k2_mol[local_i]
-            vdw_σ[global_i] = vdw_σ_mol[local_i]
-            vdw_ϵ[global_i] = vdw_ϵ_mol[local_i]
-        end
-    end
-    vdw_α[] = vdw_α_mol[]
-    vdw_β[] = vdw_β_mol[]
-    return charges_k1_sys, charges_k2_sys, vdw_σ, vdw_ϵ, vdw_α, vdw_β
-end
-
-function ChainRulesCore.rrule(::typeof(broadcast_atom_data!),
-               charges_k1_sys::Vector{T}, charges_k1_mol::Vector{T},
-               charges_k2_sys::Vector{T}, charges_k2_mol::Vector{T},
-               vdw_σ::Vector{T}, vdw_σ_mol::Vector{T},
-               vdw_ϵ::Vector{T}, vdw_ϵ_mol::Vector{T},
-               vdw_α::Base.RefValue{T}, vdw_α_mol::Base.RefValue{T},
-               vdw_β::Base.RefValue{T}, vdw_β_mol::Base.RefValue{T},
-               global_to_local::Dict{Int, Int})
-
-    Y = broadcast_atom_data!(charges_k1_sys, charges_k1_mol, charges_k2_sys, charges_k2_mol, vdw_σ, vdw_σ_mol, vdw_ϵ, vdw_ϵ_mol, vdw_α, vdw_α_mol, vdw_β, vdw_β_mol, global_to_local)
-
-    function pullback(y_hat)
-        d_charges_k1_sys, d_charges_k2_sys, d_vdw_σ, d_vdw_ϵ, d_vdw_α, d_vdw_β = y_hat
-
-        d_charges_k1_mol = zeros(T, length(charges_k1_mol))
-        d_charges_k2_mol = zeros(T, length(charges_k2_mol))
-        d_vdw_σ_mol   = zeros(T, length(vdw_σ_mol))
-        d_vdw_ϵ_mol   = zeros(T, length(vdw_ϵ_mol))
-        d_vdw_α_mol   = Ref(zero(T))
-        d_vdw_β_mol   = Ref(zero(T))
-
-        Enzyme.autodiff(
-            Enzyme.Reverse,
-            broadcast_atom_data!,
-            Enzyme.Const,
-            Enzyme.Duplicated(charges_k1_sys, d_charges_k1_sys),
-            Enzyme.Duplicated(charges_k1_mol, d_charges_k1_mol),
-            Enzyme.Duplicated(charges_k2_sys, d_charges_k2_sys),
-            Enzyme.Duplicated(charges_k2_mol, d_charges_k2_mol),
-            Enzyme.Duplicated(vdw_σ, d_vdw_σ),
-            Enzyme.Duplicated(vdw_σ_mol, d_vdw_σ_mol),
-            Enzyme.Duplicated(vdw_ϵ, d_vdw_ϵ),
-            Enzyme.Duplicated(vdw_ϵ_mol, d_vdw_ϵ_mol),
-            Enzyme.Duplicated(vdw_α, d_vdw_α),
-            Enzyme.Duplicated(vdw_α_mol, d_vdw_α_mol),
-            Enzyme.Duplicated(vdw_β, d_vdw_β),
-            Enzyme.Duplicated(vdw_β_mol, d_vdw_β_mol),
-            Enzyme.Const(global_to_local)
-        )
-
-        return NoTangent(),
-               NoTangent(), d_charges_k1_mol,
-               NoTangent(), d_charges_k2_mol,
-               NoTangent(), d_vdw_σ_mol,
-               NoTangent(), d_vdw_ϵ_mol,
                NoTangent(), d_vdw_α_mol,
                NoTangent(), d_vdw_β_mol,
+               NoTangent(), d_vdw_δ_mol,
+               NoTangent(), d_vdw_γ_mol,
                NoTangent()
     end
-
     return Y, pullback
 end
 
