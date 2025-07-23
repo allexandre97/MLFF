@@ -146,10 +146,13 @@ function build_sys(
     n_atoms = length(partial_charges)
     dist_nb_cutoff = T(MODEL_PARAMS["physics"]["dist_nb_cutoff"])
 
-    atoms      = [GeneralAtom(i, one(Int), T(masses[i]), T(partial_charges[i]), T(σ[i]), T(ϵ[i]), T(A[i]), T(B[i]), T(C[i]), T(α), T(β), T(δ), T(γ))
+    atoms      = [GeneralAtom(i, one(Int), T(masses[i]), T(partial_charges[i]), T(σ[i]), T(ϵ[i]), T(A[i]), T(B[i]), T(C[i]))
                   for i in 1:n_atoms]
 
     weights_vdw = vec(mean(func_probs; dims=2))
+    choice      = argmax(weight_vdw)
+
+    global vdw_functional_form = CHOICE_TO_VDW[choice]
 
     vdw_inters = GroupInter(
         
@@ -494,7 +497,7 @@ function mol_to_system(
     else
         vdw_size = zero(T)
     end
-    weight_vdw = (vdw_functional_form == "lj" ? sigmoid(global_params[1]) : one(T))
+    weight_vdw = (vdw_functional_form == "lj" ? sigmoid(global_params.params[1]) : one(T))
 
     torsion_ks_size = zero(T)
     if length(proper_feats) > 0

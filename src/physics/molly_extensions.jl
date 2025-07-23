@@ -1,3 +1,5 @@
+import Base: +
+
 struct DoubleExponential{T, S, E, W}
     α::T
     β::T
@@ -549,33 +551,44 @@ struct GeneralAtom{T}
     A::T
     B::T
     C::T
-    α::T
-    β::T
-    δ::T
-    γ::T
 end
 
-Base.zero(::Type{GeneralAtom{T}}) = GeneralAtom{T}(0, 0, zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T))
+function +(a::GeneralAtom{T}, b::GeneralAtom{T})
+    GeneralAtom(
+        a.index,
+        a.type,
+        a.mass   + b.mass,
+        a.charge + b.charge,
+        a.σ      + b.σ,
+        a.ϵ      + b.ϵ,
+        a.A      + b.A,
+        a.B      + b.B,
+        a.C      + b.C
+    )
+end
+
+Base.zero(::Type{GeneralAtom{T}}) = GeneralAtom{T}(0, 0, zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T))
 Base.zero(x::GeneralAtom{T}) = zero(GeneralAtom{T})
 
 function ChainRulesCore.rrule(TY::Type{<:GeneralAtom}, vs...)
-
     Y = TY(vs...)
-
     function pullback(Ȳ)
-
-        return NoTangent(), NoTangent(), NoTangent(), Ȳ.mass, Ȳ.charge, Ȳ.σ, Ȳ.ϵ, Ȳ.A, Ȳ.B, Ȳ.C, Ȳ.α, Ȳ.β, Ȳ.δ, Ȳ.γ
-        
+        return NoTangent(), NoTangent(), NoTangent(), Ȳ.mass, Ȳ.charge, Ȳ.σ, Ȳ.ϵ, Ȳ.A, Ȳ.B, Ȳ.C
     end
-
     return Y, pullback
-    
 end
 
 
 struct GroupInter{I}
     inters::I
     weights::SVector{5, T}
+end
+
+function +(a::GroupInter{I}, b::GroupInter{I}) where {I}
+    GroupInter(
+        a.inters .+ b.inters,
+        a.weights + b.weights
+    )
 end
 
 function ChainRulesCore.rrule(TY::Type{<:GroupInter}, vs...)

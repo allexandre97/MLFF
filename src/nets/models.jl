@@ -125,14 +125,14 @@ PARAM_LAYOUT = Dict(
     :buck => (9:11, [:A, :B, :C]),
 )
 
-# Sharing
-#= PARAM_LAYOUT = Dict(
-    :lj   => (1:2,),
-    :lj69 => (1:2,),
-    :dexp => (1:2,),
-    :buff => (1:2,),
-    :buck => (3:5,)
-) =#
+CHOICE_TO_VDW = Dict(
+    1 => "lj",
+    2 => "lj69",
+    3 => "dexp",
+    4 => "buff",
+    5 => "buck"
+)
+
 
 function build_models()
     # Pooling step

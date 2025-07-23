@@ -196,9 +196,11 @@ if !isnothing(out_dir) && !isdir(out_dir)
     end
 end
 
-models, optims = train!(models, optims)
+#models, optims = train!(models, optims)
 
-#= mol_id = "water"
+Flux.trainmode!(models)
+
+mol_id = "water"
 feat_df = FEATURE_DATAFRAMES[1]
 feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
 
@@ -210,13 +212,33 @@ exceeds_force, pair_present = read_conformation(CONF_DATAFRAME, [(1, 2, 1)], 1, 
 
 grads = Zygote.gradient(models...) do models...
 
-    sys,
-    forces, potential_i, charges,
-    vdw_size, torsion_size,
-    elements, mol_inds,
-    forces_loss_inter, forces_loss_intra,
-    charges_loss, vdw_loss,
-    torsions_loss, reg_loss = fwd_and_loss(mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
+    sys_pred_i,
+    forces_pred_i, potential_pred_i, charges_pred_i,
+    vdw_size_pred_i, torsion_size_pred_i,
+    elements_pred_i, mol_inds_pred_i,
+    forces_loss_inter_pred_i, forces_loss_intra_pred_i,
+    charges_loss_pred_i, vdw_loss_pred_i,
+    torsions_loss_pred_i, reg_loss_pred_i = fwd_and_loss(mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
 
-    return forces_loss_inter
-end =#
+    if pair_present
+
+        sys_pred_j,
+        forces_pred_j, potential_pred_j, charges_pred_j,
+        vdw_size_pred_j, torsion_size_pred_j,
+        elements_pred_j, mol_inds_pred_j,
+        forces_loss_inter_pred_j, forces_loss_intra_pred_j,
+        charges_loss_pred_j, vdw_loss_pred_j,
+        torsions_loss_pred_j, reg_loss_pred_j = fwd_and_loss(mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
+
+        dpe = potential_pred_i - potential_pred_j
+
+    end
+
+    return forces_loss_intra_pred_i + forces_loss_intra_pred_j +
+           forces_loss_inter_pred_i + forces_loss_inter_pred_j +
+           charges_loss_pred_i      + charges_loss_pred_j +
+           vdw_loss_pred_i          + vdw_loss_pred_j +
+           torsions_loss_pred_i     + torsions_loss_pred_j +
+           reg_loss_pred_i          + reg_loss_pred_j +
+           dpe
+end
