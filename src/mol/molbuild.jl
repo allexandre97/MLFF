@@ -1,3 +1,10 @@
+# used for Gumbel-Softmax Annealing
+τ_min      = MODEL_PARAMS["training"]["tau_min"]
+τ_0        = MODEL_PARAMS["training"]["tau_0"]
+τ_0_epoch = MODEL_PARAMS["training"]["tau_0_epoch"]
+
+decay_rate = -1.0 * ( log(τ_min / τ_0) / τ_0_epoch) 
+
 function build_adj_list(mol_row::DataFrame)::Array
     
     n_atoms::Int16    = size(split(mol_row[!, :ATOMIC_MASS][1], ","))[1]
@@ -30,11 +37,12 @@ Flux.@non_differentiable has_isomorph(args...)
 
 
 function mol_to_preds(
+    epoch_n::Int,
     mol_id::String,
     args...
 )
 
-    sys, partial_charges, vdw_size, torsion_size, elements, mol_inds = mol_to_system(mol_id, args...)
+    sys, partial_charges, vdw_size, torsion_size, elements, mol_inds = mol_to_system(epoch_n, mol_id, args...)
     neighbors = ignore_derivatives() do
         return find_neighbors(sys; n_threads = 1)
     end
@@ -113,7 +121,6 @@ function build_sys(
     coords,
     boundary,
     partial_charges,
-    weight_vdw::Float32,
     
     func_probs::Matrix{T},
     σ::Vector{T},
@@ -150,17 +157,18 @@ function build_sys(
                   for i in 1:n_atoms]
 
     weights_vdw = vec(mean(func_probs; dims=2))
-    choice      = argmax(weight_vdw)
+
+    choice      = argmax(weights_vdw)
 
     global vdw_functional_form = CHOICE_TO_VDW[choice]
 
     vdw_inters = GroupInter(
         
-        (LennardJones(DistanceCutoff(dist_nb_cutoff), true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, weight_vdw),
-         Mie(6, 9, DistanceCutoff(dist_nb_cutoff), true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, weight_vdw, 1),
-         DoubleExponential(α, β, σ_mixing, ϵ_mixing, weight_vdw, dist_nb_cutoff),
-         Buffered147(δ, γ, σ_mixing, ϵ_mixing, weight_vdw, dist_nb_cutoff),
-         Buckingham(weight_vdw, dist_nb_cutoff)),
+        (LennardJones(DistanceCutoff(dist_nb_cutoff), true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, sigmoid(model_global_params.params[1])),
+         Mie(6, 9, DistanceCutoff(dist_nb_cutoff), true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, one(T), 1),
+         DoubleExponential(α, β, σ_mixing, ϵ_mixing, one(T), dist_nb_cutoff),
+         Buffered147(δ, γ, σ_mixing, ϵ_mixing, one(T), dist_nb_cutoff),
+         Buckingham(one(T), dist_nb_cutoff)),
 
          SVector{5, T}(weights_vdw)
     )
@@ -292,6 +300,7 @@ end
 Flux.@non_differentiable get_molecule_names(args...)
 
 function mol_to_system(
+    epoch_n::Int,
     mol_id::String,
     feat_df::DataFrame,
     coords,
@@ -402,7 +411,7 @@ function mol_to_system(
         ### Atom pooling and feature prediction ###
         embeds_mol = calc_embeddings(adj_mol, feat_mol, atom_embedding_model)
         logits         = nonbonded_selection_model(embeds_mol)  # (5, n_atoms)
-        func_probs_mol = gumbel_softmax_symmetric(logits, labels)                 # (5, n_atoms)
+        func_probs_mol = gumbel_softmax_symmetric(logits, labels, annealing_schedule(epoch_n, τ_0, τ_min, decay_rate))                 # (5, n_atoms)
         func_probs_mol = func_probs_mol ./ sum(func_probs_mol; dims = 1)
 
         feats_mol  = predict_atom_features(labels, embeds_mol, atom_features_model)
@@ -497,7 +506,6 @@ function mol_to_system(
     else
         vdw_size = zero(T)
     end
-    weight_vdw = (vdw_functional_form == "lj" ? sigmoid(global_params.params[1]) : one(T))
 
     torsion_ks_size = zero(T)
     if length(proper_feats) > 0
@@ -514,8 +522,8 @@ function mol_to_system(
     partial_charges = atom_feats_to_charges(charges_k1, charges_k2, formal_charges)
 
     molly_sys = build_sys(mol_id, 
-    masses, atom_types, atom_names, mol_inds, coords, boundary, partial_charges, 
-    weight_vdw, func_probs, vdw_σ, vdw_ϵ, vdw_A, vdw_B, vdw_C, α, β,
+    masses, atom_types, atom_names, mol_inds, coords, boundary, partial_charges,
+    func_probs, vdw_σ, vdw_ϵ, vdw_A, vdw_B, vdw_C, α, β,
     δ, γ, bond_functional_form, bonds_k, bonds_r0, bonds_a, angle_functional_form,
     angles_ki, angles_θ0i, angles_kj, angles_θ0j, bonds_i, bonds_j, angles_i, angles_j, angles_k, proper_feats_pad,
     improper_feats_pad, propers_i, propers_j, propers_k, propers_l, impropers_i, impropers_j, impropers_k,

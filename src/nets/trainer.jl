@@ -20,6 +20,7 @@ Zygote.accum(::Nothing, ::NamedTuple{(:p, :dims, :active, :rng), <:Any}) = nothi
 check_no_nans(grads) = !any(g -> any(isnan, Flux.destructure(g)[1]), grads)
 
 function fwd_and_loss(
+    epoch_n,
     mol_id,
     feat_df,
     coords,
@@ -32,7 +33,7 @@ function fwd_and_loss(
     sys,
     forces, potential, charges,
     vdw_size, torsion_size, 
-    elements, mol_inds = mol_to_preds(mol_id, feat_df, coords, boundary_inf, models...)
+    elements, mol_inds = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary_inf, models...)
     
     # Split the forces in inter and intramolecular contributions
     pred_force_intra, pred_force_inter = split_forces(forces, coords, mol_inds, elements)
@@ -410,7 +411,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                     elements, mol_inds,
                     forces_loss_inter, forces_loss_intra,
                     charges_loss, vdw_loss,
-                    torsions_loss, reg_loss = fwd_and_loss(mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
+                    torsions_loss, reg_loss = fwd_and_loss(epoch_n, mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
 
                     if MODEL_PARAMS["training"]["verbose"]
                         ignore_derivatives() do 
@@ -445,7 +446,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                         elements, mol_inds,
                         forces_loss_inter, forces_loss_intra,
                         charges_loss, vdw_loss,
-                        torsions_loss, reg_loss = fwd_and_loss(mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
+                        torsions_loss, reg_loss = fwd_and_loss(epoch_n, mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
                         
 
                         pe_diff     = potential_j - potential_i
@@ -545,7 +546,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                             _,
                             _, potential, _,
                             vdw_size, torsion_size, 
-                            _, mol_inds = mol_to_preds(mol_id, feat_df, coords, boundary, models...)
+                            _, mol_inds = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary, models...)
 
                             mean_U_gas = calc_mean_U_gas(mol_id_gas, df_gas, training_sim_dir, temp, models...)
 
@@ -560,17 +561,17 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                             _,
                             _, potential_1, _,
                             vdw_size_1, torsion_size_1, 
-                            _, mol_inds_1 = mol_to_preds(mol_id_1, df_mix_1, coords_1, boundary_1, models...)
+                            _, mol_inds_1 = mol_to_preds(epoch_n, mol_id_1, df_mix_1, coords_1, boundary_1, models...)
 
                             _,
                             _, potential_2, _,
                             vdw_size_2, torsion_size_2, 
-                            _, mol_inds_2 = mol_to_preds(mol_id_2, df_mix_2, coords_2, boundary_2, models...)
+                            _, mol_inds_2 = mol_to_preds(epoch_n, mol_id_2, df_mix_2, coords_2, boundary_2, models...)
 
                             _,
                             _, potential_com, _,
                             vdw_size, torsion_size, 
-                            _, mol_inds_com = mol_to_preds(mol_id, feat_df, coords_com, boundary_com, models...)
+                            _, mol_inds_com = mol_to_preds(epoch_n, mol_id, feat_df, coords_com, boundary_com, models...)
 
                             cond_loss = enth_mixing_loss(potential_com, potential_1, potential_2,
                                                          boundary_com, boundary_1, boundary_2, 
@@ -722,7 +723,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                 elements, mol_inds,
                 forces_loss_inter, forces_loss_intra,
                 charges_loss, vdw_loss,
-                torsions_loss, reg_loss = fwd_and_loss(mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
+                torsions_loss, reg_loss = fwd_and_loss(epoch_n, mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
 
                 if MODEL_PARAMS["training"]["verbose"]
                     print_chunks[chunk_id] *="loss forces intra $forces_loss_intra forces inter $forces_loss_inter charge $charges_loss vdw params $vdw_loss torsion ks $torsions_loss regularisation $reg_loss\n"
@@ -750,7 +751,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                     elements, mol_inds,
                     forces_loss_inter, forces_loss_intra,
                     charges_loss, vdw_loss,
-                    torsions_loss, reg_loss = fwd_and_loss(mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
+                    torsions_loss, reg_loss = fwd_and_loss(epoch_n, mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
 
                     pe_diff     = potential_j - potential_i
                     dft_pe_diff = energy_j - energy_i
@@ -807,7 +808,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                         _,
                         _, potential, _,
                         vdw_size, torsion_size, 
-                        _, mol_inds = mol_to_preds(mol_id, feat_df, coords, boundary, models...)
+                        _, mol_inds = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary, models...)
 
                         mean_U_gas = calc_mean_U_gas(mol_id_gas, df_gas, training_sim_dir, temp, models...)
 
@@ -834,17 +835,17 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                         _,
                         _, potential_1, _,
                         vdw_size_1, torsion_size_1, 
-                        _, mol_inds_1 = mol_to_preds(mol_id_1, df_mix_1, coords_1, boundary_1, models...)
+                        _, mol_inds_1 = mol_to_preds(epoch_n, mol_id_1, df_mix_1, coords_1, boundary_1, models...)
 
                         _,
                         _, potential_2, _,
                         vdw_size_2, torsion_size_2, 
-                        _, mol_inds_2 = mol_to_preds(mol_id_2, df_mix_2, coords_2, boundary_2, models...)
+                        _, mol_inds_2 = mol_to_preds(epoch_n, mol_id_2, df_mix_2, coords_2, boundary_2, models...)
 
                         _,
                         _, potential_com, _,
                         vdw_size, torsion_size, 
-                        _, mol_inds_com = mol_to_preds(mol_id, feat_df, coords_com, boundary_com, models...)
+                        _, mol_inds_com = mol_to_preds(epoch_n, mol_id, feat_df, coords_com, boundary_com, models...)
 
                         cond_loss = enth_mixing_loss(potential_com, potential_1, potential_2,
                                                         boundary_com, boundary_1, boundary_2, 

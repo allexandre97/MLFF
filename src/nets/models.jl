@@ -226,6 +226,8 @@ function build_models()
 
 end
 
+annealing_schedule(epoch, τ_init, τ_min, decay_rate) = T(max(τ_min, τ_init * exp(-decay_rate * epoch)))
+
 function gumbel_softmax_symmetric(logits::Matrix{T}, labels::Vector{String}, τ::T = T(1e-1))
     n_forms, n_atoms = size(logits)
     

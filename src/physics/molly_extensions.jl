@@ -602,7 +602,7 @@ end
 function Molly.force(inter::GroupInter{<:Tuple}, dr, a1::GeneralAtom, a2::GeneralAtom,
                      force_units, special, x1, x2, boundary, v1, v2, step_n)
 
-    f_total = zero(SVector{3, typeof(a1.mass)})
+    f_total = zero(SVector{3, T})
 
     for (idx, sub_inter) in enumerate(inter.inters)
         w = inter.weights[idx]
@@ -612,14 +612,45 @@ function Molly.force(inter::GroupInter{<:Tuple}, dr, a1::GeneralAtom, a2::Genera
     return f_total
 end
 
-function Molly.potential_energy(inter::GroupInter{<:Tuple}, dr, a1::GeneralAtom, a2::GeneralAtom,
+function Molly.potential_energy(inter::GroupInter, dr, a1::GeneralAtom, a2::GeneralAtom,
                                 energy_units, special, x1, x2, boundary, v1, v2, step_n)
-    pe_total = zero(typeof(a1.mass))
-    for (idx, sub_inter) in enumerate(inter.inters)
-        w = inter.weights[idx]
+    pe_total = zero(T)
+
+    w1 = inter.weights[1]
+    pe_total += w1 + Molly.potential_energy(inter.inters[1], dr, a1, a2, energy_units, special,
+                                               x1, x2, boundary, v1, v2, step_n)
+    
+    w1 = inter.weights[2]
+    pe_total += w1 + Molly.potential_energy(inter.inters[2], dr, a1, a2, energy_units, special,
+                                               x1, x2, boundary, v1, v2, step_n)
+
+    w1 = inter.weights[3]
+    pe_total += w1 + Molly.potential_energy(inter.inters[3], dr, a1, a2, energy_units, special,
+                                               x1, x2, boundary, v1, v2, step_n)
+
+    w1 = inter.weights[4]
+    pe_total += w1 + Molly.potential_energy(inter.inters[4], dr, a1, a2, energy_units, special,
+                                               x1, x2, boundary, v1, v2, step_n)
+
+    w1 = inter.weights[5]
+    pe_total += w1 + Molly.potential_energy(inter.inters[5], dr, a1, a2, energy_units, special,
+                                               x1, x2, boundary, v1, v2, step_n)
+
+    #= for (idx, sub_inter) in enumerate(inter.inters[i:i+1])
+        #@show sub_inter
+        w = inter.weights[idx+(i-1)]
         pe_total += w * Molly.potential_energy(sub_inter, dr, a1, a2, energy_units, special,
                                                x1, x2, boundary, v1, v2, step_n)
     end
+    #@show pe_total =#
+
+    #= pe_total = sum(eachindex(inter.inters)) do idx
+        sub_inter = inter.inters[idx]
+        w = inter.weights[idx]
+        return w * Molly.potential_energy(sub_inter, dr, a1, a2, energy_units, special,
+                                               x1, x2, boundary, v1, v2, step_n)
+    end =#
+    
     return pe_total
 end
 

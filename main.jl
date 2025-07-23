@@ -196,9 +196,9 @@ if !isnothing(out_dir) && !isdir(out_dir)
     end
 end
 
-#models, optims = train!(models, optims)
+models, optims = train!(models, optims)
 
-Flux.trainmode!(models)
+#= Flux.trainmode!(models)
 
 mol_id = "water"
 feat_df = FEATURE_DATAFRAMES[1]
@@ -241,4 +241,4 @@ grads = Zygote.gradient(models...) do models...
            torsions_loss_pred_i     + torsions_loss_pred_j +
            reg_loss_pred_i          + reg_loss_pred_j +
            dpe
-end
+end =#

@@ -1,6 +1,6 @@
 {
     "paths":{
-        "out_dir":"./runs"
+        "out_dir":"./runs/func_select_vdw_1"
     },
 
     "training":{
@@ -13,10 +13,10 @@
 
         "train_size":0.9,
 
-        "n_epochs":300,
+        "n_epochs":200,
 
-        "training_sims_first_epoch":200,
-        "condensed_data_first_epoch":150,
+        "training_sims_first_epoch":125,
+	"condensed_data_first_epoch":110,
 
         "n_minibatch":256,
 
@@ -25,18 +25,22 @@
         "loss_weight_energy":1e-2,
         "loss_weight_charge":5.0,
         "loss_weight_torsion_ks":1e-2,
-        "loss_weight_enth_vap":0.15,
+        "loss_weight_enth_vap":0.0188,
         "loss_weight_enth_mixing":0.1,
         "loss_weight_regularisation":1e-5,
         "loss_weight_vdw_params":0.0,
         "loss_energy_first_epoch":1,
 
-        "train_on_forces_intra":1.0,
+        "tau_min":0.01,
+        "tau_0":5.0,
+        "tau_0_epoch":110,
+
+        "train_on_forces_intra":0.0,
         "train_on_forces_inter":1.0,
-        "train_on_pe":1.0,
-        "train_on_charges":1.0,
-        "train_on_enth_vap":1.0,
-        "train_on_enth_mix":1.0,
+        "train_on_pe":0.0,
+        "train_on_charges":0.0,
+        "train_on_enth_vap":0.0,
+        "train_on_enth_mix":0.0,
 
         "enth_vap_gas_n_samples":10,
 
@@ -45,7 +49,7 @@
 
     "networks":{
 
-        "learning_rate":1e-5,
+        "learning_rate":1e-3,
 
         "n_atom_features_in": 29,
 
@@ -65,7 +69,7 @@
 
     "physics":{
 
-        "vdw_functional_form":"buff",
+        "vdw_functional_form":"lj",
         "mixing_function":"lb",
         "dist_nb_cutoff":1.0,
         "bond_functional_form":"harmonic",
