@@ -125,7 +125,7 @@ end
 
 struct BuckinghamAtom{T}
     index::Int
-    atom_type::Int
+    atom_type::T
     mass::T
     charge::T
     A::T
@@ -135,11 +135,11 @@ end
 
 function Base.zero(::BuckinghamAtom{T}) where T
     z = zero(T)
-    return BuckinghamAtom(0, 0, z, z, z, z, z)
+    return BuckinghamAtom(0, z, z, z, z, z, z)
 end
 
-function Base.:+(a1::BuckinghamAtom, a2::BuckinghamAtom)
-    return BuckinghamAtom(0, 0, a1.mass + a2.mass, a1.charge + a2.charge,
+function Base.:+(a1::BuckinghamAtom{T}, a2::BuckinghamAtom{T}) where T
+    return BuckinghamAtom(0, zero(T), a1.mass + a2.mass, a1.charge + a2.charge,
                           a1.A + a2.A, a1.B + a2.B, a1.C + a2.C)
 end
 
@@ -541,39 +541,31 @@ end
 
 ########## A GENERAL ATOM STRUCT TO ACCOMODATE THE DIFFERENT FUNCTIONAL FORMS ##########
 
-struct GeneralAtom{T}
+struct GeneralAtom{T, A}
     index::Int
     type::Int
     mass::T
     charge::T
-    σ::T
-    ϵ::T
-    A::T
-    B::T
-    C::T
+    atoms::A
 end
 
-function +(a::GeneralAtom{T}, b::GeneralAtom{T})
+function +(a::GeneralAtom{T, A}, b::GeneralAtom{T, A}) where {T, A}
     GeneralAtom(
         a.index,
         a.type,
         a.mass   + b.mass,
         a.charge + b.charge,
-        a.σ      + b.σ,
-        a.ϵ      + b.ϵ,
-        a.A      + b.A,
-        a.B      + b.B,
-        a.C      + b.C
+        a.atoms .+ b.atoms
     )
 end
 
-Base.zero(::Type{GeneralAtom{T}}) = GeneralAtom{T}(0, 0, zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T))
-Base.zero(x::GeneralAtom{T}) = zero(GeneralAtom{T})
+#Base.zero(::Type{GeneralAtom{T}}) = GeneralAtom{T}(0, 0, zero(T), zero(T), zero.())
+Base.zero(x::GeneralAtom{T, A}) where {T, A} = GeneralAtom(0, 0, zero(T), zero(T), zero.(x.atoms))
 
 function ChainRulesCore.rrule(TY::Type{<:GeneralAtom}, vs...)
     Y = TY(vs...)
     function pullback(Ȳ)
-        return NoTangent(), NoTangent(), NoTangent(), Ȳ.mass, Ȳ.charge, Ȳ.σ, Ȳ.ϵ, Ȳ.A, Ȳ.B, Ȳ.C
+        return NoTangent(), NoTangent(), NoTangent(), Ȳ.mass, Ȳ.charge, Ȳ.atoms
     end
     return Y, pullback
 end
@@ -605,8 +597,10 @@ function Molly.force(inter::GroupInter{<:Tuple}, dr, a1::GeneralAtom, a2::Genera
     f_total = zero(SVector{3, T})
 
     for (idx, sub_inter) in enumerate(inter.inters)
+        a1f = a1.atoms[idx]
+        a2f = a2.atoms[idx]
         w = inter.weights[idx]
-        f_total += w * Molly.force(sub_inter, dr, a1, a2, force_units, special, x1, x2, boundary, v1, v2, step_n)
+        f_total += w * Molly.force(sub_inter, dr, a1f, a2f, force_units, special, x1, x2, boundary, v1, v2, step_n)
     end
 
     return f_total
@@ -616,24 +610,35 @@ function Molly.potential_energy(inter::GroupInter, dr, a1::GeneralAtom, a2::Gene
                                 energy_units, special, x1, x2, boundary, v1, v2, step_n)
     pe_total = zero(T)
 
+    #This stupid unroll is needed so Enzyme does not throw a tantrum
     w1 = inter.weights[1]
-    pe_total += w1 + Molly.potential_energy(inter.inters[1], dr, a1, a2, energy_units, special,
+    a1f = a1.atoms[1]
+    a2f = a2.atoms[1]
+    pe_total += w1 + Molly.potential_energy(inter.inters[1], dr, a1f, a2f, energy_units, special,
                                                x1, x2, boundary, v1, v2, step_n)
     
-    w1 = inter.weights[2]
-    pe_total += w1 + Molly.potential_energy(inter.inters[2], dr, a1, a2, energy_units, special,
+    w2 = inter.weights[2]
+    a1f = a1.atoms[2]
+    a2f = a2.atoms[2]
+    pe_total += w2 + Molly.potential_energy(inter.inters[2], dr, a1f, a2f, energy_units, special,
                                                x1, x2, boundary, v1, v2, step_n)
 
-    w1 = inter.weights[3]
-    pe_total += w1 + Molly.potential_energy(inter.inters[3], dr, a1, a2, energy_units, special,
+    w3 = inter.weights[3]
+    a1f = a1.atoms[3]
+    a2f = a2.atoms[3]
+    pe_total += w3 + Molly.potential_energy(inter.inters[3], dr, a1f, a2f, energy_units, special,
                                                x1, x2, boundary, v1, v2, step_n)
 
-    w1 = inter.weights[4]
-    pe_total += w1 + Molly.potential_energy(inter.inters[4], dr, a1, a2, energy_units, special,
+    w4 = inter.weights[4]
+    a1f = a1.atoms[4]
+    a2f = a2.atoms[4]
+    pe_total += w4 + Molly.potential_energy(inter.inters[4], dr, a1f, a2f, energy_units, special,
                                                x1, x2, boundary, v1, v2, step_n)
 
-    w1 = inter.weights[5]
-    pe_total += w1 + Molly.potential_energy(inter.inters[5], dr, a1, a2, energy_units, special,
+    w5 = inter.weights[5]
+    a1f = a1.atoms[5]
+    a2f = a2.atoms[5]
+    pe_total += w5 + Molly.potential_energy(inter.inters[5], dr, a1f, a2f, energy_units, special,
                                                x1, x2, boundary, v1, v2, step_n)
 
     #= for (idx, sub_inter) in enumerate(inter.inters[i:i+1])

@@ -63,86 +63,113 @@ function extract_vdw_params(feats::Matrix{T}, layout::Dict{Symbol,Tuple{UnitRang
 end
 
 function combine_vdw_params_gumbel!(
-    σs::Vector{T},
-    ϵs::Vector{T},
+    σs_lj::Vector{T},
+    ϵs_lj::Vector{T},
+    σs_lj69::Vector{T},
+    ϵs_lj69::Vector{T},
+    σs_dexp::Vector{T},
+    ϵs_dexp::Vector{T},
+    σs_buff::Vector{T},
+    ϵs_buff::Vector{T},
     A::Vector{T},
     B::Vector{T},
     C::Vector{T},
-    feats::Matrix{T},
-    func_probs::Matrix{T}
+    feats::Matrix{T}
 )
 
     for (f_idx, f) in enumerate(keys(PARAM_LAYOUT))
         inds = PARAM_LAYOUT[f][1]
-        w = func_probs[f_idx, :]
         p = feats[inds, :]
 
-        if f in (:lj, :lj69, :dexp, :buff)
-            σs .+= transform_lj_σ.(w .* p[1, :])
-            ϵs .+= transform_lj_ϵ.(w .* p[2, :])
-        end
-        if f == :buck
-            A .+= transform_buck_A.(w .* p[1, :])
-            B .+= transform_buck_B.(w .* p[2, :])
-            C .+= transform_buck_C.(w .* p[3, :])
+        if f == :lj
+            σs_lj .+= transform_lj_σ.(p[1, :])
+            ϵs_lj .+= transform_lj_ϵ.(p[2, :])
+        elseif f == :lj69
+            σs_lj69 .+= transform_lj_σ.(p[1, :])
+            ϵs_lj69 .+= transform_lj_ϵ.(p[2, :])
+        elseif f == :dexp
+            σs_dexp .+= transform_lj_σ.(p[1, :])
+            ϵs_dexp .+= transform_lj_ϵ.(p[2, :])
+        elseif f == :buff
+            σs_buff .+= transform_lj_σ.(p[1, :])
+            ϵs_buff .+= transform_lj_ϵ.(p[2, :])
+        elseif f == :buck
+            A .+= transform_buck_A.(p[1, :])
+            B .+= transform_buck_B.(p[2, :])
+            C .+= transform_buck_C.(p[3, :])
         end
     end
 end
 
 function combine_vdw_params_gumbel(
-    feats::Matrix{T},
-    func_probs::Matrix{T}
+    feats::Matrix{T}
 )
 
     n_atoms = size(feats, 2)
-    σs, ϵs, A, B, C = zeros(T, n_atoms), zeros(T, n_atoms), zeros(T, n_atoms), zeros(T, n_atoms), zeros(T, n_atoms)
+    σs_lj, ϵs_lj, σs_lj69, ϵs_lj69, σs_dexp, ϵs_dexp, σs_buff, ϵs_buff, A, B, C = (zeros(T, n_atoms) for _ in 1:11)
 
-    combine_vdw_params_gumbel!(σs, ϵs, A, B, C, feats, func_probs)
+    combine_vdw_params_gumbel!(σs_lj, ϵs_lj, σs_lj69, ϵs_lj69, σs_dexp, ϵs_dexp, σs_buff, ϵs_buff, A, B, C, feats)
 
-    return σs, ϵs, A, B, C
+    return σs_lj, ϵs_lj, σs_lj69, ϵs_lj69, σs_dexp, ϵs_dexp, σs_buff, ϵs_buff, A, B, C
 end
 
 
 function ChainRulesCore.rrule(
     ::typeof(combine_vdw_params_gumbel),
-    feats::Matrix{T},
-    func_probs::Matrix{T}
+    feats::Matrix{T}
 )
 
-    Y = combine_vdw_params_gumbel(feats, func_probs)
+    Y = combine_vdw_params_gumbel(feats)
 
     function pullback(ŷ)
+
         n_atoms = size(feats, 2)
 
-        σs = zeros(T, n_atoms)
-        ϵs = zeros(T, n_atoms)
-        A  = zeros(T, n_atoms)
-        B  = zeros(T, n_atoms)
-        C  = zeros(T, n_atoms)
+        σs_lj   = zeros(T, n_atoms)
+        ϵs_lj   = zeros(T, n_atoms)
+        σs_lj69 = zeros(T, n_atoms)
+        ϵs_lj69 = zeros(T, n_atoms)
+        σs_dexp = zeros(T, n_atoms)
+        ϵs_dexp = zeros(T, n_atoms)
+        σs_buff = zeros(T, n_atoms)
+        ϵs_buff = zeros(T, n_atoms)
+        A       = zeros(T, n_atoms)
+        B       = zeros(T, n_atoms)
+        C       = zeros(T, n_atoms)
 
-        d_σs = iszero(ŷ[1]) ? zero(σs) : ŷ[1]
-        d_ϵs = iszero(ŷ[2]) ? zero(ϵs) : ŷ[2]
-        d_A  = iszero(ŷ[3]) ? zero(A)  : ŷ[3]
-        d_B  = iszero(ŷ[4]) ? zero(B)  : ŷ[4]
-        d_C  = iszero(ŷ[5]) ? zero(C)  : ŷ[5]
+        d_σs_lj   = iszero(ŷ[1])  ? zero(σs_lj)   : ŷ[1]
+        d_ϵs_lj   = iszero(ŷ[2])  ? zero(ϵs_lj)   : ŷ[2]
+        d_σs_lj69 = iszero(ŷ[3])  ? zero(σs_lj69) : ŷ[3]
+        d_ϵs_lj69 = iszero(ŷ[4])  ? zero(ϵs_lj69) : ŷ[4]
+        d_σs_dexp = iszero(ŷ[5])  ? zero(σs_dexp) : ŷ[5]
+        d_ϵs_dexp = iszero(ŷ[6])  ? zero(ϵs_dexp) : ŷ[6]
+        d_σs_buff = iszero(ŷ[7])  ? zero(σs_buff) : ŷ[7]
+        d_ϵs_buff = iszero(ŷ[8])  ? zero(ϵs_buff) : ŷ[8]
+        d_A       = iszero(ŷ[9])  ? zero(A)       : ŷ[9]
+        d_B       = iszero(ŷ[10]) ? zero(B)       : ŷ[10]
+        d_C       = iszero(ŷ[11]) ? zero(C)       : ŷ[11]
 
-        d_feats = zeros(T, size(feats))
-        d_func_probs = zeros(T, size(func_probs))
+        d_feats      = zeros(T, size(feats))
 
         Enzyme.autodiff(
             Enzyme.Reverse,
             combine_vdw_params_gumbel!,
             Enzyme.Const,  # function itself
-            Enzyme.Duplicated(σs, d_σs),
-            Enzyme.Duplicated(ϵs, d_ϵs),
+            Enzyme.Duplicated(σs_lj,   d_σs_lj),
+            Enzyme.Duplicated(ϵs_lj,   d_ϵs_lj),
+            Enzyme.Duplicated(σs_lj69, d_σs_lj69),
+            Enzyme.Duplicated(ϵs_lj69, d_ϵs_lj69),
+            Enzyme.Duplicated(σs_dexp, d_σs_dexp),
+            Enzyme.Duplicated(ϵs_dexp, d_ϵs_dexp),
+            Enzyme.Duplicated(σs_buff, d_σs_buff),
+            Enzyme.Duplicated(ϵs_buff, d_ϵs_buff),
             Enzyme.Duplicated(A,  d_A),
             Enzyme.Duplicated(B,  d_B),
             Enzyme.Duplicated(C,  d_C),
-            Enzyme.Duplicated(feats, d_feats),
-            Enzyme.Duplicated(func_probs, d_func_probs)
+            Enzyme.Duplicated(feats, d_feats)
         )
 
-        return NoTangent(), d_feats, d_func_probs
+        return NoTangent(), d_feats
     end
 
     return Y, pullback

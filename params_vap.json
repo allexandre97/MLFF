@@ -1,6 +1,6 @@
 {
     "paths":{
-        "out_dir":"./runs/func_select_vdw_2"
+        "out_dir":"./runs/func_select_vdw_9"
     },
 
     "training":{
@@ -13,10 +13,10 @@
 
         "train_size":0.9,
 
-        "n_epochs":200,
+        "n_epochs":500,
 
-        "training_sims_first_epoch":125,
-	"condensed_data_first_epoch":110,
+        "training_sims_first_epoch":1000,
+	"condensed_data_first_epoch":1000,
 
         "n_minibatch":256,
 
@@ -31,9 +31,10 @@
         "loss_weight_vdw_params":0.0,
         "loss_energy_first_epoch":1,
 
-        "tau_min":0.01,
+        "anneal_first_epoch":10,
+        "tau_min":0.1,
         "tau_0":5.0,
-        "tau_0_epoch":110,
+        "tau_min_epoch":20,
 
         "train_on_forces_intra":1.0,
         "train_on_forces_inter":1.0,
@@ -61,7 +62,7 @@
 
         "gcn_conv_layer":"SAGEConv",
         "activation_str": "relu",
-        "aggr_str": "mean",
+        "aggr_str":"mean",
 
         "dropout_dense":0.0,
         "n_layers_nn":2

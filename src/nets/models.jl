@@ -174,9 +174,9 @@ function build_models()
     #
     nonbonded_selection_model = Chain(
         Dense(NET_PARAMS["dim_embed_atom"] => NET_PARAMS["dim_hidden_dense"],
-              activation_dense; init=init_dense),
+              activation_dense; init=Flux.ones32),
         generate_dense_layers(NET_PARAMS["n_layers_nn"] - 2)...,
-        Dense(NET_PARAMS["dim_hidden_dense"] => 5)
+        Dense(NET_PARAMS["dim_hidden_dense"] => 5; init = Flux.ones32)
     )
 
     # Feature prediction step
@@ -226,7 +226,7 @@ function build_models()
 
 end
 
-annealing_schedule(epoch, τ_init, τ_min, decay_rate) = T(max(τ_min, τ_init * exp(-decay_rate * epoch)))
+annealing_schedule(relative_epoch, τ_0, τ_min, decay_rate) = T(max(τ_min, τ_0 * exp(-decay_rate * relative_epoch)))
 
 function gumbel_softmax_symmetric(logits::Matrix{T}, labels::Vector{String}, τ::T = T(1e-1))
     n_forms, n_atoms = size(logits)

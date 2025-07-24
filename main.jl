@@ -43,7 +43,7 @@ function parse_commandline()::Dict{String, Any}
             arg_type = String
         "--json"
             help    = "Path to where the hyperparam json file is found"
-            default = "./params.json"
+            default = "./params_vap.json"
             arg_type = String
     end
 
@@ -214,31 +214,28 @@ grads = Zygote.gradient(models...) do models...
 
     sys_pred_i,
     forces_pred_i, potential_pred_i, charges_pred_i,
-    vdw_size_pred_i, torsion_size_pred_i,
+    weights_vdw_i, torsion_size_pred_i,
     elements_pred_i, mol_inds_pred_i,
     forces_loss_inter_pred_i, forces_loss_intra_pred_i,
-    charges_loss_pred_i, vdw_loss_pred_i,
-    torsions_loss_pred_i, reg_loss_pred_i = fwd_and_loss(mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
+    charges_loss_pred_i,
+    torsions_loss_pred_i, reg_loss_pred_i = fwd_and_loss(1, mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
 
     if pair_present
 
         sys_pred_j,
         forces_pred_j, potential_pred_j, charges_pred_j,
-        vdw_size_pred_j, torsion_size_pred_j,
+        weights_vdw_j, torsion_size_pred_j,
         elements_pred_j, mol_inds_pred_j,
         forces_loss_inter_pred_j, forces_loss_intra_pred_j,
-        charges_loss_pred_j, vdw_loss_pred_j,
-        torsions_loss_pred_j, reg_loss_pred_j = fwd_and_loss(mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
+        charges_loss_pred_j,
+        torsions_loss_pred_j, reg_loss_pred_j = fwd_and_loss(1, mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
 
         dpe = potential_pred_i - potential_pred_j
 
     end
 
-    return forces_loss_intra_pred_i + forces_loss_intra_pred_j +
+    return charges_loss_pred_i + charges_loss_pred_j +
            forces_loss_inter_pred_i + forces_loss_inter_pred_j +
-           charges_loss_pred_i      + charges_loss_pred_j +
-           vdw_loss_pred_i          + vdw_loss_pred_j +
-           torsions_loss_pred_i     + torsions_loss_pred_j +
-           reg_loss_pred_i          + reg_loss_pred_j +
-           dpe
+           forces_loss_intra_pred_i + forces_loss_intra_pred_j + 
+           dpe + reg_loss_pred_i + reg_loss_pred_j
 end =#

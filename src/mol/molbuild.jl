@@ -1,9 +1,10 @@
 # used for Gumbel-Softmax Annealing
-τ_min      = MODEL_PARAMS["training"]["tau_min"]
-τ_0        = MODEL_PARAMS["training"]["tau_0"]
-τ_0_epoch = MODEL_PARAMS["training"]["tau_0_epoch"]
+τ_min              = MODEL_PARAMS["training"]["tau_min"]
+τ_0                = MODEL_PARAMS["training"]["tau_0"]
+τ_min_epoch        = MODEL_PARAMS["training"]["tau_min_epoch"]
+anneal_first_epoch = MODEL_PARAMS["training"]["anneal_first_epoch"]
 
-decay_rate = -1.0 * ( log(τ_min / τ_0) / τ_0_epoch) 
+decay_rate = log(τ_0 / τ_min) / τ_min_epoch
 
 function build_adj_list(mol_row::DataFrame)::Array
     
@@ -42,7 +43,7 @@ function mol_to_preds(
     args...
 )
 
-    sys, partial_charges, vdw_size, torsion_size, elements, mol_inds = mol_to_system(epoch_n, mol_id, args...)
+    sys, partial_charges, weights_vdw, torsion_size, elements, mol_inds = mol_to_system(epoch_n, mol_id, args...)
     neighbors = ignore_derivatives() do
         return find_neighbors(sys; n_threads = 1)
     end
@@ -50,6 +51,7 @@ function mol_to_preds(
     sils_2_atoms = filter(il -> il isa InteractionList2Atoms, values(sys.specific_inter_lists))
     sils_3_atoms = filter(il -> il isa InteractionList3Atoms, values(sys.specific_inter_lists))
     sils_4_atoms = filter(il -> il isa InteractionList4Atoms, values(sys.specific_inter_lists))
+
     if any(startswith.(mol_id, ("vapourisation_", "mixing_", "protein_")))
         forces = nothing
         potential = pe_wrap(sys.atoms, sys.coords, sys.velocities, sys.boundary, sys.pairwise_inters,
@@ -61,7 +63,7 @@ function mol_to_preds(
                             sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
     end
 
-    return sys, forces, potential, partial_charges, vdw_size, torsion_size, elements, mol_inds
+    return sys, forces, potential, partial_charges, weights_vdw, torsion_size, elements, mol_inds
 
 end
 
@@ -123,8 +125,14 @@ function build_sys(
     partial_charges,
     
     func_probs::Matrix{T},
-    σ::Vector{T},
-    ϵ::Vector{T},
+    σ_lj::Vector{T},
+    ϵ_lj::Vector{T},
+    σ_lj69::Vector{T},
+    ϵ_lj69::Vector{T},
+    σ_dexp::Vector{T},
+    ϵ_dexp::Vector{T},
+    σ_buff ::Vector{T},
+    ϵ_buff ::Vector{T},
     A::Vector{T},
     B::Vector{T},
     C::Vector{T},
@@ -153,7 +161,11 @@ function build_sys(
     n_atoms = length(partial_charges)
     dist_nb_cutoff = T(MODEL_PARAMS["physics"]["dist_nb_cutoff"])
 
-    atoms      = [GeneralAtom(i, one(Int), T(masses[i]), T(partial_charges[i]), T(σ[i]), T(ϵ[i]), T(A[i]), T(B[i]), T(C[i]))
+    atoms      = [GeneralAtom(i, one(Int), T(masses[i]), T(partial_charges[i]), (Atom(i, one(T), T(masses[i]), T(partial_charges[i]), T(σ_lj[i]),   T(ϵ_lj[i])),
+                                                                                 Atom(i, one(T), T(masses[i]), T(partial_charges[i]), T(σ_lj69[i]), T(ϵ_lj69[i])),
+                                                                                 Atom(i, one(T), T(masses[i]), T(partial_charges[i]), T(σ_dexp[i]), T(ϵ_dexp[i])),
+                                                                                 Atom(i, one(T), T(masses[i]), T(partial_charges[i]), T(σ_buff[i]), T(ϵ_buff[i])),
+                                                                                 BuckinghamAtom(i, one(T), T(masses[i]), T(partial_charges[i]), T(A[i]), T(B[i]), T(C[i]))))
                   for i in 1:n_atoms]
 
     weights_vdw = vec(mean(func_probs; dims=2))
@@ -172,8 +184,6 @@ function build_sys(
 
          SVector{5, T}(weights_vdw)
     )
-
-
 
     ########## Coulomb interactions section ##########
     if vdw_functional_form == "nn"
@@ -251,7 +261,7 @@ function build_sys(
         atoms, coords, boundary, velocities, atoms_data, topo, pairwise_inter, specific_inter_lists,
         (), (), neighbor_finder, (), 1, NoUnits, NoUnits, one(T), zeros(T, n_atoms), nothing)
 
-    return sys
+    return sys, weights_vdw
 end
 
 function atom_names_from_elements(el_list::Vector{Int},
@@ -347,8 +357,14 @@ function mol_to_system(
     func_probs = zeros(T, 5, n_atoms)
     vdw_size   = zero(T)
     weight_vdw = zero(T)
-    vdw_σ      = zeros(T, n_atoms)
-    vdw_ϵ      = zeros(T, n_atoms)
+    vdw_σ_lj   = zeros(T, n_atoms)
+    vdw_ϵ_lj   = zeros(T, n_atoms)
+    vdw_σ_lj69 = zeros(T, n_atoms)
+    vdw_ϵ_lj69 = zeros(T, n_atoms)
+    vdw_σ_dexp = zeros(T, n_atoms)
+    vdw_ϵ_dexp = zeros(T, n_atoms)
+    vdw_σ_buff = zeros(T, n_atoms)
+    vdw_ϵ_buff = zeros(T, n_atoms)
     vdw_A      = zeros(T, n_atoms)
     vdw_B      = zeros(T, n_atoms)
     vdw_C      = zeros(T, n_atoms)
@@ -411,7 +427,16 @@ function mol_to_system(
         ### Atom pooling and feature prediction ###
         embeds_mol = calc_embeddings(adj_mol, feat_mol, atom_embedding_model)
         logits         = nonbonded_selection_model(embeds_mol)  # (5, n_atoms)
-        func_probs_mol = gumbel_softmax_symmetric(logits, labels, annealing_schedule(epoch_n, τ_0, τ_min, decay_rate))                 # (5, n_atoms)
+
+
+        if epoch_n < anneal_first_epoch
+            τ = T(τ_0)
+        else
+            relative_epoch = epoch_n - anneal_first_epoch
+            τ = annealing_schedule(relative_epoch, τ_0, τ_min, decay_rate)
+        end
+
+        func_probs_mol = gumbel_softmax_symmetric(logits, labels, τ)                 # (5, n_atoms)
         func_probs_mol = func_probs_mol ./ sum(func_probs_mol; dims = 1)
 
         feats_mol  = predict_atom_features(labels, embeds_mol, atom_features_model)
@@ -436,7 +461,7 @@ function mol_to_system(
         ### Predict vdw params ###
         #vdw_mol = atom_feats_to_vdW(feats_mol)
         vdw_params_all = feats_mol[3:end, :]            # remove charge predictions
-        vdw_mol = combine_vdw_params_gumbel(vdw_params_all, func_probs_mol)
+        vdw_mol = combine_vdw_params_gumbel(vdw_params_all)
 
         ### Predict bonds params ###
         bonds_mol = feats_to_bonds(bond_feats_mol)
@@ -462,15 +487,24 @@ function mol_to_system(
 
                 charges_k1, charges_k2,
                 func_probs,
-                vdw_σ, vdw_ϵ,
+                vdw_σ_lj,   vdw_ϵ_lj,
+                vdw_σ_lj69, vdw_ϵ_lj69,
+                vdw_σ_dexp, vdw_ϵ_dexp,
+                vdw_σ_buff, vdw_ϵ_buff,
                 vdw_A, vdw_B, vdw_C  = broadcast_atom_data!(charges_k1, feats_mol[1,:],
                                                             charges_k2, feats_mol[2,:],
                                                             func_probs, func_probs_mol,
-                                                            vdw_σ,      vdw_mol[1],
-                                                            vdw_ϵ,      vdw_mol[2],
-                                                            vdw_A,      vdw_mol[3],
-                                                            vdw_B,      vdw_mol[4],
-                                                            vdw_C,      vdw_mol[5],
+                                                            vdw_σ_lj,   vdw_mol[1],
+                                                            vdw_ϵ_lj,   vdw_mol[2],
+                                                            vdw_σ_lj69, vdw_mol[3],
+                                                            vdw_ϵ_lj69, vdw_mol[4],
+                                                            vdw_σ_dexp, vdw_mol[5],
+                                                            vdw_ϵ_dexp, vdw_mol[6],
+                                                            vdw_σ_buff, vdw_mol[7],
+                                                            vdw_ϵ_buff, vdw_mol[8],
+                                                            vdw_A,      vdw_mol[9],
+                                                            vdw_B,      vdw_mol[10],
+                                                            vdw_C,      vdw_mol[11],
                                                             global_to_local)
 
                 mapping = Dict(i => vs_instance[i] for i in eachindex(vs_instance))
@@ -501,12 +535,6 @@ function mol_to_system(
         end
     end
 
-    if vdw_functional_form in ("lj", "lj69", "dexp", "buff")
-        vdw_size = T(0.5*(mean(vdw_σ) + mean(vdw_ϵ)))
-    else
-        vdw_size = zero(T)
-    end
-
     torsion_ks_size = zero(T)
     if length(proper_feats) > 0
         torsion_ks_size += mean(abs, proper_feats)
@@ -521,18 +549,24 @@ function mol_to_system(
 
     partial_charges = atom_feats_to_charges(charges_k1, charges_k2, formal_charges)
 
-    molly_sys = build_sys(mol_id, 
+    molly_sys, weights_vdw = build_sys(mol_id, 
     masses, atom_types, atom_names, mol_inds, coords, boundary, partial_charges,
-    func_probs, vdw_σ, vdw_ϵ, vdw_A, vdw_B, vdw_C, α, β,
-    δ, γ, bond_functional_form, bonds_k, bonds_r0, bonds_a, angle_functional_form,
+    func_probs, 
+    vdw_σ_lj,   vdw_ϵ_lj,
+    vdw_σ_lj69, vdw_ϵ_lj69,
+    vdw_σ_dexp, vdw_ϵ_dexp,
+    vdw_σ_buff, vdw_ϵ_buff,
+    vdw_A, vdw_B, vdw_C,
+    α, β, δ, γ, 
+    bond_functional_form, bonds_k, bonds_r0, bonds_a, angle_functional_form,
     angles_ki, angles_θ0i, angles_kj, angles_θ0j, bonds_i, bonds_j, angles_i, angles_j, angles_k, proper_feats_pad,
     improper_feats_pad, propers_i, propers_j, propers_k, propers_l, impropers_i, impropers_j, impropers_k,
     impropers_l)
 
     return (
         molly_sys,
-        partial_charges, 
-        vdw_size,
+        partial_charges,
+        weights_vdw,
         torsion_ks_size,
         elements,
         mol_inds
