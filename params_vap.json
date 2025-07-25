@@ -1,6 +1,6 @@
 {
     "paths":{
-        "out_dir":"./runs/func_select_vdw_13"
+        "out_dir":"./runs/func_select_vdw_14"
     },
 
     "training":{
@@ -13,7 +13,7 @@
 
         "train_size":0.9,
 
-        "n_epochs":500,
+        "n_epochs":50,
 
         "training_sims_first_epoch":1000,
 	"condensed_data_first_epoch":1000,
@@ -25,7 +25,7 @@
         "loss_weight_energy":1e-2,
         "loss_weight_charge":5.0,
         "loss_weight_vdw_entropy_0":1.0,
-        "loss_weight_vdw_entropy_min":0.01,
+        "loss_weight_vdw_entropy_min":0.05,
         "loss_weight_torsion_ks":1e-2,
         "loss_weight_enth_vap":0.0188,
         "loss_weight_enth_mixing":0.1,
@@ -35,13 +35,13 @@
 
         "anneal_first_epoch":10,
         "tau_min":0.01,
-        "tau_0":5.0,
-        "tau_min_epoch":20,
+        "tau_0":2.0,
+        "tau_min_epoch":30,
 	"tau_mult_first":100,
-	"beta_min":0.1,
-        "beta_0":5.0,
-        "beta_min_epoch":30,
-	"entropy_min_epoch":40,
+	"beta_min":0.01,
+        "beta_0":2.0,
+        "beta_min_epoch":20,
+	"entropy_min_epoch":30,
 
         "train_on_forces_intra":1.0,
         "train_on_forces_inter":1.0,
