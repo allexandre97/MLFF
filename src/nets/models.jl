@@ -228,12 +228,15 @@ end
 
 annealing_schedule(relative_epoch, τ_0, τ_min, decay_rate) = T(max(τ_min, τ_0 * exp(-decay_rate * relative_epoch)))
 
-function gumbel_softmax_symmetric(logits::Matrix{T}, labels::Vector{String}, τ::T = T(1e-1))
+function gumbel_softmax_symmetric(
+    logits::Matrix{T},
+    labels::Vector{String}, 
+    τ::T = T(1e-1),
+    β::T = T(1.0))
     n_forms, n_atoms = size(logits)
     
     noise = ignore_derivatives() do
         noise = zeros(T, n_forms, n_atoms)
-
         # Group atoms by label
         label_to_inds = Dict{String, Vector{Int}}()
         for (i, label) in enumerate(labels)
@@ -242,7 +245,7 @@ function gumbel_softmax_symmetric(logits::Matrix{T}, labels::Vector{String}, τ:
 
         # Assign same noise to all atoms in a label group
         for (_, inds) in label_to_inds
-            shared_noise = -log.(-log.(rand(T, n_forms)))
+            shared_noise = -β * log.(-log.(rand(T, n_forms)))
             for j in inds
                 noise[:, j] = shared_noise
             end

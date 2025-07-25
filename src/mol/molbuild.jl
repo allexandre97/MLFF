@@ -1,10 +1,17 @@
 # used for Gumbel-Softmax Annealing
-τ_min              = MODEL_PARAMS["training"]["tau_min"]
-τ_0                = MODEL_PARAMS["training"]["tau_0"]
-τ_min_epoch        = MODEL_PARAMS["training"]["tau_min_epoch"]
 anneal_first_epoch = MODEL_PARAMS["training"]["anneal_first_epoch"]
 
-decay_rate = log(τ_0 / τ_min) / τ_min_epoch
+τ_min              = T(MODEL_PARAMS["training"]["tau_min"])
+τ_0                = T(MODEL_PARAMS["training"]["tau_0"])
+τ_min_epoch        = T(MODEL_PARAMS["training"]["tau_min_epoch"])
+tau_mult_first     = MODEL_PARAMS["training"]["tau_mult_first"]
+
+β_min              = T(MODEL_PARAMS["training"]["beta_min"])
+β_0                = T(MODEL_PARAMS["training"]["beta_0"])
+β_min_epoch        = T(MODEL_PARAMS["training"]["beta_min_epoch"])
+
+decay_rate_τ = T(log(τ_0 / τ_min) / τ_min_epoch)
+decay_rate_β = T(log(β_0 / β_min) / β_min_epoch)
 
 function build_adj_list(mol_row::DataFrame)::Array
     
@@ -426,18 +433,19 @@ function mol_to_system(
 
         ### Atom pooling and feature prediction ###
         embeds_mol = calc_embeddings(adj_mol, feat_mol, atom_embedding_model)
-        logits         = nonbonded_selection_model(embeds_mol)  # (5, n_atoms)
+        logits     = nonbonded_selection_model(embeds_mol)  # (5, n_atoms)
 
 
         if epoch_n < anneal_first_epoch
-            τ = T(τ_0)
+            τ = tau_mult_first * τ_0
+            β = β_0
         else
             relative_epoch = epoch_n - anneal_first_epoch
-            τ = annealing_schedule(relative_epoch, τ_0, τ_min, decay_rate)
+            τ = annealing_schedule(relative_epoch, τ_0, τ_min, decay_rate_τ)
+            β = annealing_schedule(relative_epoch, β_0, β_min, decay_rate_β)
         end
 
-        func_probs_mol = gumbel_softmax_symmetric(logits, labels, τ)                 # (5, n_atoms)
-        func_probs_mol = func_probs_mol ./ sum(func_probs_mol; dims = 1)
+        func_probs_mol = gumbel_softmax_symmetric(logits, labels, τ, β)                # (5, n_atoms)
 
         feats_mol  = predict_atom_features(labels, embeds_mol, atom_features_model)
 
