@@ -50,7 +50,7 @@ function mol_to_preds(
     args...
 )
 
-    sys, partial_charges, weights_vdw, torsion_size, elements, mol_inds = mol_to_system(epoch_n, mol_id, args...)
+    sys, partial_charges, func_probs, weights_vdw, torsion_size, elements, mol_inds = mol_to_system(epoch_n, mol_id, args...)
     neighbors = ignore_derivatives() do
         return find_neighbors(sys; n_threads = 1)
     end
@@ -70,7 +70,7 @@ function mol_to_preds(
                             sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
     end
 
-    return sys, forces, potential, partial_charges, weights_vdw, torsion_size, elements, mol_inds
+    return sys, forces, potential, partial_charges, func_probs, weights_vdw, torsion_size, elements, mol_inds
 
 end
 
@@ -574,6 +574,7 @@ function mol_to_system(
     return (
         molly_sys,
         partial_charges,
+        func_probs,
         weights_vdw,
         torsion_ks_size,
         elements,

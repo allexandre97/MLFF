@@ -32,7 +32,8 @@ function fwd_and_loss(
     # Forward pass and feat prediction
     sys,
     forces, potential, charges,
-    weights_vdw, torsion_size, 
+    func_probs, weights_vdw,
+    torsion_size, 
     elements, mol_inds = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary_inf, models...)
     
     # Split the forces in inter and intramolecular contributions
@@ -42,6 +43,7 @@ function fwd_and_loss(
     # Calculate the losses
     forces_loss_intra::T = force_loss(pred_force_intra, dft_force_intra)
     forces_loss_inter::T = T(MODEL_PARAMS["training"]["loss_weight_force_inter"]) * force_loss(pred_force_inter, dft_force_inter)
+    vdw_entropy_loss::T  = entropy_loss(func_probs)
     charges_loss::T      = (has_charges ? charge_loss(charges, dft_charges) : zero(T))
     torsions_loss::T     = torsion_ks_loss(torsion_size)
     reg_loss::T          = param_regularisation((models...,))
@@ -54,7 +56,7 @@ function fwd_and_loss(
         weights_vdw, torsion_size,
         elements, mol_inds,
         forces_loss_inter, forces_loss_intra,
-        charges_loss,
+        charges_loss, vdw_entropy_loss,
         torsions_loss, reg_loss
     )
     
@@ -68,6 +70,7 @@ function loss_update(
     forces_inter_loss_chunks::Vector{Vector{T}},
     potential_loss_chunks::Vector{Vector{T}},
     charges_loss_chunks::Vector{Vector{T}},
+    vdw_entropy_loss_chunks::Vector{Vector{T}},
     torsions_loss_chunks::Vector{Vector{T}},
 
     # Running totals
@@ -75,6 +78,7 @@ function loss_update(
     forces_inter_loss_sum::T,
     potential_loss_sum::T,
     charges_loss_sum::T,
+    vdw_entropy_loss_sum::T,
     torsions_loss_sum::T,
     reg_loss_sum::T,
 
@@ -82,6 +86,7 @@ function loss_update(
     forces_loss_intra::T,
     forces_loss_inter::T,
     charges_loss::T,
+    vdw_entropy_loss::T,
     torsions_loss::T,
     reg_loss::T,
 
@@ -120,6 +125,7 @@ function loss_update(
         push!(forces_intra_loss_chunks[chunk_id], forces_loss_intra)
         push!(forces_inter_loss_chunks[chunk_id], forces_loss_inter)
         push!(charges_loss_chunks[chunk_id], charges_loss)
+        push!(vdw_entropy_loss_chunks[chunk_id], vdw_entropy_loss)
         push!(torsions_loss_chunks[chunk_id], torsions_loss)
         if pair_present
             push!(potential_loss_chunks[chunk_id], loss_pe)
@@ -131,6 +137,7 @@ function loss_update(
         forces_intra_loss_sum += forces_loss_intra
         forces_inter_loss_sum += forces_loss_inter
         charges_loss_sum      += charges_loss
+        vdw_entropy_loss_sum  += vdw_entropy_loss
         torsions_loss_sum     += torsions_loss
         reg_loss_sum          += reg_loss
         if pair_present
@@ -140,7 +147,7 @@ function loss_update(
 
     return true,
            forces_intra_loss_sum, forces_inter_loss_sum,
-           potential_loss_sum, charges_loss_sum,
+           potential_loss_sum, charges_loss_sum, vdw_entropy_loss_sum,
            torsions_loss_sum, reg_loss_sum
 end
 
@@ -150,6 +157,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
     epochs_mean_fs_inter_train, epochs_mean_fs_inter_val,
     epochs_mean_pe_train, epochs_mean_pe_val,
     epochs_mean_charges_train, epochs_mean_charges_val,
+    epochs_mean_vdw_entropy_train, epochs_mean_vdw_entropy_val,
     epochs_mean_torsion_ks_train, epochs_mean_torsion_ks_val,
     #= epochs_mean_fs_intra_train_gems, epochs_mean_fs_intra_val_gems,
     epochs_mean_fs_inter_train_gems, epochs_mean_fs_inter_val_gems, =#
@@ -277,6 +285,9 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
     charges_sum_loss_train   = zero(T)
     charges_sum_loss_val     = zero(T)
 
+    vdw_entropy_sum_loss_train   = zero(T)
+    vdw_entropy_sum_loss_val     = zero(T)
+
     torsions_sum_loss_train  = zero(T)
     torsions_sum_loss_val    = zero(T)
 
@@ -304,6 +315,9 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
     count_charges_train   = 0
     count_charges_val     = 0
 
+    count_vdw_entropy_train = 0
+    count_vdw_entropy_val   = 0
+
     count_torsions_train  = 0
     count_torsions_val    = 0
 
@@ -327,6 +341,8 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
         end
     end
 
+    weight_Ω = annealing_schedule(epoch_n - anneal_first_epoch, Ω_0, Ω_min, decay_rate_Ω)
+
     # First we iterate over every batch of training data
     Flux.trainmode!(models)
     for batch_i in 1:n_batches_train
@@ -340,10 +356,15 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
         forces_inter_loss_chunks  = [T[] for _ in 1:n_chunks]
         potential_loss_chunks     = [T[] for _ in 1:n_chunks]
         charges_loss_chunks       = [T[] for _ in 1:n_chunks]
+        vdw_entropy_loss_chunks   = [T[] for _ in 1:n_chunks]
         torsions_loss_chunks      = [T[] for _ in 1:n_chunks]
         #TODO: Add loss for GEMS dataset
         enth_vap_loss_chunks     = [T[] for _ in 1:n_chunks]
         enth_mix_loss_chunks     = [T[] for _ in 1:n_chunks]
+
+        vdw_weights_chunks = [zeros(T, 5) for _ in 1:n_chunks]
+        nvdw_chunks        = zeros(Int, n_chunks)
+
         #TODO: Add loss for J couplings
         grads_chunks = [convert(Vector{Any}, fill(nothing, length(models))) for _ in 1:n_chunks]
         print_chunks = fill("", n_chunks)
@@ -391,7 +412,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                 grads = Zygote.gradient(models...) do models...
 
                     forces_intra_loss_sum, forces_inter_loss_sum = zero(T), zero(T)
-                    potential_loss_sum, charges_loss_sum, torsions_loss_sum, reg_loss_sum = zero(T), zero(T), zero(T), zero(T)
+                    potential_loss_sum, charges_loss_sum, vdw_entropy_loss_sum, torsions_loss_sum, reg_loss_sum = zero(T), zero(T), zero(T), zero(T), zero(T)
 
                     # Forward pass and feat prediction
                     sys,
@@ -399,7 +420,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                     weights_vdw, torsion_size,
                     elements, mol_inds,
                     forces_loss_inter, forces_loss_intra,
-                    charges_loss,
+                    charges_loss, vdw_entropy_loss,
                     torsions_loss, reg_loss = fwd_and_loss(epoch_n, mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
 
                     ignore_derivatives() do 
@@ -415,15 +436,15 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
 
                     loss_success,
                     forces_intra_loss_sum, forces_inter_loss_sum,
-                    potential_loss_sum, charges_loss_sum,
+                    potential_loss_sum, charges_loss_sum, vdw_entropy_loss_sum,
                     torsions_loss_sum, reg_loss_sum = loss_update(
                         chunk_id,
                         forces_intra_loss_chunks, forces_inter_loss_chunks, potential_loss_chunks,
-                        charges_loss_chunks, torsions_loss_chunks,
+                        charges_loss_chunks, vdw_entropy_loss_chunks, torsions_loss_chunks,
                         forces_intra_loss_sum, forces_inter_loss_sum, potential_loss_sum,
-                        charges_loss_sum, torsions_loss_sum, reg_loss_sum,
+                        charges_loss_sum, vdw_entropy_loss_sum, torsions_loss_sum, reg_loss_sum,
                         forces_loss_intra, forces_loss_inter,
-                        charges_loss, torsions_loss, reg_loss,
+                        charges_loss, vdw_entropy_loss, torsions_loss, reg_loss,
                         false)
 
                     if !loss_success
@@ -439,29 +460,28 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                         weights_vdw, torsion_size,
                         elements, mol_inds,
                         forces_loss_inter, forces_loss_intra,
-                        charges_loss,
+                        charges_loss, vdw_entropy_loss,
                         torsions_loss, reg_loss = fwd_and_loss(epoch_n, mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
 
                         ignore_derivatives() do 
                             vdw_weight_arr += weights_vdw
                             nvdw += 1
                         end
-                        
 
                         pe_diff     = potential_j - potential_i
                         dft_pe_diff = energy_j - energy_i
 
                         loss_success,
                         forces_intra_loss_sum, forces_inter_loss_sum,
-                        potential_loss_sum, charges_loss_sum,
+                        potential_loss_sum, charges_loss_sum, vdw_entropy_loss_sum,
                         torsions_loss_sum, reg_loss_sum = loss_update(
                             chunk_id,
                             forces_intra_loss_chunks, forces_inter_loss_chunks, potential_loss_chunks,
-                            charges_loss_chunks, torsions_loss_chunks,
+                            charges_loss_chunks, vdw_entropy_loss_chunks, torsions_loss_chunks,
                             forces_intra_loss_sum, forces_inter_loss_sum, potential_loss_sum,
-                            charges_loss_sum, torsions_loss_sum, reg_loss_sum,
+                            charges_loss_sum, vdw_entropy_loss_sum, torsions_loss_sum, reg_loss_sum,
                             forces_loss_intra, forces_loss_inter,
-                            charges_loss, torsions_loss, reg_loss,
+                            charges_loss, vdw_entropy_loss, torsions_loss, reg_loss,
                             true;
                             epoch_n = 1,
                             pe_diff = pe_diff,
@@ -478,18 +498,27 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                            forces_inter_loss_sum * MODEL_PARAMS["training"]["train_on_forces_inter"] +
                            potential_loss_sum    * MODEL_PARAMS["training"]["train_on_pe"] +
                            charges_loss_sum      * MODEL_PARAMS["training"]["train_on_charges"] +
-                           torsions_loss_sum + reg_loss_sum 
+                           torsions_loss_sum + reg_loss_sum + 
+                           vdw_entropy_loss_sum * MODEL_PARAMS["training"]["train_on_entropy"] * weight_Ω
                 end
 
                 if check_no_nans(grads)
                     grads_chunks[chunk_id] = accum_grads.(grads_chunks[chunk_id], grads)
                 end
 
-                @show vdw_weight_arr/nvdw
+                vdw_weights_chunks[chunk_id] += vdw_weight_arr
+                nvdw_chunks[chunk_id]        += nvdw
 
             end
         end
 
+        total_vdw_weights = sum(vdw_weights_chunks)
+        total_nvdw = sum(nvdw_chunks)
+
+        @assert total_nvdw > 0 "No vdW interactions processed this epoch"
+        avg_func_probs = total_vdw_weights / total_nvdw
+
+        @show avg_func_probs
 
         MODEL_PARAMS["training"]["verbose"] && foreach(report, print_chunks)
 
@@ -547,7 +576,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                             coords, boundary = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
 
                             _,
-                            _, potential, _,
+                            _, potential, _, func_probs,
                             weights_vdw, torsion_size, 
                             _, mol_inds = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary, models...)
 
@@ -562,17 +591,17 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                             coords_com, boundary_com = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
 
                             _,
-                            _, potential_1, _,
+                            _, potential_1, _, func_probs,
                             weights_vdw, torsion_size_1, 
                             _, mol_inds_1 = mol_to_preds(epoch_n, mol_id_1, df_mix_1, coords_1, boundary_1, models...)
 
                             _,
-                            _, potential_2, _,
+                            _, potential_2, _, func_probs,
                             weights_vdw, torsion_size_2, 
                             _, mol_inds_2 = mol_to_preds(epoch_n, mol_id_2, df_mix_2, coords_2, boundary_2, models...)
 
                             _,
-                            _, potential_com, _,
+                            _, potential_com, _, func_probs,
                             weights_vdw, torsion_size, 
                             _, mol_inds_com = mol_to_preds(epoch_n, mol_id, feat_df, coords_com, boundary_com, models...)
 
@@ -582,6 +611,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                                                          mol_id, frame_i, repeat_i)
                         end
 
+                        vdw_entropy_loss = entropy_loss(func_probs)
                         torsions_loss = torsion_ks_loss(torsion_size)
                         reg_loss      = param_regularisation((models...,))
 
@@ -604,7 +634,8 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                             end
                         end
                         return cond_loss * train_on_weight + 
-                               torsions_loss + reg_loss
+                               torsions_loss + reg_loss + 
+                               vdw_entropy_loss * MODEL_PARAMS["training"]["train_on_entropy"] * weight_Ω 
                     end
                     if check_no_nans(grads)
                         grads_chunks[chunk_id] =  accum_grads.(grads_chunks[chunk_id], grads)
@@ -638,6 +669,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
             log_forces_inter_loss = vcat(forces_inter_loss_chunks...)
             log_potential_loss    = vcat(potential_loss_chunks...)
             log_charges_loss      = vcat(charges_loss_chunks...)
+            log_vdw_entropy_loss  = vcat(vdw_entropy_loss_chunks...)
             log_torsions_loss     = vcat(torsions_loss_chunks...)
             log_enth_vap_loss     = vcat(enth_vap_loss_chunks...)
             log_enth_mix_loss     = vcat(enth_mix_loss_chunks...)
@@ -648,6 +680,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                 forces_inter_sum_loss_train += sum(log_forces_inter_loss)
                 potential_sum_loss_train    += sum(log_potential_loss)
                 charges_sum_loss_train      += sum(log_charges_loss)
+                vdw_entropy_sum_loss_train  += sum(log_charges_loss)
                 torsions_sum_loss_train     += sum(log_torsions_loss)
                 enth_vap_sum_loss_train     += sum(log_enth_vap_loss)
                 enth_mix_sum_loss_train     += sum(log_enth_mix_loss)
@@ -657,6 +690,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                 count_forces_inter_train += count(!iszero, log_forces_inter_loss)
                 count_potential_train    += length(log_potential_loss)
                 count_charges_train      += count(!iszero, log_charges_loss)
+                count_vdw_entropy_train  += length(log_vdw_entropy_loss)
                 count_torsions_train     += length(log_torsions_loss)
                 count_vap_train          += length(log_enth_vap_loss)
                 count_vap_train          += length(log_enth_mix_loss)
@@ -677,6 +711,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
         forces_inter_loss_chunks  = [T[] for _ in 1:n_chunks]
         potential_loss_chunks     = [T[] for _ in 1:n_chunks]
         charges_loss_chunks       = [T[] for _ in 1:n_chunks]
+        vdw_entropy_loss_chunks   = [T[] for _ in 1:n_chunks]
         torsions_loss_chunks      = [T[] for _ in 1:n_chunks]
         #TODO: Add loss for GEMS dataset
         enth_vap_loss_chunks     = [T[] for _ in 1:n_chunks]
@@ -720,7 +755,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                 weights_vdw, torsion_size,
                 elements, mol_inds,
                 forces_loss_inter, forces_loss_intra,
-                charges_loss,
+                charges_loss, vdw_entropy_loss,
                 torsions_loss, reg_loss = fwd_and_loss(epoch_n, mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
 
                 if MODEL_PARAMS["training"]["verbose"]
@@ -730,14 +765,14 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                 loss_success,
                 _, _,
                 _, _,
-                _, _ = loss_update(
+                _, _, _ = loss_update(
                     chunk_id,
                     forces_intra_loss_chunks, forces_inter_loss_chunks, potential_loss_chunks,
-                    charges_loss_chunks, torsions_loss_chunks,
-                    zero(T), zero(T), zero(T),
+                    charges_loss_chunks, vdw_entropy_loss_chunks, torsions_loss_chunks,
+                    zero(T), zero(T), zero(T), zero(T),
                     zero(T), zero(T), zero(T),
                     forces_loss_intra, forces_loss_inter,
-                    charges_loss, torsions_loss, reg_loss,
+                    charges_loss, vdw_entropy_loss, torsions_loss, reg_loss,
                     false)
                 
                 if pair_present
@@ -748,7 +783,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                     weights_vdw, torsion_size,
                     elements, mol_inds,
                     forces_loss_inter, forces_loss_intra,
-                    charges_loss,
+                    charges_loss, vdw_entropy_loss,
                     torsions_loss, reg_loss = fwd_and_loss(epoch_n, mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
 
                     pe_diff     = potential_j - potential_i
@@ -757,14 +792,14 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                     loss_success,
                     _, _,
                     _, _,
-                    _, _ = loss_update(
+                    _, _, _ = loss_update(
                         chunk_id,
                         forces_intra_loss_chunks, forces_inter_loss_chunks, potential_loss_chunks,
-                        charges_loss_chunks, torsions_loss_chunks,
+                        charges_loss_chunks, vdw_entropy_loss_chunks ,torsions_loss_chunks,
                         zero(T), zero(T), zero(T),
-                        zero(T), zero(T), zero(T), 
+                        zero(T), zero(T), zero(T), zero(T),
                         forces_loss_intra, forces_loss_inter,
-                        charges_loss, torsions_loss, reg_loss,
+                        charges_loss, vdw_entropy_loss, torsions_loss, reg_loss,
                         true;
                         epoch_n = 1,
                         pe_diff = pe_diff,
@@ -804,7 +839,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
 
                         # Now this can be instantly done here as we do not need Zygote to calculate the gradients
                         _,
-                        _, potential, _,
+                        _, potential, _, func_probs,
                         weights_vdw, torsion_size, 
                         _, mol_inds = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary, models...)
 
@@ -831,17 +866,17 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
                         coords_com, boundary_com = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
 
                         _,
-                        _, potential_1, _,
+                        _, potential_1, _, func_probs,
                         weights_vdw, torsion_size_1, 
                         _, mol_inds_1 = mol_to_preds(epoch_n, mol_id_1, df_mix_1, coords_1, boundary_1, models...)
 
                         _,
-                        _, potential_2, _,
+                        _, potential_2, _, func_probs,
                         weights_vdw, torsion_size_2, 
                         _, mol_inds_2 = mol_to_preds(epoch_n, mol_id_2, df_mix_2, coords_2, boundary_2, models...)
 
                         _,
-                        _, potential_com, _,
+                        _, potential_com, _, func_probs,
                         weights_vdw, torsion_size, 
                         _, mol_inds_com = mol_to_preds(epoch_n, mol_id, feat_df, coords_com, boundary_com, models...)
 
@@ -872,6 +907,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
         log_forces_inter_loss = vcat(forces_inter_loss_chunks...)
         log_potential_loss    = vcat(potential_loss_chunks...)
         log_charges_loss      = vcat(charges_loss_chunks...)
+        log_vdw_entropy_loss  = vcat(vdw_entropy_loss_chunks...)
         log_torsions_loss     = vcat(torsions_loss_chunks...)
         log_enth_vap_loss     = vcat(enth_vap_loss_chunks...)
         log_enth_mix_loss     = vcat(enth_mix_loss_chunks...)
@@ -882,6 +918,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
             forces_inter_sum_loss_val += sum(log_forces_inter_loss)
             potential_sum_loss_val    += sum(log_potential_loss)
             charges_sum_loss_val      += sum(log_charges_loss)
+            vdw_entropy_sum_loss_val  += sum(log_vdw_entropy_loss)
             torsions_sum_loss_val     += sum(log_torsions_loss)
             enth_vap_sum_loss_val     += sum(log_enth_vap_loss)
             enth_mix_sum_loss_val     += sum(log_enth_mix_loss)
@@ -891,6 +928,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
             count_forces_inter_val += count(!iszero, log_forces_inter_loss)
             count_potential_val    += length(log_potential_loss)
             count_charges_val      += count(!iszero, log_charges_loss)
+            count_vdw_entropy_val  += length(log_vdw_entropy_loss)
             count_torsions_val     += length(log_torsions_loss)
             count_vap_val          += length(log_enth_vap_loss)
             count_vap_val          += length(log_enth_mix_loss)
@@ -901,6 +939,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
     forces_inter_mean_loss_train = forces_inter_sum_loss_train / count_forces_inter_train
     potential_mean_loss_train    = potential_sum_loss_train / count_potential_train
     charges_mean_loss_train      = charges_sum_loss_train / count_charges_train
+    vdw_entropy_mean_loss_train  = vdw_entropy_sum_loss_train / count_vdw_entropy_train
     torsions_mean_loss_train     = torsions_sum_loss_train / count_torsions_train
     enth_vap_mean_loss_train     = enth_vap_sum_loss_train / count_vap_train
     enth_mix_mean_loss_train     = enth_mix_sum_loss_train / count_mix_train
@@ -909,6 +948,7 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
     forces_inter_mean_loss_val = forces_inter_sum_loss_val / count_forces_inter_val
     potential_mean_loss_val    = potential_sum_loss_val / count_potential_val
     charges_mean_loss_val      = charges_sum_loss_val / count_charges_val
+    vdw_entropy_mean_loss_val  = vdw_entropy_sum_loss_val / count_vdw_entropy_val
     torsions_mean_loss_val     = torsions_sum_loss_val / count_torsions_val
     enth_vap_mean_loss_val     = enth_vap_sum_loss_val / count_vap_val
     enth_mix_mean_loss_val     = enth_mix_sum_loss_val / count_mix_val
@@ -921,6 +961,8 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
     push!(epochs_mean_pe_val             , potential_mean_loss_val)
     push!(epochs_mean_charges_train      , charges_mean_loss_train)
     push!(epochs_mean_charges_val        , charges_mean_loss_val)
+    push!(epochs_mean_vdw_entropy_train  , vdw_entropy_mean_loss_train)
+    push!(epochs_mean_vdw_entropy_val    , vdw_entropy_mean_loss_val)
     push!(epochs_mean_torsion_ks_train   , torsions_mean_loss_train)
     push!(epochs_mean_torsion_ks_val     , torsions_mean_loss_val)
     push!(epochs_mean_enth_vap_train     , enth_vap_mean_loss_train)
@@ -966,11 +1008,10 @@ function train_epoch!(models, optims, epoch_n, conf_train, conf_val, conf_test,
     #time_protein_perc   = Int(round(100 * Dates.Second(round(time_protein  )) / time_epoch; digits=0))
     time_epoch_str = round(time_epoch, Minute)
 
-    forces
 
-    report("Epoch $epoch_n - mean training loss forces intra $forces_intra_mean_loss_train force inter $forces_inter_mean_loss_train pe $potential_mean_loss_train charge $charges_mean_loss_train torsion ks $torsions_mean_loss_train ΔHvap $enth_vap_mean_loss_train ΔHmix $enth_mix_mean_loss_train - mean validation loss forces intra $forces_intra_mean_loss_val force inter $forces_inter_mean_loss_val pe $potential_mean_loss_val charge $charges_mean_loss_val torsion ks $torsions_mean_loss_val ΔHvap $enth_vap_mean_loss_val ΔHmix $enth_vap_mean_loss_val $progress_str - $simulation_str - $time_spice_perc% SPICE, $time_cond_perc% condensed, $time_wait_sims_perc% sim waiting - took $time_epoch_str\n")
+    report("Epoch $epoch_n - mean training loss forces intra $forces_intra_mean_loss_train force inter $forces_inter_mean_loss_train pe $potential_mean_loss_train charge $charges_mean_loss_train vdw entropy $vdw_entropy_mean_loss_train torsion ks $torsions_mean_loss_train ΔHvap $enth_vap_mean_loss_train ΔHmix $enth_mix_mean_loss_train - mean validation loss forces intra $forces_intra_mean_loss_val force inter $forces_inter_mean_loss_val pe $potential_mean_loss_val charge $charges_mean_loss_val vdw entropy $vdw_entropy_mean_loss_val torsion ks $torsions_mean_loss_val ΔHvap $enth_vap_mean_loss_val ΔHmix $enth_vap_mean_loss_val $progress_str - $simulation_str - $time_spice_perc% SPICE, $time_cond_perc% condensed, $time_wait_sims_perc% sim waiting - took $time_epoch_str\n")
 
-    GC.gc()
+    #GC.gc()
 
     return models, optims
 end
@@ -990,6 +1031,7 @@ function train!(models, optims)
     epochs_mean_fs_inter_train     , epochs_mean_fs_inter_val      = T[], T[]
     epochs_mean_pe_train           , epochs_mean_pe_val            = T[], T[]
     epochs_mean_charges_train      , epochs_mean_charges_val       = T[], T[]
+    epochs_mean_vdw_entropy_train  , epochs_mean_vdw_entropy_val   = T[], T[]
     epochs_mean_torsion_ks_train   , epochs_mean_torsion_ks_val    = T[], T[]
     #epochs_mean_fs_intra_train_gems, epochs_mean_fs_intra_val_gems = T[], T[]
     #epochs_mean_fs_inter_train_gems, epochs_mean_fs_inter_val_gems = T[], T[]
@@ -1036,17 +1078,19 @@ function train!(models, optims)
                 push!(epochs_mean_fs_inter_train     , parse(T, cols[11]))
                 push!(epochs_mean_pe_train           , parse(T, cols[13]))
                 push!(epochs_mean_charges_train      , parse(T, cols[15]))
-                push!(epochs_mean_torsion_ks_train   , parse(T, cols[18]))
-                push!(epochs_mean_enth_vap_train     , parse(T, cols[20]))
-                push!(epochs_mean_enth_mixing_train  , parse(T, cols[22]))
+                push!(epochs_mean_vdw_entropy_train  , parse(T, cols[18]))
+                push!(epochs_mean_torsion_ks_train   , parse(T, cols[21]))
+                push!(epochs_mean_enth_vap_train     , parse(T, cols[23]))
+                push!(epochs_mean_enth_mixing_train  , parse(T, cols[25]))
 
-                push!(epochs_mean_fs_intra_val       , parse(T, cols[29]))
-                push!(epochs_mean_fs_inter_val       , parse(T, cols[32]))
-                push!(epochs_mean_pe_val             , parse(T, cols[34]))
-                push!(epochs_mean_charges_val        , parse(T, cols[36]))
-                push!(epochs_mean_torsion_ks_val     , parse(T, cols[39]))
-                push!(epochs_mean_enth_vap_val       , parse(T, cols[41]))
-                push!(epochs_mean_enth_mixing_val    , parse(T, cols[43]))
+                push!(epochs_mean_fs_intra_val       , parse(T, cols[32]))
+                push!(epochs_mean_fs_inter_val       , parse(T, cols[35]))
+                push!(epochs_mean_pe_val             , parse(T, cols[37]))
+                push!(epochs_mean_charges_val        , parse(T, cols[39]))
+                push!(epochs_mean_vdw_entropy_val    , parse(T, cols[42]))
+                push!(epochs_mean_torsion_ks_val     , parse(T, cols[45]))
+                push!(epochs_mean_enth_vap_val       , parse(T, cols[47]))
+                push!(epochs_mean_enth_mixing_val    , parse(T, cols[49]))
             end
         end
         starting_epoch = length(epochs_mean_fs_intra_train) + 1
@@ -1068,6 +1112,7 @@ function train!(models, optims)
                                       epochs_mean_fs_intra_train, epochs_mean_fs_inter_val,
                                       epochs_mean_pe_train, epochs_mean_pe_val,
                                       epochs_mean_charges_train, epochs_mean_charges_val,
+                                      epochs_mean_vdw_entropy_train, epochs_mean_vdw_entropy_val,
                                       epochs_mean_torsion_ks_train, epochs_mean_torsion_ks_val,
                                       epochs_mean_enth_vap_train, epochs_mean_enth_vap_val,
                                       epochs_mean_enth_mixing_train, epochs_mean_enth_mixing_val,

@@ -5,6 +5,15 @@ vdw_params_loss(vdw_params_size)  = MODEL_PARAMS["training"]["loss_weight_vdw_pa
 torsion_ks_loss(torsion_ks_size)  = MODEL_PARAMS["training"]["loss_weight_torsion_ks"] * torsion_ks_size
 pe_loss(pe_diff, dft_pe_diff) = MODEL_PARAMS["training"]["loss_weight_energy"] * abs(pe_diff - dft_pe_diff)
 
+ϵ_entropy = T(1e-8)
+
+Ω_0          = T(MODEL_PARAMS["training"]["loss_weight_vdw_entropy_0"])
+Ω_min        = T(MODEL_PARAMS["training"]["loss_weight_vdw_entropy_min"])
+Ω_min_epoch  = T(MODEL_PARAMS["training"]["entropy_min_epoch"])
+decay_rate_Ω = T(log(Ω_0 / Ω_min) / Ω_min_epoch)
+
+entropy_loss(func_probs) = -mean(sum(func_probs .* log.(func_probs .+ ϵ_entropy); dims = 1))
+
 function param_regularisation(models)
     s = sum(abs2, Flux.destructure(models[1:(end-1)])[1])
     # Global parameters excluded from regularisation except for NNPairwise NN params
