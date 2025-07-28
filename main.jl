@@ -218,7 +218,7 @@ grads = Zygote.gradient(models...) do models...
     elements_pred_i, mol_inds_pred_i,
     forces_loss_inter_pred_i, forces_loss_intra_pred_i,
     charges_loss_pred_i, vdw_entropy_loss_i,
-    torsions_loss_pred_i, reg_loss_pred_i = fwd_and_loss(1, mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
+    torsions_loss_pred_i, reg_loss_pred_i = fwd_and_loss(100, 1.0, mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
 
     if pair_present
 
@@ -228,11 +228,11 @@ grads = Zygote.gradient(models...) do models...
         elements_pred_j, mol_inds_pred_j,
         forces_loss_inter_pred_j, forces_loss_intra_pred_j,
         charges_loss_pred_j, vdw_entropy_loss_j,
-        torsions_loss_pred_j, reg_loss_pred_j = fwd_and_loss(1, mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
+        torsions_loss_pred_j, reg_loss_pred_j = fwd_and_loss(100, 1.0, mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
 
         dpe = potential_pred_i - potential_pred_j
 
     end
 
-    return forces_loss_intra_pred_i + forces_loss_intra_pred_j 
+    return vdw_entropy_loss_j
 end =#

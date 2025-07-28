@@ -1,11 +1,11 @@
 {
     "paths":{
-        "out_dir":"./runs/func_select_vdw_1"
+        "out_dir":"./runs/func_select_tempmatch_var_tau"
     },
 
     "training":{
 
-        "verbose":true,
+        "verbose":false,
 
         "use_gaff_simulations":true,
 
@@ -13,10 +13,10 @@
 
         "train_size":0.9,
 
-        "n_epochs":200,
+        "n_epochs":50,
 
-        "training_sims_first_epoch":125,
-	"condensed_data_first_epoch":110,
+        "training_sims_first_epoch":1000,
+	"condensed_data_first_epoch":1000,
 
         "n_minibatch":256,
 
@@ -24,6 +24,8 @@
         "loss_weight_force_inter":10.0,
         "loss_weight_energy":1e-2,
         "loss_weight_charge":5.0,
+        "loss_weight_vdw_entropy_0":10.0,
+        "loss_weight_vdw_entropy_min":0.01,
         "loss_weight_torsion_ks":1e-2,
         "loss_weight_enth_vap":0.0188,
         "loss_weight_enth_mixing":0.1,
@@ -31,16 +33,22 @@
         "loss_weight_vdw_params":0.0,
         "loss_energy_first_epoch":1,
 
-        "tau_min":0.01,
-        "tau_0":5.0,
-        "tau_0_epoch":110,
+        "anneal_first_epoch":10,
+        "tau_min":0.25,
+        "tau_0":0.5,
+        "tau_min_epoch":40,
+	"tau_mult_first":10.0,
+        "beta_min":0.1,
+        "gamma":1.0,
+	"entropy_min_epoch":30,
 
-        "train_on_forces_intra":0.0,
+        "train_on_forces_intra":1.0,
         "train_on_forces_inter":1.0,
-        "train_on_pe":0.0,
+        "train_on_pe":1.0,
         "train_on_charges":0.0,
-        "train_on_enth_vap":0.0,
-        "train_on_enth_mix":0.0,
+	"train_on_entropy":1.0,
+        "train_on_enth_vap":1.0,
+        "train_on_enth_mix":1.0,
 
         "enth_vap_gas_n_samples":10,
 
@@ -49,7 +57,7 @@
 
     "networks":{
 
-        "learning_rate":1e-3,
+        "learning_rate":1e-4,
 
         "n_atom_features_in": 29,
 
@@ -61,7 +69,7 @@
 
         "gcn_conv_layer":"SAGEConv",
         "activation_str": "relu",
-        "aggr_str": "mean",
+        "aggr_str":"mean",
 
         "dropout_dense":0.0,
         "n_layers_nn":2

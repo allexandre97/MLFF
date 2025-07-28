@@ -44,7 +44,7 @@ function fwd_and_loss(
     # Calculate the losses
     forces_loss_intra::T = force_loss(pred_force_intra, dft_force_intra)
     forces_loss_inter::T = T(MODEL_PARAMS["training"]["loss_weight_force_inter"]) * force_loss(pred_force_inter, dft_force_inter)
-    vdw_entropy_loss::T  = entropy_loss(func_probs) * weight_Ω
+    vdw_entropy_loss::T  = T(entropy_loss(func_probs) * (Ω_0 - 2.0 * weight_Ω))
     charges_loss::T      = (has_charges ? charge_loss(charges, dft_charges) : zero(T))
     torsions_loss::T     = torsion_ks_loss(torsion_size)
     reg_loss::T          = param_regularisation((models...,))
@@ -1114,7 +1114,11 @@ function train!(models, optims)
     end
 
     for epoch_n in starting_epoch:MODEL_PARAMS["training"]["n_epochs"]
-        weight_Ω = annealing_schedule(epoch_n, Ω_0, Ω_min, decay_rate_Ω)
+        if epoch_n < anneal_first_epoch
+            weight_Ω = Ω_0
+        else
+            weight_Ω = annealing_schedule(epoch_n, Ω_0, Ω_min, decay_rate_Ω)
+        end
         models, optims = train_epoch!(models, optims, epoch_n, weight_Ω,
                                       conf_train, conf_val, conf_test,
                                       epochs_mean_fs_inter_train, epochs_mean_fs_intra_val,

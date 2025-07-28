@@ -226,7 +226,8 @@ function build_models()
 
 end
 
-annealing_schedule(relative_epoch, τ_0, τ_min, decay_rate) = T(max(τ_min, τ_0 * exp(-decay_rate * relative_epoch)))
+annealing_schedule(relative_epoch, τ_0, τ_min, decay_rate) = T(max(τ_min, (τ_0 - τ_min) * exp(-decay_rate * relative_epoch) + τ_min))
+annealing_schedule_β(relative_epoch, β_min, τ, γ) = T(τ * (1.0 - exp(-γ * relative_epoch) + β_min))
 
 function gumbel_softmax_symmetric(
     logits::Matrix{T},

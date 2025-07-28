@@ -6,12 +6,10 @@ anneal_first_epoch = MODEL_PARAMS["training"]["anneal_first_epoch"]
 τ_min_epoch        = T(MODEL_PARAMS["training"]["tau_min_epoch"])
 tau_mult_first     = MODEL_PARAMS["training"]["tau_mult_first"]
 
-β_min              = T(MODEL_PARAMS["training"]["beta_min"])
-β_0                = T(MODEL_PARAMS["training"]["beta_0"])
-β_min_epoch        = T(MODEL_PARAMS["training"]["beta_min_epoch"])
+β_min = T(MODEL_PARAMS["training"]["beta_min"])
+γ     = T(MODEL_PARAMS["training"]["gamma"])
 
 decay_rate_τ = T(log(τ_0 / τ_min) / τ_min_epoch)
-decay_rate_β = T(log(β_0 / β_min) / β_min_epoch)
 
 function build_adj_list(mol_row::DataFrame)::Array
     
@@ -437,12 +435,14 @@ function mol_to_system(
 
 
         if epoch_n < anneal_first_epoch
-            τ = tau_mult_first * τ_0
-            β = β_0
+            τ = T(tau_mult_first * τ_0)
+            β_min = τ_min
+            β = T(β_min)
         else
             relative_epoch = epoch_n - anneal_first_epoch
+            β_min = τ_min
             τ = annealing_schedule(relative_epoch, τ_0, τ_min, decay_rate_τ)
-            β = annealing_schedule(relative_epoch, β_0, β_min, decay_rate_β)
+            β = annealing_schedule_β(relative_epoch, β_min, τ, γ)
         end
 
         func_probs_mol = gumbel_softmax_symmetric(logits, labels, τ, β)                # (5, n_atoms)
