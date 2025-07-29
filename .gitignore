@@ -6,6 +6,7 @@
 *.png
 *.tsv
 *.csv
+*.swp
 Papers/
 hyparams/
 runs/

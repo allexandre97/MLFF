@@ -117,3 +117,55 @@ function calc_mean_U_gas(epoch_n, mol_id, feat_df, training_sim_dir, temp, model
 
     return pe_sum / MODEL_PARAMS["training"]["enth_vap_gas_n_samples"]
 end
+
+function vdw_potential(inter::LennardJones, atom::Atom, r::Vector{T}) where T
+
+    return T.(4* atom.ϵ .* ((atom.σ ./ r).^12 - (atom.σ ./ r).^6))
+
+end
+
+function vdw_potential(inter::Mie, atom::Atom, r::Vector{T}) where T
+
+    m, n = inter.m, inter.n
+    C = (n/(n-m)) * (n/m) ^ (m/(n-m))
+    return T.(C * atom.ϵ .* ((atom.σ ./ r).^n - (atom.σ ./ r).^m))
+
+end
+
+function vdw_potential(inter::DoubleExponential, atom::Atom, r::Vector{T}) where T
+
+    α, β = inter.α, inter.β
+    σ, ϵ = atom.σ, atom.ϵ
+
+    rm = σ * T(2^(1/6))
+
+    pe = ϵ * ((β * exp(α) / (α - β)) * exp.(-α .* r ./ rm) - (α * exp(β) / (α - β)) * exp.(-β .* r ./ rm))
+
+    return T.(pe)
+
+end
+
+function vdw_potential(inter::Buffered147, atom::Atom, r::Vector{T}) where T
+
+    
+    δ, γ = inter.δ, inter.γ
+    σ, ϵ = atom.σ, atom.ϵ
+
+    rm = σ * T(2^(1/6))
+    r_div_rm = r ./ rm
+
+    pe = ϵ .* ((1 + δ) ./ (r_div_rm .+ δ)).^7 .* (((1 + γ) ./ (r_div_rm.^7 .+ γ)) .- 2)
+
+    return T.(pe)
+
+end
+
+function vdw_potential(inter::Buckingham, atom::BuckinghamAtom, r::Vector{T}) where T
+    
+    A, B, C = atom.A, atom.B, atom.C
+
+    pe = A .* exp.(-B .* r) .- C ./ r.^6
+
+    return T.(pe)
+
+end

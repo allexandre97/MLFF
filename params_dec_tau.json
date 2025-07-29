@@ -1,6 +1,6 @@
 {
     "paths":{
-        "out_dir":"./runs/check_func_convergence"
+        "out_dir":"./runs/func_select_tempmatch_tau_0.5-0.25_larger_beta"
     },
 
     "training":{
@@ -33,11 +33,11 @@
         "loss_weight_vdw_params":0.0,
         "loss_energy_first_epoch":1,
 
-        "anneal_first_epoch":50,
+        "anneal_first_epoch":10,
         "tau_min":0.25,
         "tau_0":0.5,
         "tau_min_epoch":40,
-	"tau_mult_first":100.0,
+	"tau_mult_first":10.0,
         "beta_min":0.1,
         "gamma":1.0,
 	"entropy_min_epoch":30,

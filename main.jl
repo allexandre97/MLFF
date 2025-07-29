@@ -57,8 +57,8 @@ parsed_args::Dict{String, Any} = parse_commandline() # Read args from cli
 global MODEL_PARAMS::Dict = JSON.parsefile(parsed_args["json"]) # Read model parameters from JSON file
 
 include("./src/physics/definitions.jl")
-include("./src/physics/forces.jl")
 include("./src/physics/molly_extensions.jl")
+include("./src/physics/forces.jl")
 include("./src/physics/transformer.jl")
 
 include("./src/io/conformations.jl")
@@ -184,7 +184,7 @@ BSON.@load "/lmb/home/alexandrebg/Documents/MLFF_hyp/runs/water_condensed/optims
 
 out_dir = MODEL_PARAMS["paths"]["out_dir"]
 
-const global save_every_epoch = true
+const global save_every_epoch = false
 
 if !isnothing(out_dir) && !isdir(out_dir)
     mkpath(out_dir)
@@ -217,7 +217,7 @@ grads = Zygote.gradient(models...) do models...
     weights_vdw_i, torsion_size_pred_i,
     elements_pred_i, mol_inds_pred_i,
     forces_loss_inter_pred_i, forces_loss_intra_pred_i,
-    charges_loss_pred_i, vdw_entropy_loss_i,
+    charges_loss_pred_i, vdw_entropy_loss_i, vdw_params_reg_i,
     torsions_loss_pred_i, reg_loss_pred_i = fwd_and_loss(100, 1.0, mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
 
     if pair_present
@@ -227,12 +227,12 @@ grads = Zygote.gradient(models...) do models...
         weights_vdw_j, torsion_size_pred_j,
         elements_pred_j, mol_inds_pred_j,
         forces_loss_inter_pred_j, forces_loss_intra_pred_j,
-        charges_loss_pred_j, vdw_entropy_loss_j,
+        charges_loss_pred_j, vdw_entropy_loss_j, vdw_params_reg_i,
         torsions_loss_pred_j, reg_loss_pred_j = fwd_and_loss(100, 1.0, mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
 
         dpe = potential_pred_i - potential_pred_j
 
     end
-
-    return vdw_entropy_loss_j
+    return vdw_params_reg_i
+    println()
 end =#

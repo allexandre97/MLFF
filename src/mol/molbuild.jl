@@ -41,7 +41,6 @@ Flux.@non_differentiable build_adj_list(mol_row::DataFrame)
 Flux.@non_differentiable build_adj_list(args...)
 Flux.@non_differentiable has_isomorph(args...)
 
-
 function mol_to_preds(
     epoch_n::Int,
     mol_id::String,
@@ -165,6 +164,22 @@ function build_sys(
 )
     n_atoms = length(partial_charges)
     dist_nb_cutoff = T(MODEL_PARAMS["physics"]["dist_nb_cutoff"])
+
+    @show σ_lj[1]
+    @show ϵ_lj[1]
+    @show σ_lj69[1]
+    @show ϵ_lj69[1]
+    @show α
+    @show β
+    @show σ_dexp[1]
+    @show ϵ_dexp[1]
+    @show δ
+    @show γ
+    @show σ_buff[1]
+    @show ϵ_buff[1]
+    @show A[1]
+    @show B[1]
+    @show C[1]
 
     atoms      = [GeneralAtom(i, one(Int), T(masses[i]), T(partial_charges[i]), (Atom(i, one(T), T(masses[i]), T(partial_charges[i]), T(σ_lj[i]),   T(ϵ_lj[i])),
                                                                                  Atom(i, one(T), T(masses[i]), T(partial_charges[i]), T(σ_lj69[i]), T(ϵ_lj69[i])),
@@ -436,16 +451,16 @@ function mol_to_system(
 
         if epoch_n < anneal_first_epoch
             τ = T(tau_mult_first * τ_0)
-            β_min = τ_min
-            β = T(β_min)
+            β_noise_min = τ_min
+            β_noise = T(β_noise_min)
         else
             relative_epoch = epoch_n - anneal_first_epoch
-            β_min = τ_min
+            β_noise_min = τ_min
             τ = annealing_schedule(relative_epoch, τ_0, τ_min, decay_rate_τ)
-            β = annealing_schedule_β(relative_epoch, β_min, τ, γ)
+            β_noise = annealing_schedule_β(relative_epoch, β_noise_min, τ_0, γ)
         end
 
-        func_probs_mol = gumbel_softmax_symmetric(logits, labels, τ, β)                # (5, n_atoms)
+        func_probs_mol = gumbel_softmax_symmetric(logits, labels, τ, β_noise)                # (5, n_atoms)
 
         feats_mol  = predict_atom_features(labels, embeds_mol, atom_features_model)
 
@@ -570,7 +585,7 @@ function mol_to_system(
     angles_ki, angles_θ0i, angles_kj, angles_θ0j, bonds_i, bonds_j, angles_i, angles_j, angles_k, proper_feats_pad,
     improper_feats_pad, propers_i, propers_j, propers_k, propers_l, impropers_i, impropers_j, impropers_k,
     impropers_l)
-
+    
     return (
         molly_sys,
         partial_charges,

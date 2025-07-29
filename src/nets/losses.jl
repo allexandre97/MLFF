@@ -14,6 +14,51 @@ decay_rate_Ω = T(log(Ω_0 / Ω_min) / Ω_min_epoch)
 
 entropy_loss(func_probs) = -mean(sum(func_probs .* log.(func_probs .+ ϵ_entropy); dims = 1))
 
+
+r = [T(_) for _ in LinRange(1.5, 4.5, 50)]
+function vdw_params_regularisation(atoms, vdw_inters)
+
+    loss::T = zero(T)
+    
+    for (atom_idx, atom) in enumerate(atoms)
+        for (idx_i, (atype_i, inter_i)) in enumerate(zip(atom.atoms, vdw_inters))
+
+            pot_i = vdw_potential(inter_i, atype_i, r)
+
+            for (idx_j, (atype_j, inter_j)) in enumerate(zip(atom.atoms, vdw_inters))
+                if idx_i == idx_j
+                    continue
+                end
+                pot_j = vdw_potential(inter_j, atype_j, r)
+                loss += mean(abs2.(pot_i .- pot_j))
+            end
+        end
+        loss /= 10.0f0
+    end
+    return T(loss / length(atoms))
+end
+
+function ChainRulesCore.rrule(
+    ::typeof(vdw_params_regularisation),
+    atoms, 
+    vdw_inters
+)
+    Y = vdw_params_regularisation(atoms, vdw_inters)
+    function pullback(ŷ)
+        d_atoms      = zero.(atoms)
+        d_vdw_inters = zero.(vdw_inters)
+        grads = Enzyme.autodiff(
+            Enzyme.Reverse,
+            vdw_params_regularisation,
+            Enzyme.Active,
+            Enzyme.Duplicated(atoms, d_atoms),
+            Enzyme.Duplicated(vdw_inters, d_vdw_inters)
+        )
+        return NoTangent(), ŷ .* d_atoms, ŷ .* d_vdw_inters
+    end
+    return Y, pullback
+end
+
 function param_regularisation(models)
     s = sum(abs2, Flux.destructure(models[1:(end-1)])[1])
     # Global parameters excluded from regularisation except for NNPairwise NN params

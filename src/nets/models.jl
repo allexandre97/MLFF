@@ -174,9 +174,9 @@ function build_models()
     #
     nonbonded_selection_model = Chain(
         Dense(NET_PARAMS["dim_embed_atom"] => NET_PARAMS["dim_hidden_dense"],
-              activation_dense; init=Flux.ones32),
+              activation_dense; init=init_dense),
         generate_dense_layers(NET_PARAMS["n_layers_nn"] - 2)...,
-        Dense(NET_PARAMS["dim_hidden_dense"] => 5; init = Flux.ones32)
+        Dense(NET_PARAMS["dim_hidden_dense"] => 5)
     )
 
     # Feature prediction step

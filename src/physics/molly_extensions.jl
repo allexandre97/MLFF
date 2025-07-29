@@ -1,4 +1,5 @@
 import Base: +
+import Base: *
 
 struct DoubleExponential{T, S, E, W}
     α::T
@@ -488,10 +489,10 @@ end
 
 function pe_wrap!(pe_vec, atoms, coords, velocities, boundary, pairwise_inters_nl,
                   sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
-    pe = Molly.pairwise_pe(atoms, coords, velocities, boundary, neighbors, NoUnits, length(atoms),
-                           (), pairwise_inters_nl, T, 0)
 
     
+    pe = Molly.pairwise_pe(atoms, coords, velocities, boundary, neighbors, NoUnits, length(atoms),
+                           (), pairwise_inters_nl, T, 0)
     pe += Molly.specific_pe(atoms, coords, velocities, boundary, NoUnits, (),
                             sils_2_atoms, sils_3_atoms, sils_4_atoms, T, 0)
     pe_vec[1] = T(pe)
@@ -559,6 +560,39 @@ function +(a::GeneralAtom{T, A}, b::GeneralAtom{T, A}) where {T, A}
     )
 end
 
+function *(i::Float32, a::Atom)
+    Atom(
+        a.index,
+        a.atom_type,
+        a.mass * i,
+        a.charge * i,
+        a.σ * i,
+        a.ϵ * i
+    )
+end
+
+function *(i::Float32, a::BuckinghamAtom)
+    BuckinghamAtom(
+        a.index,
+        a.atom_type,
+        a.mass * i,
+        a.charge * i,
+        a.A * i,
+        a.B * i,
+        a.C * i
+    )
+end
+
+function *(i::Float32, a::GeneralAtom{T, A}) where {T, A}
+    GeneralAtom(
+        a.index,
+        a.type,
+        a.mass * i,
+        a.charge * i,
+        i .* a.atoms
+    )
+end
+
 #Base.zero(::Type{GeneralAtom{T}}) = GeneralAtom{T}(0, 0, zero(T), zero(T), zero.())
 Base.zero(x::GeneralAtom{T, A}) where {T, A} = GeneralAtom(0, 0, zero(T), zero(T), zero.(x.atoms))
 
@@ -580,6 +614,69 @@ function +(a::GroupInter{I}, b::GroupInter{I}) where {I}
     GroupInter(
         a.inters .+ b.inters,
         a.weights + b.weights
+    )
+end
+
+Base.zero(x::GroupInter{I}) where I = GroupInter(zero.(x.inters), zero.(x.weights))
+
+Zygote.accum(a::NamedTuple{(:inters, :weights), <:Any}, b::GroupInter) = GroupInter(
+    a.inters .+ b.inters,
+    a.weights + b.weights
+)
+
+Base.:+(::Nothing, ::Union{LennardJones, Mie, DoubleExponential, Buffered147, Buckingham}) = nothing
+
+function *(n::Float32, i::LennardJones)
+    LennardJones(
+        i.cutoff,
+        i.use_neighbors,
+        i.shortcut,
+        i.σ_mixing,
+        i.ϵ_mixing,
+        n * i.weight_special
+    )
+end
+
+function *(n::Float32, i::Mie)
+    Mie(
+        Int(n * i.m),
+        Int(n * i.m),
+        i.cutoff,
+        i.use_neighbors,
+        i.shortcut,
+        i.σ_mixing,
+        i.ϵ_mixing,
+        i.weight_special,
+        i.mn_fac
+    )
+end
+
+function *(n::Float32, i::DoubleExponential)
+    DoubleExponential(
+        n * i.α,
+        n * i.β,
+        i.σ_mixing,
+        i.ϵ_mixing,
+        i.weight_special,
+        i.dist_cutoff
+    )
+end
+
+function *(n::Float32, i::Buffered147)
+    Buffered147(
+        n * i.δ,
+        n * i.γ,
+        i.σ_mixing,
+        i.ϵ_mixing,
+        i.weight_special,
+        i.dist_cutoff
+    )
+end
+
+function *(n::Float32, i::Buckingham)
+    Buckingham(
+        i.weight_special,
+        i.dist_cutoff
     )
 end
 
