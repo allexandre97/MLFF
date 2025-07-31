@@ -44,7 +44,7 @@ function vdw_params_regularisation(atoms, vdw_inters)
     
     for (atom_idx, atom) in enumerate(atoms)
 
-        r = [T(_) for _ in LinRange(atom.atoms[1].σ, 0.4, 50)]
+        r = [T(_) for _ in LinRange(atom.atoms[1].σ, 0.3, 50)]
         
         pot_lj   = vdw_potential(vdw_inters[1], atom.atoms[1], r)
         pot_lj69 = vdw_potential(vdw_inters[2], atom.atoms[2], r)

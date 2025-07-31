@@ -1,6 +1,6 @@
 {
     "paths":{
-        "out_dir":"./runs/check_func_convergence_only_lj_alt_loss"
+        "out_dir":"./runs/check_func_convergence_only_lj_sigma_loss"
     },
 
     "training":{
@@ -13,7 +13,7 @@
 
         "train_size":0.9,
 
-        "n_epochs":1000,
+        "n_epochs":300,
 
         "training_sims_first_epoch":100000,
 	"condensed_data_first_epoch":100000,
