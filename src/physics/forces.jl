@@ -169,3 +169,41 @@ function vdw_potential(inter::Buckingham, atom::BuckinghamAtom, r::Vector{T}) wh
     return T.(pe)
 
 end
+
+
+# Lennard-Jones (12-6)
+function vdw_rmin(::LennardJones, atom::Atom)
+    return atom.σ * T(2)^(1/6)
+end
+
+# Mie (n-m)
+function vdw_rmin(inter::Mie, atom::Atom)
+    m, n = inter.m, inter.n
+    return atom.σ * (n / m)^(1 / (n - m))
+end
+
+# Double Exponential
+function vdw_rmin(::DoubleExponential, atom::Atom)
+    return atom.σ * T(2)^(1/6)
+end
+
+# Buffered 14-7
+using Roots
+function vdw_rmin(inter::Buffered147, atom::Atom)
+    δ, γ = inter.δ, inter.γ
+    r_m = atom.σ * T(2)^(1/6)
+
+    f(x) = 2x^14 + (4γ + (1 + γ) * δ) * x^7 + (γ^2 - γ)
+    
+    x_min = find_zero(f, T(1.0))  # initial guess x=1
+    return r_m * x_min
+end
+
+using LambertW
+# Buckingham (exp-6)
+function vdw_rmin(::Buckingham, atom::BuckinghamAtom)
+    A, B, C = atom.A, atom.B, atom.C
+
+    z = -T(1) / 7 * (6 * C * B^6 / A)^(1 / 7)
+    return -T(7) / B * lambertw(z)
+end

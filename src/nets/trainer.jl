@@ -19,6 +19,8 @@ Zygote.accum(::Nothing, ::NamedTuple{(:p, :dims, :active, :rng), <:Any}) = nothi
 
 check_no_nans(grads) = !any(g -> any(isnan, Flux.destructure(g)[1]), grads)
 
+sigmoid_switch(epoch_n::Int, epoch_switch::Int, tension::T) = T(1.0f0 / (1.0f0 + exp(-tension * (T(epoch_n)- T(epoch_switch)))))
+
 function fwd_and_loss(
     epoch_n,
     weight_Ω,
@@ -519,8 +521,8 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
                            potential_loss_sum    * MODEL_PARAMS["training"]["train_on_pe"] +
                            charges_loss_sum      * MODEL_PARAMS["training"]["train_on_charges"] +
                            torsions_loss_sum + reg_loss_sum + 
-                           vdw_entropy_loss_sum * MODEL_PARAMS["training"]["train_on_entropy"] + 
-                           vdw_params_reg_sum
+                           #vdw_entropy_loss_sum * MODEL_PARAMS["training"]["train_on_entropy"]# + 
+                           vdw_params_reg_sum * sigmoid_switch(epoch_n, 50, 100.0f0)
                 end
 
                 if check_no_nans(grads)
@@ -693,6 +695,7 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
             end
             grad_vals, restructure = Flux.destructure(grads_minibatch)
             grads_clamp = restructure(clamp.(grad_vals, -MODEL_PARAMS["training"]["grad_clamp_val"], MODEL_PARAMS["training"]["grad_clamp_val"]))
+
             for model_i in eachindex(models)
                 Flux.update!(optims[model_i], models[model_i], grads_clamp[model_i])
             end

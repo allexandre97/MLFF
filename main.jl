@@ -233,6 +233,6 @@ grads = Zygote.gradient(models...) do models...
         dpe = potential_pred_i - potential_pred_j
 
     end
-    return vdw_params_reg_i
+    return forces_loss_inter_pred_i + forces_loss_inter_pred_j
     println()
 end =#

@@ -15,8 +15,8 @@ decay_rate_Ω = T(log(Ω_0 / Ω_min) / Ω_min_epoch)
 entropy_loss(func_probs) = -mean(sum(func_probs .* log.(func_probs .+ ϵ_entropy); dims = 1))
 
 
-r = [T(_) for _ in LinRange(1.5, 4.5, 50)]
-function vdw_params_regularisation(atoms, vdw_inters)
+#r = [T(_) for _ in LinRange(0.2, 0.4, 50)]
+#= function vdw_params_regularisation(atoms, vdw_inters)
 
     loss::T = zero(T)
     
@@ -36,7 +36,70 @@ function vdw_params_regularisation(atoms, vdw_inters)
         loss /= 10.0f0
     end
     return T(loss / length(atoms))
+end =#
+
+function vdw_params_regularisation(atoms, vdw_inters)
+
+    loss::T = zero(T)
+    
+    for (atom_idx, atom) in enumerate(atoms)
+
+        r = [T(_) for _ in LinRange(atom.atoms[1].σ, 0.4, 50)]
+        
+        pot_lj   = vdw_potential(vdw_inters[1], atom.atoms[1], r)
+        pot_lj69 = vdw_potential(vdw_inters[2], atom.atoms[2], r)
+        pot_dexp = vdw_potential(vdw_inters[3], atom.atoms[3], r)
+        pot_buff = vdw_potential(vdw_inters[4], atom.atoms[4], r)
+        pot_buck = vdw_potential(vdw_inters[5], atom.atoms[5], r)
+
+        loss += 0.25 * mean(abs2.(pot_lj69 .- pot_lj)) +
+                0.25 * mean(abs2.(pot_dexp .- pot_lj)) +
+                0.25 * mean(abs2.(pot_buff .- pot_lj)) +
+                0.25 * mean(abs2.(pot_buck .- pot_lj))
+
+    end
+    return T(loss / length(atoms))
 end
+
+#= function vdw_params_regularisation(atoms, vdw_inters)
+
+    loss_r::T   = zero(T)
+    loss_pot::T = zero(T)
+    
+    for (atom_idx, atom) in enumerate(atoms)
+
+        min_r_lj   = vdw_rmin(vdw_inters[1], atom.atoms[1])
+        min_r_lj69 = vdw_rmin(vdw_inters[2], atom.atoms[2])
+        min_r_dexp = vdw_rmin(vdw_inters[3], atom.atoms[3])
+        min_r_buff = vdw_rmin(vdw_inters[4], atom.atoms[4])
+        min_r_buck = vdw_rmin(vdw_inters[5], atom.atoms[5])
+
+        pot_lj   = vdw_potential(vdw_inters[1], atom.atoms[1], [min_r_lj])[1]
+        pot_lj69 = vdw_potential(vdw_inters[2], atom.atoms[2], [min_r_lj69])[1]
+        pot_dexp = vdw_potential(vdw_inters[3], atom.atoms[3], [min_r_dexp])[1]
+        pot_buff = vdw_potential(vdw_inters[4], atom.atoms[4], [min_r_buff])[1]
+        pot_buck = vdw_potential(vdw_inters[5], atom.atoms[5], [min_r_buck])[1]
+
+        #= @show min_r_lj  
+        @show min_r_lj69
+        @show min_r_dexp
+        @show min_r_buff
+        @show min_r_buck =#
+
+        loss_r += 0.25 * (min_r_lj69 - min_r_lj)^2 +
+                  0.25 * (min_r_dexp - min_r_lj)^2 +
+                  0.25 * (min_r_buff - min_r_lj)^2 +
+                  0.25 * (min_r_buck - min_r_lj)^2
+
+        loss_pot += 0.25 * (pot_lj69 - pot_lj)^2 +
+                    0.25 * (pot_dexp - pot_lj)^2 +
+                    0.25 * (pot_buff - pot_lj)^2 +
+                    0.25 * (pot_buck - pot_lj)^2
+
+    end
+
+    return T((loss_r + 1e-3*loss_pot) / length(atoms))
+end =#
 
 function ChainRulesCore.rrule(
     ::typeof(vdw_params_regularisation),

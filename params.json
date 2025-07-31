@@ -1,6 +1,6 @@
 {
     "paths":{
-        "out_dir":"./runs/check_func_convergence"
+        "out_dir":"./runs/check_func_convergence_only_lj_alt_loss"
     },
 
     "training":{
@@ -13,10 +13,10 @@
 
         "train_size":0.9,
 
-        "n_epochs":50,
+        "n_epochs":1000,
 
-        "training_sims_first_epoch":1000,
-	"condensed_data_first_epoch":1000,
+        "training_sims_first_epoch":100000,
+	"condensed_data_first_epoch":100000,
 
         "n_minibatch":256,
 
@@ -33,14 +33,14 @@
         "loss_weight_vdw_params":0.0,
         "loss_energy_first_epoch":1,
 
-        "anneal_first_epoch":50,
+        "anneal_first_epoch":10000,
         "tau_min":0.25,
         "tau_0":0.5,
-        "tau_min_epoch":40,
+        "tau_min_epoch":100000,
 	"tau_mult_first":100.0,
         "beta_min":0.1,
         "gamma":1.0,
-	"entropy_min_epoch":30,
+	"entropy_min_epoch":100000,
 
         "train_on_forces_intra":1.0,
         "train_on_forces_inter":1.0,

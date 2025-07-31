@@ -697,6 +697,7 @@ function Molly.force(inter::GroupInter{<:Tuple}, dr, a1::GeneralAtom, a2::Genera
         a1f = a1.atoms[idx]
         a2f = a2.atoms[idx]
         w = inter.weights[idx]
+
         f_total += w * Molly.force(sub_inter, dr, a1f, a2f, force_units, special, x1, x2, boundary, v1, v2, step_n)
     end
 

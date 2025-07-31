@@ -188,14 +188,14 @@ function build_sys(
                                                                                  BuckinghamAtom(i, one(T), T(masses[i]), T(partial_charges[i]), T(A[i]), T(B[i]), T(C[i]))))
                   for i in 1:n_atoms]
 
-    weights_vdw = vec(mean(func_probs; dims=2))
+    #weights_vdw = vec(mean(func_probs; dims=2))
+    weights_vdw = [1.0f0, 0.0f0, 0.0f0, 0.0f0, 0.0f0]
 
     choice      = argmax(weights_vdw)
 
     global vdw_functional_form = CHOICE_TO_VDW[choice]
 
     vdw_inters = GroupInter(
-        
         (LennardJones(DistanceCutoff(dist_nb_cutoff), true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, sigmoid(model_global_params.params[1])),
          Mie(6, 9, DistanceCutoff(dist_nb_cutoff), true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, one(T), 1),
          DoubleExponential(α, β, σ_mixing, ϵ_mixing, one(T), dist_nb_cutoff),
