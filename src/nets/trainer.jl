@@ -47,7 +47,7 @@ function fwd_and_loss(
     forces_loss_intra::T = force_loss(pred_force_intra, dft_force_intra)
     forces_loss_inter::T = T(MODEL_PARAMS["training"]["loss_weight_force_inter"]) * force_loss(pred_force_inter, dft_force_inter)
     vdw_entropy_loss::T  = T(entropy_loss(func_probs) * (Ω_0 - 2.0 * weight_Ω))
-    vdw_params_reg::T    = vdw_params_regularisation(sys.atoms, sys.pairwise_inters[1].inters) * 1e-3
+    vdw_params_reg::T    = zero(T)#vdw_params_regularisation(sys.atoms, sys.pairwise_inters[1].inters) * 1e-3
     charges_loss::T      = (has_charges ? charge_loss(charges, dft_charges) : zero(T))
     torsions_loss::T     = torsion_ks_loss(torsion_size)
     reg_loss::T          = param_regularisation((models...,))

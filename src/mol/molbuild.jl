@@ -189,7 +189,7 @@ function build_sys(
                   for i in 1:n_atoms]
 
     #weights_vdw = vec(mean(func_probs; dims=2))
-    weights_vdw = [1.0f0, 0.0f0, 0.0f0, 0.0f0, 0.0f0]
+    weights_vdw = [0.0f0, 0.0f0, 0.0f0, 0.0f0, 1.0f0]
 
     choice      = argmax(weights_vdw)
 

@@ -98,7 +98,7 @@ transform_buff_δ(x) = sigmoid(x) * T(0.08) + T(0.03) # 0.03 -> 0.11
 transform_buff_γ(x) = sigmoid(x) * T(0.16) + T(0.04) # 0.04 -> 0.2
 
 transform_buck_A(x) = sigmoid(x) * T(800_000.0) + T(100_000.0) # 100_000 kJ/mol -> 900_000 kJ/mol
-transform_buck_B(x) = sigmoid(x) * T(40.0) + T(10.0) # 10 nm^-1 -> 50 nm^-1
+transform_buck_B(x) = sigmoid(x) * T(80.0) + T(20.0) # 20 nm^-1 -> 100 nm^-1
 transform_buck_C(x) = sigmoid(x) * T(0.75) + T(0.0) # 0 kJ/mol nm -> 0.75 kJ/mol nm this now reflects the change of how the potential is computed
 
 transform_bond_k(  k1, k2) = max(k1 + k2, zero(T))
