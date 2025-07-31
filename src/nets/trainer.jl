@@ -47,7 +47,7 @@ function fwd_and_loss(
     forces_loss_intra::T = force_loss(pred_force_intra, dft_force_intra)
     forces_loss_inter::T = T(MODEL_PARAMS["training"]["loss_weight_force_inter"]) * force_loss(pred_force_inter, dft_force_inter)
     vdw_entropy_loss::T  = T(entropy_loss(func_probs) * (Ω_0 - 2.0 * weight_Ω))
-    vdw_params_reg::T    = vdw_params_regularisation(sys.atoms, sys.pairwise_inters[1].inters)
+    vdw_params_reg::T    = vdw_params_regularisation(sys.atoms, sys.pairwise_inters[1].inters) * 1e-3
     charges_loss::T      = (has_charges ? charge_loss(charges, dft_charges) : zero(T))
     torsions_loss::T     = torsion_ks_loss(torsion_size)
     reg_loss::T          = param_regularisation((models...,))
@@ -522,7 +522,7 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
                            charges_loss_sum      * MODEL_PARAMS["training"]["train_on_charges"] +
                            torsions_loss_sum + reg_loss_sum + 
                            #vdw_entropy_loss_sum * MODEL_PARAMS["training"]["train_on_entropy"]# + 
-                           vdw_params_reg_sum * sigmoid_switch(epoch_n, 50, 100.0f0)
+                           vdw_params_reg_sum * sigmoid_switch(epoch_n, 20, 1000.0f0)
                 end
 
                 if check_no_nans(grads)

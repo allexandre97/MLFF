@@ -44,18 +44,18 @@ function vdw_params_regularisation(atoms, vdw_inters)
     
     for (atom_idx, atom) in enumerate(atoms)
 
-        r = [T(_) for _ in LinRange(atom.atoms[1].σ, 0.3, 50)]
+        r = [T(_) for _ in LinRange(atom.atoms[1].σ, 2.0 * atom.atoms[1].σ, 50)]
         
         pot_lj   = vdw_potential(vdw_inters[1], atom.atoms[1], r)
-        pot_lj69 = vdw_potential(vdw_inters[2], atom.atoms[2], r)
+        #pot_lj69 = vdw_potential(vdw_inters[2], atom.atoms[2], r)
         pot_dexp = vdw_potential(vdw_inters[3], atom.atoms[3], r)
-        pot_buff = vdw_potential(vdw_inters[4], atom.atoms[4], r)
-        pot_buck = vdw_potential(vdw_inters[5], atom.atoms[5], r)
+        #pot_buff = vdw_potential(vdw_inters[4], atom.atoms[4], r)
+        #pot_buck = vdw_potential(vdw_inters[5], atom.atoms[5], r)
 
-        loss += 0.25 * mean(abs2.(pot_lj69 .- pot_lj)) +
-                0.25 * mean(abs2.(pot_dexp .- pot_lj)) +
-                0.25 * mean(abs2.(pot_buff .- pot_lj)) +
-                0.25 * mean(abs2.(pot_buck .- pot_lj))
+        loss +=  1.0f0 * mean(abs2.(pot_dexp .- pot_lj)) #+
+                #0.3333 * mean(abs2.(pot_dexp .- pot_lj)) +
+                #0.3333 * mean(abs2.(pot_buff .- pot_lj)) +
+                #0.25 * mean(abs2.(pot_buck .- pot_lj))
 
     end
     return T(loss / length(atoms))

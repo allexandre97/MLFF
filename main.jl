@@ -43,7 +43,7 @@ function parse_commandline()::Dict{String, Any}
             arg_type = String
         "--json"
             help    = "Path to where the hyperparam json file is found"
-            default = "./params_vap.json"
+            default = "./params.json"
             arg_type = String
     end
 
@@ -172,13 +172,13 @@ const global COND_MOL_TRAIN = COND_MOLECULES[(MODEL_PARAMS["training"]["n_frames
 # Molly Constants. TODO: How can I pack these in a json?
 const global boundary_inf = CubicBoundary(T(Inf))
 
-models, optims     = build_models()
+#= models, optims     = build_models()
 
-#= BSON.@save "init_models.bson" models
+BSON.@save "init_models.bson" models
 BSON.@save "init_optims.bson" optims =#
 
-#= BSON.@load "/lmb/home/alexandrebg/Documents/MLFF_hyp/runs/water_condensed/models/model_ep_277.bson" models
-BSON.@load "/lmb/home/alexandrebg/Documents/MLFF_hyp/runs/water_condensed/optims/optim_ep_277.bson" optims =#
+BSON.@load "./init_models.bson" models
+BSON.@load "./init_optims.bson" optims
 
 @non_differentiable Molly.find_neighbors(args...)
 

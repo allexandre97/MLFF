@@ -164,7 +164,7 @@ Molly.use_neighbors(::Buckingham) = true
         A = (atom_i.A + atom_j.A) / 2
         B = (atom_i.B + atom_j.B) / 2
         C = (atom_i.C + atom_j.C) / 2
-        pe = A * exp(-B * r) - C / r2^3
+        pe = A * exp(-B * r) - (C / r)^6 # Modified this to hopefully make C a bit more well-behaved in training 
         if special
             return pe
         else

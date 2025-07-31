@@ -164,7 +164,7 @@ function vdw_potential(inter::Buckingham, atom::BuckinghamAtom, r::Vector{T}) wh
     
     A, B, C = atom.A, atom.B, atom.C
 
-    pe = A .* exp.(-B .* r) .- C ./ r.^6
+    pe = A .* exp.(-B .* r) .- (C ./ r).^6
 
     return T.(pe)
 

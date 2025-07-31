@@ -1,6 +1,6 @@
 {
     "paths":{
-        "out_dir":"./runs/check_func_convergence_only_lj_sigma_loss"
+        "out_dir":"./runs/check_func_convergence_only_lj_sigma_loss_no_mie_no_buff_no_buck"
     },
 
     "training":{
