@@ -183,7 +183,7 @@ end
         A = (atom_i.A + atom_j.A) / 2
         B = (atom_i.B + atom_j.B) / 2
         C = (atom_i.C + atom_j.C) / 2
-        fdr = (A * B * exp(-B * r) / r - 6 * C / r2^4) * vec_ij
+        fdr = (A * B * exp(-B * r) - 6 * (C^6) / r^7) * normalize(vec_ij) # Modified to match how we predict C now
         if special
             return fdr
         else

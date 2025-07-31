@@ -1168,6 +1168,8 @@ function train!(models, optims)
         report("Starting training on ", Threads.nthreads(), " thread(s)\n")
     end
 
+    global vdw_fnc_idx = 1
+
     for epoch_n in starting_epoch:MODEL_PARAMS["training"]["n_epochs"]
         if epoch_n < anneal_first_epoch
             weight_Ω = Ω_0
