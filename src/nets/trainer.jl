@@ -606,7 +606,7 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
                             mean_U_gas = calc_mean_U_gas(mol_id_gas, df_gas, training_sim_dir, temp, models...)
 
                             cond_loss =  enth_vap_loss(potential, mean_U_gas, temp, frame_i, repeat_i, maximum(mol_inds), mol_id)
-                            vdw_params_reg = vdw_params_regularisation(sys)
+                            vdw_params_reg = zero(T)#vdw_params_regularisation(sys)
 
                         else
 
@@ -633,7 +633,7 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
                             weights_vdw, torsion_size, 
                             _, mol_inds_com = mol_to_preds(epoch_n, mol_id, feat_df, coords_com, boundary_com, models...)
 
-                            vdw_params_reg = vdw_params_regularisation(sys_com)
+                            vdw_params_reg = zero(T)#vdw_params_regularisation(sys_com)
 
                             cond_loss = enth_mixing_loss(potential_com, potential_1, potential_2,
                                                          boundary_com, boundary_1, boundary_2, 
@@ -888,7 +888,7 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
                         mean_U_gas = calc_mean_U_gas(epoch_n, mol_id_gas, df_gas, training_sim_dir, temp, models...)
 
                         cond_loss =  enth_vap_loss(potential, mean_U_gas, temp, frame_i, repeat_i, maximum(mol_inds), mol_id)
-                        vdw_params_reg = vdw_params_regularisation(sys)
+                        vdw_params_reg = zero(T)#vdw_params_regularisation(sys)
 
                     else
                         train_on_weight = MODEL_PARAMS["training"]["train_on_enth_mix"]
@@ -928,7 +928,7 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
                                                         maximum(mol_inds_com), maximum(mol_inds_1), maximum(mol_inds_2),
                                                         mol_id, frame_i, repeat_i)
 
-                        vdw_params_reg = vdw_params_regularisation(sys_com)
+                        vdw_params_reg = zero(T)#vdw_params_regularisation(sys_com)
                     end
 
                     if MODEL_PARAMS["training"]["verbose"]

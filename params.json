@@ -1,6 +1,6 @@
 {
     "paths":{
-        "out_dir":"./runs/check_func_convergence_only_lj_sigma_loss_no_mie_no_buff_no_buck"
+        "out_dir":"./runs/check_func_convergence_only_buck_no_reg_new_C_larger_lr_condensed"
     },
 
     "training":{
@@ -15,8 +15,8 @@
 
         "n_epochs":300,
 
-        "training_sims_first_epoch":100000,
-	"condensed_data_first_epoch":100000,
+        "training_sims_first_epoch":60,
+	"condensed_data_first_epoch":50,
 
         "n_minibatch":256,
 
@@ -57,7 +57,7 @@
 
     "networks":{
 
-        "learning_rate":1e-4,
+        "learning_rate":5e-4,
 
         "n_atom_features_in": 29,
 
