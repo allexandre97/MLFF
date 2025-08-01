@@ -109,8 +109,14 @@ function calc_mean_U_gas(epoch_n, mol_id, feat_df, training_sim_dir, temp, model
     pe_sum = zero(T)
     n = 1
     for frame_i in frame_is
+
         coords, boundary = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
-        _,_,pe,_,_,_,_,_ = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary, models...)
+        
+        _,
+        _, pe, _, _,
+        _, _, 
+        _, _ = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary, models...)
+        
         pe_sum += pe
         n+=1
     end

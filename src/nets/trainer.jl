@@ -603,7 +603,7 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
                             weights_vdw, torsion_size, 
                             _, mol_inds = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary, models...)
 
-                            mean_U_gas = calc_mean_U_gas(mol_id_gas, df_gas, training_sim_dir, temp, models...)
+                            mean_U_gas = calc_mean_U_gas(epoch_n, mol_id_gas, df_gas, training_sim_dir, temp, models...)
 
                             cond_loss =  enth_vap_loss(potential, mean_U_gas, temp, frame_i, repeat_i, maximum(mol_inds), mol_id)
                             vdw_params_reg = zero(T)#vdw_params_regularisation(sys)

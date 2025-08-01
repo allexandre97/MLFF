@@ -165,7 +165,7 @@ function build_sys(
     n_atoms = length(partial_charges)
     dist_nb_cutoff = T(MODEL_PARAMS["physics"]["dist_nb_cutoff"])
 
-    @show σ_lj[1]
+    #= @show σ_lj[1]
     @show ϵ_lj[1]
     @show σ_lj69[1]
     @show ϵ_lj69[1]
@@ -179,7 +179,7 @@ function build_sys(
     @show ϵ_buff[1]
     @show A[1]
     @show B[1]
-    @show C[1]
+    @show C[1] =#
 
     atoms      = [GeneralAtom(i, one(Int), T(masses[i]), T(partial_charges[i]), (Atom(i, one(T), T(masses[i]), T(partial_charges[i]), T(σ_lj[i]),   T(ϵ_lj[i])),
                                                                                  Atom(i, one(T), T(masses[i]), T(partial_charges[i]), T(σ_lj69[i]), T(ϵ_lj69[i])),

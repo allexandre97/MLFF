@@ -1,4 +1,5 @@
 function read_sim_data(mol_id, training_sim_dir, frame_i, temp=nothing)
+    
     exp_type, sim_type, smiles = split(mol_id, "_"; limit=3)
     if exp_type == "vapourisation"
         traj_fp = "$(smiles)_$(Int(temp))K.dcd"
