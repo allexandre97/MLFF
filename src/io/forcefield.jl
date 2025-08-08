@@ -35,7 +35,9 @@ function collect_atoms(sys::Molly.System)
     δ = vdw_functional_form == "buff" ? sys.pairwise_inters[1].δ : nothing
     γ = vdw_functional_form == "buff" ? sys.pairwise_inters[1].γ : nothing
 
-    for (atom, atom_data) in zip(sys.atoms, sys.atoms_data)
+    for (gatom, atom_data) in zip(sys.atoms, sys.atoms_data)
+
+        atom = gatom.atoms[choice]
 
         
         σ = vdw_functional_form == "buck" ? nothing : atom.σ
@@ -277,7 +279,7 @@ function build_nonbonded_force(root, atomtypes_list, unique_atoms)
     if vdw_functional_form == "lj"
 
         nb = ElementNode("NonbondedForce")
-        link!(nb, AttributeNode("coulomb14scale", "$(global_params[2])"))
+        link!(nb, AttributeNode("coulomb14scale", "$(model_global_params.params[2])"))
         link!(nb, AttributeNode("lj14scale", "0.5"))
 
         # Properly create and attach the UseAttributeFromResidue node with its attribute
@@ -298,7 +300,7 @@ function build_nonbonded_force(root, atomtypes_list, unique_atoms)
     
     else
         nb = ElementNode("NonbondedForce")
-        link!(nb, AttributeNode("coulomb14scale", "$(global_params[2])"))
+        link!(nb, AttributeNode("coulomb14scale", "$(model_global_params.params[2])"))
         link!(nb, AttributeNode("lj14scale", "0.5"))
         use_charge = ElementNode("UseAttributeFromResidue")
         link!(use_charge, AttributeNode("name", "charge"))
@@ -469,7 +471,8 @@ function features_to_ff_xml(out_fp::AbstractString, args...)
     end
 end
 
-function features_to_xml(io, 
+function features_to_xml(io,
+    epoch_n::Int,
     mol_id::String,
     frame_i,
     temp,
@@ -482,7 +485,7 @@ function features_to_xml(io,
     coords, boundary = read_sim_data(mol_id, cond_sim_dir, frame_i, temp)
     feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
 
-    sys, _, _, _, _, _ = mol_to_system(mol_id, feat_df, coords, boundary, models...)
+    sys, _ = mol_to_system(epoch_n, mol_id, feat_df, coords, boundary, models...)
 
     write_openmm_xml(sys, io)
 

@@ -32,6 +32,9 @@ using Molly
 
 using CairoMakie
 
+import Base: +
+import Base: *
+
 
 function parse_commandline()::Dict{String, Any}
 
@@ -57,8 +60,13 @@ parsed_args::Dict{String, Any} = parse_commandline() # Read args from cli
 global MODEL_PARAMS::Dict = JSON.parsefile(parsed_args["json"]) # Read model parameters from JSON file
 
 include("./src/physics/definitions.jl")
-include("./src/physics/molly_extensions.jl")
+
+include("./src/physics/molly_ext/general_atom.jl")
+include("./src/physics/molly_ext/functionals_nonbonded.jl")
+include("./src/physics/molly_ext/functionals_bonded.jl")
+
 include("./src/physics/forces.jl")
+include("./src/physics/potentials.jl")
 include("./src/physics/transformer.jl")
 
 include("./src/io/conformations.jl")
@@ -200,39 +208,86 @@ models, optims = train!(models, optims)
 
 #= Flux.trainmode!(models)
 
-mol_id = "water"
-feat_df = FEATURE_DATAFRAMES[1]
-feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
+training_sim_dir = joinpath(DATASETS_PATH, "condensed_data", "trajs_gaff")
 
-coords_i, forces_i, energy_i, 
-charges_i, has_charges_i,
-coords_j, forces_j, energy_j,
-charges_j, has_charges_j,
-exceeds_force, pair_present = read_conformation(CONF_DATAFRAME, [(1, 2, 1)], 1, 1)[1]
+epoch_n = 1
 
-grads = Zygote.gradient(models...) do models...
+vdw_fnc_idx = 1
 
-    sys_pred_i,
-    forces_pred_i, potential_pred_i, charges_pred_i,
-    weights_vdw_i, torsion_size_pred_i,
-    elements_pred_i, mol_inds_pred_i,
-    forces_loss_inter_pred_i, forces_loss_intra_pred_i,
-    charges_loss_pred_i, vdw_entropy_loss_i, vdw_params_reg_i,
-    torsions_loss_pred_i, reg_loss_pred_i = fwd_and_loss(100, 1.0, mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
+λ_reg = 1.0f0
 
-    if pair_present
+begin
 
-        sys_pred_j,
-        forces_pred_j, potential_pred_j, charges_pred_j,
-        weights_vdw_j, torsion_size_pred_j,
-        elements_pred_j, mol_inds_pred_j,
-        forces_loss_inter_pred_j, forces_loss_intra_pred_j,
-        charges_loss_pred_j, vdw_entropy_loss_j, vdw_params_reg_i,
-        torsions_loss_pred_j, reg_loss_pred_j = fwd_and_loss(100, 1.0, mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
+    mol_id = "water"
+    coords_i, forces_i, energy_i, 
+    charges_i, has_charges_i,
+    coords_j, forces_j, energy_j,
+    charges_j, has_charges_j,
+    exceeds_force, pair_present = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)[1]
 
-        dpe = potential_pred_i - potential_pred_j
+    feat_df = FEATURE_DATAFRAMES[1]
+    feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
 
-    end
-    return forces_loss_inter_pred_i + forces_loss_inter_pred_j
-    println()
+    #= grads = Zygote.gradient(models...) do models...
+
+        sys,
+        forces, potential_i, charges,
+        weights_vdw, torsion_size,
+        elements, mol_inds,
+        forces_loss_inter_i, forces_loss_intra,
+        charges_loss, 
+        vdw_entropy_loss, vdw_params_reg_i, 
+        torsions_loss, reg_loss = fwd_and_loss(epoch_n, 1.0, mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
+
+        if pair_present
+
+            sys,
+            forces, potential_j, charges,
+            weights_vdw, torsion_size,
+            elements, mol_inds,
+            forces_loss_inter_j, forces_loss_intra,
+            charges_loss,
+            vdw_entropy_loss, vdw_params_reg_j,
+            torsions_loss, reg_loss = fwd_and_loss(epoch_n, 1.0, mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
+
+            dpe     = potential_j - potential_i
+            dpe_dft = energy_j - energy_i
+
+            potential_loss = pe_loss(dpe, dpe_dft)
+
+        end
+
+        return  vdw_params_reg_i + vdw_params_reg_j + potential_loss + forces_loss_inter_i + forces_loss_inter_j
+    end =#
+
+    mol_id, temp, frame_i, repeat_i = COND_MOL_TRAIN[10]
+
+    feat_df = FEATURE_DATAFRAMES[3]
+    feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
+
+    mol_id_gas = replace(mol_id, "vapourisation_liquid_" => "vapourisation_gas_")
+    df_gas = FEATURE_DATAFRAMES[3]
+    df_gas = df_gas[df_gas.MOLECULE .== mol_id_gas, :]
+
+
+    grads = Zygote.gradient(models...) do models...
+
+        println("AAA")
+
+        coords, boundary = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
+
+        sys,
+        _, potential, _, func_probs,
+        weights_vdw, torsion_size, 
+        _, mol_inds = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary, models...)
+
+        mean_U_gas = calc_mean_U_gas(epoch_n, mol_id_gas, df_gas, training_sim_dir, temp, models...)
+
+        cond_loss =  enth_vap_loss(potential, mean_U_gas, temp, frame_i, repeat_i, maximum(mol_inds), mol_id)
+
+        vdw_params_reg = vdw_params_regularisation(sys.atoms, sys.pairwise_inters[1].inters)
+
+        return vdw_params_reg + cond_loss
+
+    end 
 end =#

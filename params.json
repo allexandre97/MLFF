@@ -1,6 +1,6 @@
 {
     "paths":{
-        "out_dir":"./runs/check_func_convergence_only_buck_no_reg_new_C_larger_lr_condensed"
+        "out_dir":"./runs/probas/"
     },
 
     "training":{
@@ -13,10 +13,14 @@
 
         "train_size":0.9,
 
-        "n_epochs":300,
+        "n_epochs":1,
 
-        "training_sims_first_epoch":2,
-	"condensed_data_first_epoch":1,
+        "condensed_indiv_first_epoch":1,
+        "condensed_indiv_sims_epoch":100,
+        "condensed_joint_first_epoch":2,
+        "condensed_joint_sims_epoch":3,
+        
+        "vdw_fn_epoch_switch":20,
 
         "n_minibatch":256,
 
@@ -30,23 +34,23 @@
         "loss_weight_enth_vap":0.0188,
         "loss_weight_enth_mixing":0.1,
         "loss_weight_regularisation":1e-5,
-        "loss_weight_vdw_params":0.0,
+        "loss_weight_vdw_params":0.5,
         "loss_energy_first_epoch":1,
 
-        "anneal_first_epoch":10000,
+        "anneal_first_epoch":200,
         "tau_min":0.25,
         "tau_0":0.5,
-        "tau_min_epoch":100000,
-	"tau_mult_first":100.0,
+        "tau_min_epoch":100,
+	    "tau_mult_first":100.0,
         "beta_min":0.1,
         "gamma":1.0,
-	"entropy_min_epoch":100000,
+	    "entropy_min_epoch":100000,
 
         "train_on_forces_intra":1.0,
         "train_on_forces_inter":1.0,
         "train_on_pe":1.0,
         "train_on_charges":0.0,
-	"train_on_entropy":1.0,
+	    "train_on_entropy":1.0,
         "train_on_enth_vap":1.0,
         "train_on_enth_mix":1.0,
 

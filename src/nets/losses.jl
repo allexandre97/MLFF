@@ -14,112 +14,93 @@ decay_rate_Ω = T(log(Ω_0 / Ω_min) / Ω_min_epoch)
 
 entropy_loss(func_probs) = -mean(sum(func_probs .* log.(func_probs .+ ϵ_entropy); dims = 1))
 
+function vdw_params_regularisation(
+    atoms::Vector{GeneralAtom{T}},
+    vdw_inters,
+    vdw_fnc_idx::Int,   # 0 means "average"
+) where {T}
+    loss = zero(T)
+    N = 50
+    vdw_lj, vdw_lj69, vdw_dexp, vdw_buff, vdw_buck = vdw_inters
 
-#r = [T(_) for _ in LinRange(0.2, 0.4, 50)]
-#= function vdw_params_regularisation(atoms, vdw_inters)
+    @inbounds for atom in atoms
+        ref_σ = vdw_fnc_idx == 0 ? mean((atom.σ_lj, atom.σ_lj69, atom.σ_dexp, atom.σ_buff)) :
+                (vdw_fnc_idx == 1 ? atom.σ_lj   :
+                 vdw_fnc_idx == 2 ? atom.σ_lj69 :
+                 vdw_fnc_idx == 3 ? atom.σ_dexp :
+                 vdw_fnc_idx == 4 ? atom.σ_buff : T(0.1))
 
-    loss::T = zero(T)
-    
-    for (atom_idx, atom) in enumerate(atoms)
-        for (idx_i, (atype_i, inter_i)) in enumerate(zip(atom.atoms, vdw_inters))
+        start = T(0.95) * ref_σ
+        stop  = T(2.00) * ref_σ
+        step  = (stop - start) / T(N - 1)
 
-            pot_i = vdw_potential(inter_i, atype_i, r)
-
-            for (idx_j, (atype_j, inter_j)) in enumerate(zip(atom.atoms, vdw_inters))
-                if idx_i == idx_j
-                    continue
-                end
-                pot_j = vdw_potential(inter_j, atype_j, r)
-                loss += mean(abs2.(pot_i .- pot_j))
-            end
+        r = Vector{T}(undef, N)
+        @inbounds @simd for i in 1:N
+            r[i] = start + (i-1) * step
         end
-        loss /= 10.0f0
+
+        pots = (
+            vdw_potential(vdw_lj,   atom, r),
+            vdw_potential(vdw_lj69, atom, r),
+            vdw_potential(vdw_dexp, atom, r),
+            vdw_potential(vdw_buff, atom, r),
+            vdw_potential(vdw_buck, atom, r),
+        )
+
+        if vdw_fnc_idx == 0
+            l = zero(T)
+            @inbounds for i in 1:5, j in 1:5
+                if i != j
+                    pi, pj = pots[i], pots[j]
+                    l += (length(pi) == length(pj)) ? mean(abs2.(pi .- pj)) : zero(T)
+                end
+            end
+            loss += l / T(10)
+        else
+            ref_p = pots[vdw_fnc_idx]
+            l = zero(T)
+            @inbounds for i in 1:5
+                if i != vdw_fnc_idx
+                    pi = pots[i]
+                    l += (length(pi) == length(ref_p)) ? mean(abs2.(pi .- ref_p)) : zero(T)
+                end
+            end
+            loss += l / T(4)
+        end
     end
-    return T(loss / length(atoms))
-end =#
 
-function vdw_params_regularisation(atoms, vdw_inters)
-
-    loss::T = zero(T)
-    
-    for (atom_idx, atom) in enumerate(atoms)
-
-        r = [T(_) for _ in LinRange(atom.atoms[1].σ, 2.0 * atom.atoms[1].σ, 50)]
-        
-        pot_lj   = vdw_potential(vdw_inters[1], atom.atoms[1], r)
-        #pot_lj69 = vdw_potential(vdw_inters[2], atom.atoms[2], r)
-        pot_dexp = vdw_potential(vdw_inters[3], atom.atoms[3], r)
-        #pot_buff = vdw_potential(vdw_inters[4], atom.atoms[4], r)
-        #pot_buck = vdw_potential(vdw_inters[5], atom.atoms[5], r)
-
-        loss +=  1.0f0 * mean(abs2.(pot_dexp .- pot_lj)) #+
-                #0.3333 * mean(abs2.(pot_dexp .- pot_lj)) +
-                #0.3333 * mean(abs2.(pot_buff .- pot_lj)) +
-                #0.25 * mean(abs2.(pot_buck .- pot_lj))
-
-    end
-    return T(loss / length(atoms))
+    return loss / T(length(atoms))
 end
 
-#= function vdw_params_regularisation(atoms, vdw_inters)
+function ChainRulesCore.rrule(::typeof(vdw_params_regularisation),
+                              atoms::Vector{GeneralAtom{T}},
+                              vdw_inters,
+                              vdw_fnc_idx::Int) where {T}
 
-    loss_r::T   = zero(T)
-    loss_pot::T = zero(T)
-    
-    for (atom_idx, atom) in enumerate(atoms)
+    y = vdw_params_regularisation(atoms, vdw_inters, vdw_fnc_idx)
 
-        min_r_lj   = vdw_rmin(vdw_inters[1], atom.atoms[1])
-        min_r_lj69 = vdw_rmin(vdw_inters[2], atom.atoms[2])
-        min_r_dexp = vdw_rmin(vdw_inters[3], atom.atoms[3])
-        min_r_buff = vdw_rmin(vdw_inters[4], atom.atoms[4])
-        min_r_buck = vdw_rmin(vdw_inters[5], atom.atoms[5])
+    function vdw_params_reg_pullback(ȳ)
+        ȳT = T(ȳ)
 
-        pot_lj   = vdw_potential(vdw_inters[1], atom.atoms[1], [min_r_lj])[1]
-        pot_lj69 = vdw_potential(vdw_inters[2], atom.atoms[2], [min_r_lj69])[1]
-        pot_dexp = vdw_potential(vdw_inters[3], atom.atoms[3], [min_r_dexp])[1]
-        pot_buff = vdw_potential(vdw_inters[4], atom.atoms[4], [min_r_buff])[1]
-        pot_buck = vdw_potential(vdw_inters[5], atom.atoms[5], [min_r_buck])[1]
-
-        #= @show min_r_lj  
-        @show min_r_lj69
-        @show min_r_dexp
-        @show min_r_buff
-        @show min_r_buck =#
-
-        loss_r += 0.25 * (min_r_lj69 - min_r_lj)^2 +
-                  0.25 * (min_r_dexp - min_r_lj)^2 +
-                  0.25 * (min_r_buff - min_r_lj)^2 +
-                  0.25 * (min_r_buck - min_r_lj)^2
-
-        loss_pot += 0.25 * (pot_lj69 - pot_lj)^2 +
-                    0.25 * (pot_dexp - pot_lj)^2 +
-                    0.25 * (pot_buff - pot_lj)^2 +
-                    0.25 * (pot_buck - pot_lj)^2
-
-    end
-
-    return T((loss_r + 1e-3*loss_pot) / length(atoms))
-end =#
-
-function ChainRulesCore.rrule(
-    ::typeof(vdw_params_regularisation),
-    atoms, 
-    vdw_inters
-)
-    Y = vdw_params_regularisation(atoms, vdw_inters)
-    function pullback(ŷ)
         d_atoms      = zero.(atoms)
         d_vdw_inters = zero.(vdw_inters)
-        grads = Enzyme.autodiff(
+
+        Enzyme.autodiff(
             Enzyme.Reverse,
             vdw_params_regularisation,
-            Enzyme.Active,
+            Enzyme.Active,                                   # we want dy/d•
             Enzyme.Duplicated(atoms, d_atoms),
-            Enzyme.Duplicated(vdw_inters, d_vdw_inters)
+            Enzyme.Duplicated(vdw_inters, d_vdw_inters),
+            Enzyme.Const(vdw_fnc_idx),                       
         )
-        return NoTangent(), ŷ .* d_atoms, ŷ .* d_vdw_inters
+
+        return NoTangent(),
+               ȳT .* d_atoms,
+               ȳT .* d_vdw_inters,
+               NoTangent()
     end
-    return Y, pullback
+
+    return y, vdw_params_reg_pullback
 end
 
 function param_regularisation(models)

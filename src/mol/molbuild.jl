@@ -48,9 +48,11 @@ function mol_to_preds(
 )
 
     sys, partial_charges, func_probs, weights_vdw, torsion_size, elements, mol_inds = mol_to_system(epoch_n, mol_id, args...)
+
     neighbors = ignore_derivatives() do
         return find_neighbors(sys; n_threads = 1)
     end
+
     # Get interaction lists separate depending on the number of atoms involves
     sils_2_atoms = filter(il -> il isa InteractionList2Atoms, values(sys.specific_inter_lists))
     sils_3_atoms = filter(il -> il isa InteractionList3Atoms, values(sys.specific_inter_lists))
@@ -160,56 +162,63 @@ function build_sys(
     angles_i, angles_j, angles_k,
     proper_feats, improper_feats,
     propers_i, propers_j, propers_k, propers_l,
-    impropers_i, impropers_j, impropers_k, impropers_l
+    impropers_i, impropers_j, impropers_k, impropers_l,
+
+    global_params
 )
     n_atoms = length(partial_charges)
     dist_nb_cutoff = T(MODEL_PARAMS["physics"]["dist_nb_cutoff"])
 
-    #= @show σ_lj[1]
-    @show ϵ_lj[1]
-    @show σ_lj69[1]
-    @show ϵ_lj69[1]
+    @show σ_lj
+    @show ϵ_lj
+    @show σ_lj69
+    @show ϵ_lj69
     @show α
     @show β
-    @show σ_dexp[1]
-    @show ϵ_dexp[1]
+    @show σ_dexp
+    @show ϵ_dexp
     @show δ
     @show γ
-    @show σ_buff[1]
-    @show ϵ_buff[1]
-    @show A[1]
-    @show B[1]
-    @show C[1] =#
+    @show σ_buff
+    @show ϵ_buff
+    @show A
+    @show B
+    @show C
 
-    atoms      = [GeneralAtom(i, one(Int), T(masses[i]), T(partial_charges[i]), (Atom(i, one(T), T(masses[i]), T(partial_charges[i]), T(σ_lj[i]),   T(ϵ_lj[i])),
-                                                                                 Atom(i, one(T), T(masses[i]), T(partial_charges[i]), T(σ_lj69[i]), T(ϵ_lj69[i])),
-                                                                                 Atom(i, one(T), T(masses[i]), T(partial_charges[i]), T(σ_dexp[i]), T(ϵ_dexp[i])),
-                                                                                 Atom(i, one(T), T(masses[i]), T(partial_charges[i]), T(σ_buff[i]), T(ϵ_buff[i])),
-                                                                                 BuckinghamAtom(i, one(T), T(masses[i]), T(partial_charges[i]), T(A[i]), T(B[i]), T(C[i]))))
+    atoms      = [GeneralAtom(i, one(Int),
+                              T(masses[i]), T(partial_charges[i]),
+                              T(σ_lj[i]),   T(ϵ_lj[i]),
+                              T(σ_lj69[i]), T(ϵ_lj69[i]),
+                              T(σ_dexp[i]), T(ϵ_dexp[i]),
+                              T(σ_buff[i]), T(ϵ_buff[i]),
+                              T(A[i]),      T(B[i]),      T(C[i]))
                   for i in 1:n_atoms]
 
-    #weights_vdw = vec(mean(func_probs; dims=2))
-    weights_vdw = [0.0f0, 0.0f0, 0.0f0, 0.0f0, 1.0f0]
+    if vdw_fnc_idx === nothing
+        weights_vdw = vec(mean(func_probs; dims=2))
+    else
+        weights_vdw = [i == vdw_fnc_idx ? 1.0f0 : 0.0 for i in 1:5]
+    end
 
-    choice      = argmax(weights_vdw)
+    global choice      = argmax(weights_vdw)
 
     global vdw_functional_form = CHOICE_TO_VDW[choice]
 
-    vdw_inters = GroupInter(
-        (LennardJones(DistanceCutoff(dist_nb_cutoff), true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, sigmoid(model_global_params.params[1])),
+    vdw_inters = (
+        inters = (LennardJones(DistanceCutoff(dist_nb_cutoff), true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, sigmoid(global_params.params[1])),
          Mie(6, 9, DistanceCutoff(dist_nb_cutoff), true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, one(T), 1),
          DoubleExponential(α, β, σ_mixing, ϵ_mixing, one(T), dist_nb_cutoff),
          Buffered147(δ, γ, σ_mixing, ϵ_mixing, one(T), dist_nb_cutoff),
          Buckingham(one(T), dist_nb_cutoff)),
 
-         SVector{5, T}(weights_vdw)
+        weights = SVector{5, T}(weights_vdw)
     )
 
     ########## Coulomb interactions section ##########
     if vdw_functional_form == "nn"
         # Placeholder
     else
-        weight_14_coul = sigmoid(model_global_params.params[2])
+        weight_14_coul = sigmoid(global_params.params[2])
 
         if MODEL_PARAMS["physics"]["use_reaction_field"] &&
             any(startswith.(mol_id, ("vapourisation_liquid_", "mixing_", "protein_")))
@@ -302,8 +311,6 @@ Flux.@non_differentiable atom_names_from_elements(args...)
 function get_molecule_names(mol_id::String)::Vector{String}
 
     if any(startswith.(mol_id, ("vapourisation_", "mixing_")))
-
-        
         if startswith(mol_id, "vapourisation")
             name = split(mol_id, "_")[end]
             if name == "O"
@@ -318,7 +325,6 @@ function get_molecule_names(mol_id::String)::Vector{String}
         end
 
     else
-
         if occursin("water", mol_id)
             mol_names = ["water"]
 	else
@@ -584,7 +590,8 @@ function mol_to_system(
     bond_functional_form, bonds_k, bonds_r0, bonds_a, angle_functional_form,
     angles_ki, angles_θ0i, angles_kj, angles_θ0j, bonds_i, bonds_j, angles_i, angles_j, angles_k, proper_feats_pad,
     improper_feats_pad, propers_i, propers_j, propers_k, propers_l, impropers_i, impropers_j, impropers_k,
-    impropers_l)
+    impropers_l,
+    global_params)
     
     return (
         molly_sys,

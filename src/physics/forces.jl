@@ -101,115 +101,252 @@ function enthalpy_vaporization(snapshot_U_liquid, mean_U_gas, temp, n_molecules)
     return ΔH_vap
 end
 
-function calc_mean_U_gas(epoch_n, mol_id, feat_df, training_sim_dir, temp, models...)
+@inline function Molly.force(inter::Coulomb{C},
+                       dr,
+                       atom_i::GeneralAtom{T},
+                       atom_j::GeneralAtom{T},
+                       force_units=u"kJ * mol^-1 * nm^-1",
+                       special=false,
+                       args...) where {C, T}
+    r2 = sum(abs2, dr)
+    cutoff = inter.cutoff
+    ke = inter.coulomb_const
+    qi, qj = atom_i.charge, atom_j.charge
+    params = (ke, qi, qj)
 
-    frame_is = ignore_derivatives() do
-        shuffle(COND_SIM_FRAMES)[1:MODEL_PARAMS["training"]["enth_vap_gas_n_samples"]]
+    f = Molly.force_divr_with_cutoff(inter, r2, params, cutoff, force_units)
+    if special
+        return T.(f * dr * inter.weight_special)
+    else
+        return T.(f * dr)
     end
-    pe_sum = zero(T)
-    n = 1
-    for frame_i in frame_is
+end
 
-        coords, boundary = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
+@inline function Molly.force(inter::LennardJones,
+                       dr,
+                       atom_i::GeneralAtom{T},
+                       atom_j::GeneralAtom{T},
+                       force_units=u"kJ * mol^-1 * nm^-1",
+                       special=false,
+                       args...) where T
+
+    r = norm(dr)
+    if r <= inter.cutoff.dist_cutoff
+
+        σ = 0.5f0*(atom_i.σ_lj + atom_j.σ_lj)
+        ϵ = sqrt(atom_i.ϵ_lj * atom_j.ϵ_lj)
+
+        cutoff = inter.cutoff
+        r2 = sum(abs2, dr)
+        σ2 = σ^2
+        params = (σ2, ϵ)
+
+        f = Molly.force_divr_with_cutoff(inter, r2, params, cutoff, force_units)
+        if special
+            return T.(f * dr * inter.weight_special)
+        else
+            return T.(f * dr)
+        end
+    else 
+        return zero(SVector{3, T})
+    end
+end
+
+@inline function Molly.force(inter::Mie,
+                       dr,
+                       atom_i::GeneralAtom{T},
+                       atom_j::GeneralAtom{T},
+                       force_units=u"kJ * mol^-1 * nm^-1",
+                       special=false,
+                       args...) where T
+
+    r = norm(dr)
+    if r <= inter.cutoff.dist_cutoff
+
+        σ = 0.5f0*(atom_i.σ_lj69 + atom_j.σ_lj69)
+        ϵ = sqrt(atom_i.ϵ_lj69 * atom_j.ϵ_lj69)
+
+        cutoff = inter.cutoff
+        r2 = sum(abs2, dr)
+        r = √r2
+        m = inter.m
+        n = inter.n
+        const_mn = inter.mn_fac * ϵ
+        σ_r = σ / r
+        params = (m, n, σ_r, const_mn)
+
+        f = Molly.force_divr_with_cutoff(inter, r2, params, cutoff, force_units)
+        if special
+            return T.(f * dr * inter.weight_special)
+        else
+            return T.(f * dr)
+        end
+    else
+        return zero(SVector{3, T})
+    end
+end
+
+@inline function Molly.force(inter::DoubleExponential,
+                             vec_ij, 
+                             atom_i::GeneralAtom{T}, 
+                             atom_j::GeneralAtom{T}, 
+                             force_units,
+                             special, args...) where T
+    r = norm(vec_ij)
+    if r <= inter.dist_cutoff
         
-        _,
-        _, pe, _, _,
-        _, _, 
-        _, _ = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary, models...)
-        
-        pe_sum += pe
-        n+=1
+        σ = 0.5*(atom_i.σ_dexp + atom_j.σ_dexp) 
+        ϵ = sqrt(atom_i.ϵ_dexp * atom_j.ϵ_dexp) 
+
+        rm = σ * T(2^(1/6))
+        α, β = inter.α, inter.β
+        f = ϵ * (α * (β * exp(α) / (α - β)) * exp(-α * r / rm) - β * (α * exp(β) / (α - β)) * exp(-β * r / rm)) / rm
+        fdr = f * normalize(vec_ij)
+        if special
+            return T.(fdr)
+        else
+            return T.(fdr * inter.weight_special)
+        end
+    else
+        return zero(SVector{3, T})
+    end
+end
+
+#####
+
+@inline function Molly.force(inter::Buffered147,
+                             vec_ij, 
+                             atom_i::GeneralAtom{T}, 
+                             atom_j::GeneralAtom{T}, 
+                             force_units,
+                             special, args...) where T
+    r = norm(vec_ij)
+    if r <= inter.dist_cutoff
+
+        σ = 0.5*(atom_i.σ_buff + atom_j.σ_buff) 
+        ϵ = sqrt(atom_i.ϵ_buff * atom_j.ϵ_buff) 
+        δ, γ = inter.δ, inter.γ
+        rm = σ * T(2^(1/6))
+        r_div_rm = r / rm
+        r_div_rm_6 = r_div_rm^6
+        r_div_rm_7 = r_div_rm_6 * r_div_rm
+        γ7_term = (1 + γ) / (r_div_rm_7 + γ)
+        f = (7ϵ / rm) * ((1 + δ) / (r_div_rm + δ))^7 * (inv(r_div_rm + δ) * (γ7_term - 2) + inv(r_div_rm_7 + γ) * r_div_rm_6 * γ7_term)
+        fdr = f * normalize(vec_ij)
+        if special
+            return T.(fdr)
+        else
+            return T.(fdr * inter.weight_special)
+        end
+    else
+        return zero(SVector{3, T})
+    end
+end
+
+#####
+
+@inline function Molly.force(inter::Buckingham,
+                             vec_ij, 
+                             atom_i::GeneralAtom{T}, 
+                             atom_j::GeneralAtom{T}, 
+                             force_units,
+                             special, args...)
+    r2 = sum(abs2, vec_ij)
+    r = sqrt(r2)
+    if r <= inter.dist_cutoff
+        A = (atom_i.A_buck + atom_j.A_buck) / 2
+        B = (atom_i.B_buck + atom_j.B_buck) / 2
+        C = (atom_i.C_buck + atom_j.C_buck) / 2
+        fdr = (A * B * exp(-B * r) - 6 * (C^6) / r^7) * normalize(vec_ij) # Modified to match how we predict C now
+        if special
+            return T.(fdr)
+        else
+            return T.(fdr * inter.weight_special)
+        end
+    else
+        return zero(SVector{3, T})
+    end
+end
+
+function Molly.force(inter::NamedTuple,
+                     dr, 
+                     a1::GeneralAtom{T},
+                     a2::GeneralAtom{T},
+                     force_units, special, x1, x2, boundary, v1, v2, step_n) where T
+
+    f_total = zero(SVector{3, T})
+    for (idx, sub_inter) in enumerate(inter.inters)
+        w = inter.weights[idx]
+
+        f_total += T.(w * Molly.force(sub_inter, dr, a1, a2, force_units, special, x1, x2, boundary, v1, v2, step_n))
     end
 
-    return pe_sum / MODEL_PARAMS["training"]["enth_vap_gas_n_samples"]
+    return f_total
 end
 
-function vdw_potential(inter::LennardJones, atom::Atom, r::Vector{T}) where T
-
-    return T.(4* atom.ϵ .* ((atom.σ ./ r).^12 - (atom.σ ./ r).^6))
-
+function forces_wrap(atoms, coords, velocities, boundary, pairwise_inters_nl,
+                     sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+    fs_nounits = zero(coords)
+    forces_wrap!(fs_nounits, atoms, coords, velocities, boundary, pairwise_inters_nl,
+                 sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+    return fs_nounits
 end
 
-function vdw_potential(inter::Mie, atom::Atom, r::Vector{T}) where T
-
-    m, n = inter.m, inter.n
-    C = (n/(n-m)) * (n/m) ^ (m/(n-m))
-    return T.(C * atom.ϵ .* ((atom.σ ./ r).^n - (atom.σ ./ r).^m))
-
+function forces_wrap!(fs_nounits, atoms, coords, velocities, boundary, pairwise_inters_nl,
+                      sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+    Molly.pairwise_forces!(fs_nounits, atoms, coords, velocities, boundary, neighbors, NoUnits,
+                           length(atoms), (), pairwise_inters_nl, 0)
+    Molly.specific_forces!(fs_nounits, atoms, coords, velocities, boundary, NoUnits, (),
+                           sils_2_atoms, sils_3_atoms, sils_4_atoms, 0)
+    return fs_nounits
 end
 
-function vdw_potential(inter::DoubleExponential, atom::Atom, r::Vector{T}) where T
+duplicated_if_present(x, dx) = (length(x) > 0 ? Enzyme.Duplicated(x, dx) : Enzyme.Const(x))
 
-    α, β = inter.α, inter.β
-    σ, ϵ = atom.σ, atom.ϵ
+function ChainRulesCore.rrule(::typeof(forces_wrap), atoms, coords, velocities, boundary,
+                              pairwise_inters_nl, sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+    Y = forces_wrap(atoms, coords, velocities, boundary, pairwise_inters_nl, sils_2_atoms,
+                    sils_3_atoms, sils_4_atoms, neighbors)
+    function forces_wrap_pullback(d_fs_nounits)
+        fs_nounits = zero(coords)
+        d_atoms = zero.(atoms)
+        d_coords = zero(coords)
+        d_sils_2_atoms = zero.(sils_2_atoms)
+        d_sils_3_atoms = zero.(sils_3_atoms)
+        d_sils_4_atoms = zero.(sils_4_atoms)
+        if vdw_functional_form == "nn"
+            # Active fails here
+            # Temp gives zero grad for weight_special, though that is set to 1 anyway
+            d_pairwise_inters_nl = zero.(pairwise_inters_nl)
+            pair_enz = Enzyme.Duplicated(pairwise_inters_nl, d_pairwise_inters_nl)
+        elseif length(pairwise_inters_nl) > 0
+            # Active required to get non-zero grads for weight_special etc.
+            pair_enz = Enzyme.Active(pairwise_inters_nl)
+        else
+            pair_enz = Enzyme.Const(pairwise_inters_nl)
+        end
+        grads = Enzyme.autodiff(
+            Enzyme.set_runtime_activity(Enzyme.Reverse),
+            forces_wrap!,
+            Enzyme.Const,
+            Enzyme.Duplicated(fs_nounits, d_fs_nounits),
+            Enzyme.Duplicated(atoms, d_atoms),
+            Enzyme.Duplicated(coords, d_coords),
+            Enzyme.Const(velocities),
+            Enzyme.Const(boundary),
+            pair_enz,
+            duplicated_if_present(sils_2_atoms, d_sils_2_atoms),
+            duplicated_if_present(sils_3_atoms, d_sils_3_atoms),
+            duplicated_if_present(sils_4_atoms, d_sils_4_atoms),
+            Enzyme.Const(neighbors),
+        )[1]
+        pair_grad = (vdw_functional_form == "nn" ? d_pairwise_inters_nl : grads[6])
 
-    rm = σ * T(2^(1/6))
-
-    pe = ϵ * ((β * exp(α) / (α - β)) * exp.(-α .* r ./ rm) - (α * exp(β) / (α - β)) * exp.(-β .* r ./ rm))
-
-    return T.(pe)
-
+        return NoTangent(), d_atoms, d_coords, NoTangent(), NoTangent(), pair_grad,
+               d_sils_2_atoms, d_sils_3_atoms, d_sils_4_atoms, NoTangent()
+    end
+    return Y, forces_wrap_pullback
 end
 
-function vdw_potential(inter::Buffered147, atom::Atom, r::Vector{T}) where T
-
-    
-    δ, γ = inter.δ, inter.γ
-    σ, ϵ = atom.σ, atom.ϵ
-
-    rm = σ * T(2^(1/6))
-    r_div_rm = r ./ rm
-
-    pe = ϵ .* ((1 + δ) ./ (r_div_rm .+ δ)).^7 .* (((1 + γ) ./ (r_div_rm.^7 .+ γ)) .- 2)
-
-    return T.(pe)
-
-end
-
-function vdw_potential(inter::Buckingham, atom::BuckinghamAtom, r::Vector{T}) where T
-    
-    A, B, C = atom.A, atom.B, atom.C
-
-    pe = A .* exp.(-B .* r) .- (C ./ r).^6
-
-    return T.(pe)
-
-end
-
-
-# Lennard-Jones (12-6)
-function vdw_rmin(::LennardJones, atom::Atom)
-    return atom.σ * T(2)^(1/6)
-end
-
-# Mie (n-m)
-function vdw_rmin(inter::Mie, atom::Atom)
-    m, n = inter.m, inter.n
-    return atom.σ * (n / m)^(1 / (n - m))
-end
-
-# Double Exponential
-function vdw_rmin(::DoubleExponential, atom::Atom)
-    return atom.σ * T(2)^(1/6)
-end
-
-# Buffered 14-7
-using Roots
-function vdw_rmin(inter::Buffered147, atom::Atom)
-    δ, γ = inter.δ, inter.γ
-    r_m = atom.σ * T(2)^(1/6)
-
-    f(x) = 2x^14 + (4γ + (1 + γ) * δ) * x^7 + (γ^2 - γ)
-    
-    x_min = find_zero(f, T(1.0))  # initial guess x=1
-    return r_m * x_min
-end
-
-using LambertW
-# Buckingham (exp-6)
-function vdw_rmin(::Buckingham, atom::BuckinghamAtom)
-    A, B, C = atom.A, atom.B, atom.C
-
-    z = -T(1) / 7 * (6 * C * B^6 / A)^(1 / 7)
-    return -T(7) / B * lambertw(z)
-end
+Base.:+(::Nothing, ::DistanceCutoff{T, T, T}) where T = nothing
+Base.:+(::Nothing, ::Float32) = zero(T)
