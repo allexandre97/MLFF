@@ -10,6 +10,7 @@
 *.out
 *.err
 slurm*
+params_*
 Papers/
 hyparams/
 runs/
