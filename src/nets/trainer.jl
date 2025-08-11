@@ -190,94 +190,119 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
     train_order_cond, val_order_cond = shuffle(COND_MOL_TRAIN), shuffle(COND_MOL_VAL)
     time_wait_sims, time_spice, time_cond = zero(T), zero(T), zero(T)
 
-    # Store when condensed data training starts
+    lag_epochs = 1  # one-epoch produce/consume lag
+
+    # --- Configurable timing knobs ---
+    lag_epochs          = get(MODEL_PARAMS["training"], "condensed_consume_lag_epochs", 1)       # read sims from model (me - lag_epochs)
+    lead_submit_epochs  = get(MODEL_PARAMS["training"], "condensed_submit_lead_epochs", 1)       # start submitting this many epochs BEFORE earliest need
+
+    # --- Local epoch & thresholds (unchanged logic for indiv vs joint) ---
     if vdw_fnc_idx !== nothing && haskey(vdw_start_epochs, vdw_fnc_idx)
         epoch_local = epoch_n - vdw_start_epochs[vdw_fnc_idx] + 1
-        condensed_training_active = epoch_local ≥ MODEL_PARAMS["training"]["condensed_indiv_first_epoch"]
-        use_own_sims = epoch_local ≥ MODEL_PARAMS["training"]["condensed_indiv_sims_epoch"]
+        first_condensed_epoch = MODEL_PARAMS["training"]["condensed_indiv_first_epoch"]
+        first_own_epoch       = MODEL_PARAMS["training"]["condensed_indiv_sims_epoch"]
     else
         epoch_local = epoch_n - vdw_start_epochs["global"] + 1
-        condensed_training_active = epoch_local ≥ MODEL_PARAMS["training"]["condensed_joint_first_epoch"]
-        use_own_sims = epoch_local ≥ MODEL_PARAMS["training"]["condensed_joint_sims_epoch"]
+        first_condensed_epoch = MODEL_PARAMS["training"]["condensed_joint_first_epoch"]
+        first_own_epoch       = MODEL_PARAMS["training"]["condensed_joint_sims_epoch"]
     end
 
-    # ─── Determine condensed training simulation source ───────────────────────
+    # When we *will* use own sims
+    condensed_training_active = epoch_local ≥ first_condensed_epoch
+    use_own_sims_now          = epoch_local ≥ first_own_epoch
+
+    # Earliest epoch at which we need sims to be at least "running"
+    earliest_need_epoch = min(first_condensed_epoch, first_own_epoch)
+
+    # Start submitting BEFORE we need them, regardless of whether condensed is active yet
+    should_submit_now = epoch_local ≥ (earliest_need_epoch - lead_submit_epochs)
+
+    # --- Paths & status ---
     training_sim_dir = ""
     simulation_str = "did not use simulations"
 
-    if condensed_training_active
+    # Model epoch in effect at the START of epoch_n
+    me = epoch_n - 1
 
-        if use_own_sims
-            # ─── 1) Submit simulations for next epoch ────────────────────────────
-            submit_epoch = epoch_n - 1
-            submit_dir   = joinpath(MODEL_PARAMS["paths"]["out_dir"], "training_sims", "epoch_$submit_epoch")
-            log_path     = joinpath(MODEL_PARAMS["paths"]["out_dir"], "training_sims", "epoch_$submit_epoch.log")
-            ff_xml_path  = joinpath(MODEL_PARAMS["paths"]["out_dir"], "ff_xml", "epoch_$submit_epoch.xml")
+    # 1) SUBMIT (decoupled from condensed activation)
+    if should_submit_now
+        submit_me   = me
+        submit_dir  = joinpath(MODEL_PARAMS["paths"]["out_dir"], "training_sims", "model_epoch_$submit_me")
+        log_path    = joinpath(MODEL_PARAMS["paths"]["out_dir"], "training_sims", "model_epoch_$submit_me.log")
+        ff_xml_path = joinpath(MODEL_PARAMS["paths"]["out_dir"], "ff_xml",        "model_epoch_$submit_me.xml")
 
-            unique_mols = unique(val[1] for val in COND_MOL_TRAIN)
-            feats       = FEATURE_DATAFRAMES[3]
+        unique_mols = unique(val[1] for val in COND_MOL_TRAIN)
+        feats       = FEATURE_DATAFRAMES[3]
 
-            for mol in unique_mols
-                _ = features_to_xml(ff_xml_path, epoch_n, mol, 141, 295, feats, models...)
-                #run(`sbatch --partition=agpu --gres=gpu:1 --time=4:0:0 --output=$log_path --job-name=sim$epoch_n --wrap="/lmb/home/alexandrebg/miniconda3/envs/rdkit/bin/python sim_training.py $submit_dir $ff_xml_path"`)
-                run(`/lmb/home/alexandrebg/miniconda3/envs/rdkit/bin/python sim_training.py $submit_dir $ff_xml_path`)
-            end
+        #mkpath(submit_dir)
+        for mol in unique_mols
+            _ = features_to_xml(ff_xml_path, me, mol, 141, 295, feats, models...)
+            #run(`sbatch --partition=agpu --gres=gpu:1 --time=4:0:0 --output=$log_path --job-name=sim$epoch_n --wrap="/lmb/home/alexandrebg/miniconda3/envs/rdkit/bin/python sim_training.py $submit_dir $ff_xml_path"`)
+            run(pipeline(`/lmb/home/alexandrebg/miniconda3/envs/rdkit/bin/python sim_training.py $submit_dir $ff_xml_path`,
+             stdout=devnull, stderr=devnull), wait=false)
+        end
 
-            # ─── 2) Remove very old sims (epoch_n - 3), if they exist ────────────
-            old_epoch = epoch_n - 3
-            old_dir = joinpath(MODEL_PARAMS["paths"]["out_dir"], "training_sims", "epoch_$old_epoch")
-            if isdir(old_dir)
-                rm(old_dir; recursive=true)
-            end
+        # tidy: drop very old model-epoch sims
+        old_me = me - (lag_epochs + lead_submit_epochs + 2)
+        if old_me ≥ 0
+            old_dir = joinpath(MODEL_PARAMS["paths"]["out_dir"], "training_sims", "model_epoch_$old_me")
+            if isdir(old_dir); rm(old_dir; recursive=true); end
+        end
+    end
 
-            # ─── 3) Load results from two epochs ago ─────────────────────────────
-            use_epoch = epoch_n - 2
-            training_sim_dir = joinpath(MODEL_PARAMS["paths"]["out_dir"], "training_sims", "epoch_$use_epoch")
+    # 2) READ/USE (only when configured to use own sims)
+    if use_own_sims_now
+        use_me = me - lag_epochs  # e.g., at epoch 3 with lag=1 → me=2, use_me=1
+        if use_me ≥ 0
+            training_sim_dir = joinpath(MODEL_PARAMS["paths"]["out_dir"], "training_sims", "model_epoch_$use_me")
             done_file  = joinpath(training_sim_dir, "done.txt")
             error_file = joinpath(training_sim_dir, "error.txt")
 
-            poll_interval = 10.0
-            max_wait = 100
-            elapsed = 0.0
-            time_group = time()
-
-            while !isfile(done_file)
-                sleep(poll_interval)
-                if isfile(error_file)
-                    break
-                end
-                elapsed += poll_interval
+            # block until done or error
+            t0 = time()
+            while !(isfile(done_file) || isfile(error_file))
+                sleep(10.0)
             end
 
             if isfile(done_file)
-                time_wait_sims += time() - time_group
-                simulation_str = "used simulations from end of epoch $use_epoch"
-            elseif MODEL_PARAMS["training"]["use_gaff_simulations"]
-                gaff_dir = joinpath(DATASETS_PATH, "condensed_data/trajs_gaff")
-                gaff_dcd = joinpath(gaff_dir, "vapourisation_liquid", "O_295K.dcd")
-                if isfile(gaff_dcd)
-                    training_sim_dir = gaff_dir
-                    simulation_str   = "fallback to GAFF/TIP3P simulations"
+                time_wait_sims += time() - t0
+                simulation_str = "used simulations from model epoch $use_me"
+            else
+                if get(MODEL_PARAMS["training"], "use_gaff_simulations", false)
+                    gaff_dir = joinpath(DATASETS_PATH, "condensed_data", "trajs_gaff")
+                    gaff_dcd = joinpath(gaff_dir, "vapourisation_liquid", "O_295K.dcd")
+                    if isfile(gaff_dcd)
+                        training_sim_dir = gaff_dir
+                        simulation_str   = "fallback to GAFF/TIP3P simulations (own sims errored)"
+                    else
+                        training_sim_dir = ""
+                        simulation_str   = "own sims errored; GAFF fallback requested but not found"
+                    end
                 else
                     training_sim_dir = ""
-                    simulation_str   = "GAFF fallback requested but no GAFF sims found"
+                    simulation_str   = "own sims errored; no fallback"
                 end
-            else
-                training_sim_dir = ""
-                simulation_str   = "no simulations available"
             end
-
         else
-            # ─── Using GAFF simulations only, not yet using own sims ────────────
-            if MODEL_PARAMS["training"]["use_gaff_simulations"]
+            # too early to have produced use_me; optional GAFF
+            if get(MODEL_PARAMS["training"], "use_gaff_simulations", false)
                 training_sim_dir = joinpath(DATASETS_PATH, "condensed_data", "trajs_gaff")
-                simulation_str   = "used GAFF/TIP3P simulations (pre‐own‐sim epoch)"
-            else
-                training_sim_dir = ""
-                simulation_str   = "no simulations available"
+                simulation_str   = "used GAFF/TIP3P simulations (too early for own sims)"
             end
         end
+    else
+        # not yet using own sims → optional GAFF
+        if get(MODEL_PARAMS["training"], "use_gaff_simulations", false)
+            training_sim_dir = joinpath(DATASETS_PATH, "condensed_data", "trajs_gaff")
+            simulation_str   = "used GAFF/TIP3P simulations (pre-own-sim epoch)"
+        end
     end
+
+    #= @show condensed_training_active
+    @show should_submit_now
+    @show use_own_sims_now
+
+    return models, optims =#
 
     #=
     The commented-out lines correspond to datasets I am still not using
@@ -1097,9 +1122,9 @@ function train!(models, optims)
         if vdw_fnc_idx != zero(Int)
             start_epoch = vdw_start_epochs[vdw_fnc_idx]
             epoch_local = epoch_n - start_epoch
-            λ_reg = sigmoid_switch(epoch_local, 15, tension) + T(1e-6)
+            λ_reg = sigmoid_switch(epoch_local, MODEL_PARAMS["training"]["vdw_reg_epoch"], tension) + T(1e-6)
         else
-            λ_reg = T(10)  # Small constant during joint training (or use separate logic)
+            λ_reg = T(1)  # Small constant during joint training (or use separate logic)
         end
 
         models, optims = train_epoch!(models, optims, epoch_n, weight_Ω,

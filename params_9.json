@@ -1,6 +1,6 @@
 {
     "paths":{
-        "out_dir":"./runs/probas"
+        "out_dir":"/cephfs/alexandrebg/runs/no_reg_cond_own_sims_anneal_slow"
     },
 
     "training":{
@@ -13,16 +13,16 @@
 	
 	"train_size":0.9,
 	
-	"n_epochs":24,
+	"n_epochs":200,
 	
-	"condensed_indiv_first_epoch":2,
-	"condensed_indiv_sims_epoch":3,
-	"condensed_joint_first_epoch":2,
-	"condensed_joint_sims_epoch":3,
+	"condensed_indiv_first_epoch":1,
+	"condensed_indiv_sims_epoch":10,
+	"condensed_joint_first_epoch":1,
+	"condensed_joint_sims_epoch":10,
 	
-	"vdw_reg_epoch":1,
+	"vdw_reg_epoch":1000,
 	
-	"vdw_fn_epoch_switch":4,
+	"vdw_fn_epoch_switch":20,
 	
 	"n_minibatch":256,
 	
@@ -36,7 +36,7 @@
 	"loss_weight_enth_vap":0.0188,
 	"loss_weight_enth_mixing":0.1,
 	"loss_weight_regularisation":1e-5,
-	"loss_weight_vdw_params":1e-1,
+	"loss_weight_vdw_params":1e-3,
 	"loss_energy_first_epoch":1,
 	
 	"anneal_first_epoch":100,

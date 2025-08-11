@@ -278,7 +278,7 @@ function Molly.force(inter::NamedTuple,
     for (idx, sub_inter) in enumerate(inter.inters)
         w = inter.weights[idx]
 
-        f_total += T.(w * Molly.force(sub_inter, dr, a1, a2, force_units, special, x1, x2, boundary, v1, v2, step_n))
+        f_total += w == zero(T) ? SVector{3, T}(0.0f0, 0.0f0, 0.0f0) : T.(w * Molly.force(sub_inter, dr, a1, a2, force_units, special, x1, x2, boundary, v1, v2, step_n))
     end
 
     return f_total

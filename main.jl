@@ -212,82 +212,82 @@ training_sim_dir = joinpath(DATASETS_PATH, "condensed_data", "trajs_gaff")
 
 epoch_n = 1
 
-vdw_fnc_idx = 1
-
 λ_reg = 1.0f0
 
-begin
 
-    mol_id = "water"
-    coords_i, forces_i, energy_i, 
-    charges_i, has_charges_i,
-    coords_j, forces_j, energy_j,
-    charges_j, has_charges_j,
-    exceeds_force, pair_present = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)[1]
+vdw_fnc_idx = 5
 
-    feat_df = FEATURE_DATAFRAMES[1]
-    feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
+mol_id = "water"
+coords_i, forces_i, energy_i, 
+charges_i, has_charges_i,
+coords_j, forces_j, energy_j,
+charges_j, has_charges_j,
+exceeds_force, pair_present = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)[1]
 
-    #= grads = Zygote.gradient(models...) do models...
+feat_df = FEATURE_DATAFRAMES[1]
+feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
+
+grads = Zygote.gradient(models...) do models...
+
+    sys,
+    forces, potential_i, charges,
+    weights_vdw, torsion_size,
+    elements, mol_inds,
+    forces_loss_inter_j, forces_loss_intra,
+    charges_loss, 
+    vdw_params_reg_i,
+    torsions_loss, reg_loss = fwd_and_loss(epoch_n, 1.0, mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
+
+    if pair_present
 
         sys,
-        forces, potential_i, charges,
+        forces, potential_j, charges,
         weights_vdw, torsion_size,
         elements, mol_inds,
         forces_loss_inter_i, forces_loss_intra,
         charges_loss, 
-        vdw_entropy_loss, vdw_params_reg_i, 
-        torsions_loss, reg_loss = fwd_and_loss(epoch_n, 1.0, mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
+        vdw_params_reg_j,
+        torsions_loss, reg_loss = fwd_and_loss(epoch_n, 1.0, mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
 
-        if pair_present
+        dpe     = potential_j - potential_i
+        dpe_dft = energy_j - energy_i
 
-            sys,
-            forces, potential_j, charges,
-            weights_vdw, torsion_size,
-            elements, mol_inds,
-            forces_loss_inter_j, forces_loss_intra,
-            charges_loss,
-            vdw_entropy_loss, vdw_params_reg_j,
-            torsions_loss, reg_loss = fwd_and_loss(epoch_n, 1.0, mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
+        potential_loss = pe_loss(dpe, dpe_dft)
 
-            dpe     = potential_j - potential_i
-            dpe_dft = energy_j - energy_i
+    end
 
-            potential_loss = pe_loss(dpe, dpe_dft)
+    return vdw_params_reg_i + vdw_params_reg_j + potential_loss + forces_loss_inter_i + forces_loss_inter_j
+end
 
-        end
+mol_id, temp, frame_i, repeat_i = COND_MOL_TRAIN[10]
 
-        return  vdw_params_reg_i + vdw_params_reg_j + potential_loss + forces_loss_inter_i + forces_loss_inter_j
-    end =#
+feat_df = FEATURE_DATAFRAMES[3]
+feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
 
-    mol_id, temp, frame_i, repeat_i = COND_MOL_TRAIN[10]
-
-    feat_df = FEATURE_DATAFRAMES[3]
-    feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
-
-    mol_id_gas = replace(mol_id, "vapourisation_liquid_" => "vapourisation_gas_")
-    df_gas = FEATURE_DATAFRAMES[3]
-    df_gas = df_gas[df_gas.MOLECULE .== mol_id_gas, :]
+mol_id_gas = replace(mol_id, "vapourisation_liquid_" => "vapourisation_gas_")
+df_gas = FEATURE_DATAFRAMES[3]
+df_gas = df_gas[df_gas.MOLECULE .== mol_id_gas, :]
 
 
-    grads = Zygote.gradient(models...) do models...
+grads = Zygote.gradient(models...) do models...
 
-        println("AAA")
+    coords, boundary = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
 
-        coords, boundary = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
+    sys,
+    _, potential, _, func_probs,
+    weights_vdw, torsion_size, 
+    _, mol_inds = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary, models...)
 
-        sys,
-        _, potential, _, func_probs,
-        weights_vdw, torsion_size, 
-        _, mol_inds = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary, models...)
+    mean_U_gas = calc_mean_U_gas(epoch_n, mol_id_gas, df_gas, training_sim_dir, temp, models...)
 
-        mean_U_gas = calc_mean_U_gas(epoch_n, mol_id_gas, df_gas, training_sim_dir, temp, models...)
+    cond_loss =  enth_vap_loss(potential, mean_U_gas, temp, frame_i, repeat_i, maximum(mol_inds), mol_id)
 
-        cond_loss =  enth_vap_loss(potential, mean_U_gas, temp, frame_i, repeat_i, maximum(mol_inds), mol_id)
+    vdw_params_reg = vdw_params_regularisation(sys.atoms, sys.pairwise_inters[1].inters, vdw_fnc_idx)
 
-        vdw_params_reg = vdw_params_regularisation(sys.atoms, sys.pairwise_inters[1].inters)
+    return cond_loss + vdw_params_reg
 
-        return vdw_params_reg + cond_loss
+end
 
-    end 
-end =#
+@show size(grads[8].layers[2].weight)
+
+_ = features_to_xml("probas.xml", 1, "vapourisation_liquid_O", 141, 295, FEATURE_DATAFRAMES[3], models...) =#

@@ -169,21 +169,21 @@ function build_sys(
     n_atoms = length(partial_charges)
     dist_nb_cutoff = T(MODEL_PARAMS["physics"]["dist_nb_cutoff"])
 
-    @show σ_lj
-    @show ϵ_lj
-    @show σ_lj69
-    @show ϵ_lj69
+    @show σ_lj[1]
+    @show ϵ_lj[1]
+    @show σ_lj69[1]
+    @show ϵ_lj69[1]
     @show α
     @show β
-    @show σ_dexp
-    @show ϵ_dexp
+    @show σ_dexp[1]
+    @show ϵ_dexp[1]
     @show δ
     @show γ
-    @show σ_buff
-    @show ϵ_buff
-    @show A
-    @show B
-    @show C
+    @show σ_buff[1]
+    @show ϵ_buff[1]
+    @show A[1]
+    @show B[1]
+    @show C[1]
 
     atoms      = [GeneralAtom(i, one(Int),
                               T(masses[i]), T(partial_charges[i]),
@@ -194,7 +194,7 @@ function build_sys(
                               T(A[i]),      T(B[i]),      T(C[i]))
                   for i in 1:n_atoms]
 
-    if vdw_fnc_idx === nothing
+    if vdw_fnc_idx == zero(Int)
         weights_vdw = vec(mean(func_probs; dims=2))
     else
         weights_vdw = [i == vdw_fnc_idx ? 1.0f0 : 0.0 for i in 1:5]
@@ -341,19 +341,35 @@ function mol_to_system(
     feat_df::DataFrame,
     coords,
     boundary::CubicBoundary{Float32},
+    
     atom_embedding_model::GNNChain,
     bond_pooling_model::Chain,
     angle_pooling_model::Chain,
     proper_pooling_model::Chain,
     improper_pooling_model::Chain,
+    
     nonbonded_selection_model::Chain,
-    atom_features_model::Chain,
+    
+    charge_features_model::Chain,
+    lj_features_model::Chain,
+    lj69_features_model::Chain,
+    dexp_features_model::Chain,
+    buff_features_model::Chain,
+    buck_features_model::Chain,
+
     bond_features_model::Chain,
     angle_features_model::Chain,
     proper_features_model::Chain,
     improper_features_model::Chain,
     global_params::GlobalParams{T}
 )
+
+    atom_features_models = (charge_features_model,
+                            lj_features_model,
+                            lj69_features_model,
+                            dexp_features_model,
+                            buff_features_model,
+                            buck_features_model)
 
     elements, formal_charges,
     bonds_i, bonds_j,
@@ -468,7 +484,7 @@ function mol_to_system(
 
         func_probs_mol = gumbel_softmax_symmetric(logits, labels, τ, β_noise)                # (5, n_atoms)
 
-        feats_mol  = predict_atom_features(labels, embeds_mol, atom_features_model)
+        feats_mol  = predict_atom_features(labels, embeds_mol, atom_features_models...; vdw_fnc_idx)
 
         ### Bonds pooling and feature prediction ###
         bond_feats_mol, bond_to_local_idx = predict_bond_features(g, labels, embeds_mol, bond_pooling_model, bond_features_model)

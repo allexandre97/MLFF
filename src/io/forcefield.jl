@@ -29,29 +29,52 @@ end
 
 function collect_atoms(sys::Molly.System)
     data = BundledAtomData[]
-    
-    α = vdw_functional_form == "dexp" ? sys.pairwise_inters[1].α : nothing
-    β = vdw_functional_form == "dexp" ? sys.pairwise_inters[1].β : nothing
-    δ = vdw_functional_form == "buff" ? sys.pairwise_inters[1].δ : nothing
-    γ = vdw_functional_form == "buff" ? sys.pairwise_inters[1].γ : nothing
+
+    α = vdw_functional_form == "dexp" ? sys.pairwise_inters[1].inters[3].α : nothing
+    β = vdw_functional_form == "dexp" ? sys.pairwise_inters[1].inters[3].β : nothing
+    δ = vdw_functional_form == "buff" ? sys.pairwise_inters[1].inters[4].δ : nothing
+    γ = vdw_functional_form == "buff" ? sys.pairwise_inters[1].inters[4].γ : nothing
 
     for (gatom, atom_data) in zip(sys.atoms, sys.atoms_data)
 
-        atom = gatom.atoms[choice]
-
-        
-        σ = vdw_functional_form == "buck" ? nothing : atom.σ
-        ϵ = vdw_functional_form == "buck" ? nothing : atom.ϵ
-        A = vdw_functional_form == "buck" ? atom.A  : nothing
-        B = vdw_functional_form == "buck" ? atom.B  : nothing
-        C = vdw_functional_form == "buck" ? atom.C  : nothing
+        if choice == 1
+            σ = gatom.σ_lj
+            ϵ = gatom.ϵ_lj
+            A = nothing
+            B = nothing
+            C = nothing
+        elseif choice == 2
+            σ = gatom.σ_lj69
+            ϵ = gatom.ϵ_lj69
+            A = nothing
+            B = nothing
+            C = nothing
+        elseif choice == 3
+            σ = gatom.σ_dexp
+            ϵ = gatom.ϵ_dexp
+            A = nothing
+            B = nothing
+            C = nothing
+        elseif choice == 4
+            σ = gatom.σ_buff
+            ϵ = gatom.ϵ_buff
+            A = nothing
+            B = nothing
+            C = nothing
+        elseif choice == 5
+            σ = nothing
+            ϵ = nothing
+            A = gatom.A_buck
+            B = gatom.B_buck
+            C = gatom.C_buck
+        end
 
         push!(data, BundledAtomData(
             atom_data.atom_name,
             atom_data.atom_type,
             atom_data.res_name,
-            atom.mass,
-            atom.charge,
+            gatom.mass,
+            gatom.charge,
             α,
             β,
             δ,
@@ -422,7 +445,7 @@ function build_nonbonded_force(root, atomtypes_list, unique_atoms)
         elseif vdw_functional_form == "buck"
 
             nb = ElementNode("CustomNonbondedForce")
-            link!(nb, AttributeNode("energy", "W1*W2*(((A1+A2)/2)*exp(((B1+B2)/2)*(-r)) - ((C1+C2)/2)/(r^6))"))
+            link!(nb, AttributeNode("energy", "W1*W2*(((A1+A2)/2)*exp(((B1+B2)/2)*(-r)) - (((C1+C2)/2)/r)^6)"))
             link!(nb, AttributeNode("bondCutoff", "3"))
 
             # Properly create and attach the UseAttributeFromResidue node with its attribute

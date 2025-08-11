@@ -317,23 +317,23 @@ function Molly.potential_energy(inter::NamedTuple, dr, a1::GeneralAtom{T}, a2::G
 
     #This stupid unroll is needed so Enzyme does not throw a tantrum
     w1 = inter.weights[1]
-    pe_total += w1 + Molly.potential_energy(inter.inters[1], dr, a1, a2, energy_units, special,
+    pe_total += w1 == zero(T) ? zero(T) : w1 * Molly.potential_energy(inter.inters[1], dr, a1, a2, energy_units, special,
                                                x1, x2, boundary, v1, v2, step_n)
     
     w2 = inter.weights[2]
-    pe_total += w2 + Molly.potential_energy(inter.inters[2], dr, a1, a2, energy_units, special,
+    pe_total += w2 == zero(T) ? zero(T) : w2 * Molly.potential_energy(inter.inters[2], dr, a1, a2, energy_units, special,
                                                x1, x2, boundary, v1, v2, step_n)
 
     w3 = inter.weights[3]
-    pe_total += w3 + Molly.potential_energy(inter.inters[3], dr, a1, a2, energy_units, special,
+    pe_total += w3 == zero(T) ? zero(T) : w3 * Molly.potential_energy(inter.inters[3], dr, a1, a2, energy_units, special,
                                                x1, x2, boundary, v1, v2, step_n)
 
     w4 = inter.weights[4]
-    pe_total += w4 + Molly.potential_energy(inter.inters[4], dr, a1, a2, energy_units, special,
+    pe_total += w4 == zero(T) ? zero(T) : w4 * Molly.potential_energy(inter.inters[4], dr, a1, a2, energy_units, special,
                                                x1, x2, boundary, v1, v2, step_n)
 
     w5 = inter.weights[5]
-    pe_total += w5 + Molly.potential_energy(inter.inters[5], dr, a1, a2, energy_units, special,
+    pe_total += w5 == zero(T) ? zero(T) : w5 * Molly.potential_energy(inter.inters[5], dr, a1, a2, energy_units, special,
                                                x1, x2, boundary, v1, v2, step_n)
 
     return pe_total
