@@ -7,6 +7,8 @@
 *.tsv
 *.csv
 *.swp
+*.out
+*.err
 slurm*
 Papers/
 hyparams/
