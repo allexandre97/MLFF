@@ -262,6 +262,7 @@ function pe_wrap!(pe_vec, atoms, coords, velocities, boundary, pairwise_inters_n
 
     pe += T(Molly.specific_pe(atoms, coords, velocities, boundary, NoUnits, (),
                             sils_2_atoms, sils_3_atoms, sils_4_atoms, T, 0))
+
     pe_vec[1] = T(pe)
     
     return pe_vec
@@ -353,11 +354,35 @@ function calc_mean_U_gas(epoch_n, mol_id, feat_df, training_sim_dir, temp, model
         _,
         _, pe, _, _,
         _, _, 
-        _, _ = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary, models...)
+        _, _ = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary_inf, models...)
         
         pe_sum += pe
         n+=1
     end
 
     return pe_sum / MODEL_PARAMS["training"]["enth_vap_gas_n_samples"]
+end
+
+function pe_from_snapshot(
+    epoch_n::Int,
+    mol_id::String,
+    args...
+)
+
+    sys, partial_charges, func_probs, weights_vdw, torsion_size, elements, mol_inds = mol_to_system(epoch_n, mol_id, args...)
+
+    neighbors = ignore_derivatives() do
+        return find_neighbors(sys; n_threads = 1)
+    end
+
+    # Get interaction lists separate depending on the number of atoms involves
+    sils_2_atoms = filter(il -> il isa InteractionList2Atoms, values(sys.specific_inter_lists))
+    sils_3_atoms = filter(il -> il isa InteractionList3Atoms, values(sys.specific_inter_lists))
+    sils_4_atoms = filter(il -> il isa InteractionList4Atoms, values(sys.specific_inter_lists))
+
+    potential = pe_wrap(sys.atoms, sys.coords, sys.velocities, sys.boundary, sys.pairwise_inters,
+                        sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+
+    return potential
+
 end

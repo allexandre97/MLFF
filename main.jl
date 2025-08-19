@@ -66,6 +66,7 @@ include("./src/physics/molly_ext/functionals_nonbonded.jl")
 include("./src/physics/molly_ext/functionals_bonded.jl")
 
 include("./src/physics/forces.jl")
+include("./src/physics/condensed_phase.jl")
 include("./src/physics/potentials.jl")
 include("./src/physics/transformer.jl")
 
@@ -180,10 +181,10 @@ const global COND_MOL_TRAIN = COND_MOLECULES[(MODEL_PARAMS["training"]["n_frames
 # Molly Constants. TODO: How can I pack these in a json?
 const global boundary_inf = CubicBoundary(T(Inf))
 
-#= models, optims     = build_models()
+#models, optims     = build_models()
 
-BSON.@save "init_models.bson" models
-BSON.@save "init_optims.bson" optims =#
+#= BSON.@save "init_models.bson" models
+BSON.@save "init_optims.bson" optims =# 
 
 BSON.@load "./init_models.bson" models
 BSON.@load "./init_optims.bson" optims
@@ -214,8 +215,7 @@ epoch_n = 1
 
 λ_reg = 1.0f0
 
-
-vdw_fnc_idx = 5
+vdw_fnc_idx = 1
 
 mol_id = "water"
 coords_i, forces_i, energy_i, 
@@ -224,28 +224,31 @@ coords_j, forces_j, energy_j,
 charges_j, has_charges_j,
 exceeds_force, pair_present = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)[1]
 
+
 feat_df = FEATURE_DATAFRAMES[1]
 feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
 
 grads = Zygote.gradient(models...) do models...
 
     sys,
-    forces, potential_i, charges,
+    forces_intra_i, forces_inter_i,
+    potential_i, charges,
     weights_vdw, torsion_size,
     elements, mol_inds,
-    forces_loss_inter_j, forces_loss_intra,
-    charges_loss, 
+    forces_loss_inter_j, forces_loss_intra_i,
+    charges_loss_i, 
     vdw_params_reg_i,
     torsions_loss, reg_loss = fwd_and_loss(epoch_n, 1.0, mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
 
     if pair_present
 
         sys,
-        forces, potential_j, charges,
+        forces_intra_j, forces_inter_j, 
+        potential_j, charges,
         weights_vdw, torsion_size,
         elements, mol_inds,
-        forces_loss_inter_i, forces_loss_intra,
-        charges_loss, 
+        forces_loss_inter_i, forces_loss_intra_j,
+        charges_loss_j, 
         vdw_params_reg_j,
         torsions_loss, reg_loss = fwd_and_loss(epoch_n, 1.0, mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
 
@@ -256,10 +259,18 @@ grads = Zygote.gradient(models...) do models...
 
     end
 
-    return vdw_params_reg_i + vdw_params_reg_j + potential_loss + forces_loss_inter_i + forces_loss_inter_j
-end
+    f_intra_loss = (forces_loss_intra_i + forces_loss_intra_j) 
+    f_inter_loss = (forces_loss_inter_i + forces_loss_inter_j)
 
-mol_id, temp, frame_i, repeat_i = COND_MOL_TRAIN[10]
+    ch_loss = (charges_loss_i + charges_loss_j)
+
+    ener_loss = potential_loss
+
+    return potential_loss 
+end =#
+
+
+#= mol_id, temp, frame_i, repeat_i = COND_MOL_TRAIN[10]
 
 feat_df = FEATURE_DATAFRAMES[3]
 feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
@@ -267,7 +278,6 @@ feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
 mol_id_gas = replace(mol_id, "vapourisation_liquid_" => "vapourisation_gas_")
 df_gas = FEATURE_DATAFRAMES[3]
 df_gas = df_gas[df_gas.MOLECULE .== mol_id_gas, :]
-
 
 grads = Zygote.gradient(models...) do models...
 
@@ -284,10 +294,14 @@ grads = Zygote.gradient(models...) do models...
 
     vdw_params_reg = vdw_params_regularisation(sys.atoms, sys.pairwise_inters[1].inters, vdw_fnc_idx)
 
-    return cond_loss + vdw_params_reg
+    cond_loss *= MODEL_PARAMS["training"]["loss_weight_enth_mixing"]
 
-end
+    @show cond_loss
 
-@show size(grads[8].layers[2].weight)
+    return cond_loss
 
-_ = features_to_xml("probas.xml", 1, "vapourisation_liquid_O", 141, 295, FEATURE_DATAFRAMES[3], models...) =#
+end =#
+
+#@show size(grads[8].layers[2].weight)
+
+#_ = features_to_xml("probas.xml", 1, "vapourisation_liquid_O", 141, 295, FEATURE_DATAFRAMES[3], models...)

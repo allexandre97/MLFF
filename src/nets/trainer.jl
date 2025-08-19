@@ -1,5 +1,8 @@
 const TO = TimerOutput()
 
+const kB = T(8.314462618e-3)
+const beta = T(1.0f0/(kB*305.0f0))
+
 split_grad_safe(args...) = split(args...)
 Flux.@non_differentiable split_grad_safe(args...)
 
@@ -34,18 +37,20 @@ function fwd_and_loss(
 )
     # Forward pass and feat prediction
     sys,
-    forces, potential, charges,
+    forces_intra, forces_inter,
+    potential, charges,
     func_probs, weights_vdw,
     torsion_size, 
     elements, mol_inds = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary_inf, models...)
 
     # Split the forces in inter and intramolecular contributions
-    pred_force_intra, pred_force_inter = split_forces(forces, coords, mol_inds, elements)
+    #pred_force_intra, pred_force_inter = split_forces(forces, coords, mol_inds, elements)
     dft_force_intra, dft_force_inter   = split_forces(dft_forces, coords, mol_inds, elements)
 
     # Calculate the losses
-    forces_loss_intra::T = force_loss(pred_force_intra, dft_force_intra)
-    forces_loss_inter::T = T(MODEL_PARAMS["training"]["loss_weight_force_inter"]) * force_loss(pred_force_inter, dft_force_inter)
+
+    forces_loss_intra::T = force_loss(forces_intra, dft_force_intra)
+    forces_loss_inter::T = T(MODEL_PARAMS["training"]["loss_weight_force_inter"]) * force_loss(forces_inter, dft_force_inter)
     vdw_params_reg::T    = vdw_params_regularisation(sys.atoms, sys.pairwise_inters[1].inters, vdw_fnc_idx) * MODEL_PARAMS["training"]["loss_weight_vdw_params"] * λ_reg
     charges_loss::T      = (has_charges ? charge_loss(charges, dft_charges) : zero(T))
     torsions_loss::T     = torsion_ks_loss(torsion_size)
@@ -53,7 +58,7 @@ function fwd_and_loss(
 
     return (
         sys,
-        forces,
+        forces_intra, forces_inter,
         potential,
         charges,
         weights_vdw, torsion_size,
@@ -190,14 +195,12 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
     train_order_cond, val_order_cond = shuffle(COND_MOL_TRAIN), shuffle(COND_MOL_VAL)
     time_wait_sims, time_spice, time_cond = zero(T), zero(T), zero(T)
 
-    lag_epochs = 1  # one-epoch produce/consume lag
-
     # --- Configurable timing knobs ---
     lag_epochs          = get(MODEL_PARAMS["training"], "condensed_consume_lag_epochs", 1)       # read sims from model (me - lag_epochs)
     lead_submit_epochs  = get(MODEL_PARAMS["training"], "condensed_submit_lead_epochs", 1)       # start submitting this many epochs BEFORE earliest need
 
     # --- Local epoch & thresholds (unchanged logic for indiv vs joint) ---
-    if vdw_fnc_idx !== nothing && haskey(vdw_start_epochs, vdw_fnc_idx)
+    if vdw_fnc_idx != zero(Int) && haskey(vdw_start_epochs, vdw_fnc_idx)
         epoch_local = epoch_n - vdw_start_epochs[vdw_fnc_idx] + 1
         first_condensed_epoch = MODEL_PARAMS["training"]["condensed_indiv_first_epoch"]
         first_own_epoch       = MODEL_PARAMS["training"]["condensed_indiv_sims_epoch"]
@@ -212,7 +215,7 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
     use_own_sims_now          = epoch_local ≥ first_own_epoch
 
     # Earliest epoch at which we need sims to be at least "running"
-    earliest_need_epoch = min(first_condensed_epoch, first_own_epoch)
+    earliest_need_epoch = first_own_epoch - lag_epochs + 1
 
     # Start submitting BEFORE we need them, regardless of whether condensed is active yet
     should_submit_now = epoch_local ≥ (earliest_need_epoch - lead_submit_epochs)
@@ -237,9 +240,9 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
         #mkpath(submit_dir)
         for mol in unique_mols
             _ = features_to_xml(ff_xml_path, me, mol, 141, 295, feats, models...)
-            #run(`sbatch --partition=agpu --gres=gpu:1 --time=4:0:0 --output=$log_path --job-name=sim$epoch_n --wrap="/lmb/home/alexandrebg/miniconda3/envs/rdkit/bin/python sim_training.py $submit_dir $ff_xml_path"`)
-            run(pipeline(`/lmb/home/alexandrebg/miniconda3/envs/rdkit/bin/python sim_training.py $submit_dir $ff_xml_path`,
-             stdout=devnull, stderr=devnull), wait=false)
+            run(`sbatch --partition=agpu --gres=gpu:1 --time=4:0:0 --output=$log_path --job-name=sim$epoch_n --wrap="/lmb/home/alexandrebg/miniconda3/envs/rdkit/bin/python sim_training.py $submit_dir $ff_xml_path"`)
+            #run(pipeline(`/lmb/home/alexandrebg/miniconda3/envs/rdkit/bin/python sim_training.py $submit_dir $ff_xml_path`,
+            # stdout=devnull, stderr=devnull), wait=false)
         end
 
         # tidy: drop very old model-epoch sims
@@ -408,6 +411,7 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
         time_group = time()
         # The features for the SPICE dataset
         @timeit TO "SPICE" Threads.@threads for chunk_id in 1:n_chunks
+
             for i in (start_i - 1 + chunk_id):n_chunks:end_i
 
                 # Read Conformation indices
@@ -448,13 +452,15 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
 
                     # Forward pass and feat prediction
                     sys,
-                    forces, potential_i, charges,
+                    forces_intra, forces_inter, potential_i, charges,
                     weights_vdw, torsion_size,
                     elements, mol_inds,
                     forces_loss_inter, forces_loss_intra,
                     charges_loss, 
                     vdw_params_reg,
                     torsions_loss, reg_loss = fwd_and_loss(epoch_n, weight_Ω, mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
+
+                    @show potential_i
 
                     ignore_derivatives() do 
                         vdw_weight_arr += weights_vdw
@@ -490,7 +496,7 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
 
                         # Forward pass and feat prediction
                         sys,
-                        forces, potential_j, charges,
+                        forces_intra, forces_inter, potential_j, charges,
                         weights_vdw, torsion_size,
                         elements, mol_inds,
                         forces_loss_inter, forces_loss_intra,
@@ -534,7 +540,8 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
                            forces_inter_loss_sum * MODEL_PARAMS["training"]["train_on_forces_inter"] +
                            potential_loss_sum    * MODEL_PARAMS["training"]["train_on_pe"] +
                            charges_loss_sum      * MODEL_PARAMS["training"]["train_on_charges"] +
-                           torsions_loss_sum + reg_loss_sum + 
+                           reg_loss_sum          * MODEL_PARAMS["training"]["loss_weight_regularisation"] + 
+                           torsions_loss_sum + 
                            vdw_params_reg_sum
                 end
 
@@ -569,13 +576,13 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
 
         # Now train on condensed data
         if training_sim_dir != "" && condensed_training_active && (MODEL_PARAMS["training"]["loss_weight_enth_vap"] > zero(T) || MODEL_PARAMS["training"]["loss_weight_enth_mixing"] > zero(T))
-        
+            println("CONDENSED!")
             cond_mol_indices = collect(batch_i:n_batches_train:length(train_order_cond))
 
             feats_cond = FEATURE_DATAFRAMES[3]
 
             @timeit TO "Condensed" Threads.@threads for chunk_id in 1:n_chunks
-            
+                
                 for cond_inds_i in chunk_id:n_chunks:length(cond_mol_indices)
 
                     mol_idx = cond_mol_indices[cond_inds_i]
@@ -596,13 +603,15 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
                     grads = Zygote.gradient(models...) do models...
 
                         sys_cond, 
-                        _, potential_cond, 
+                        _, _, potential_cond, 
                         charges_cond, 
                         func_probs_cond, weights_vdw_cond, 
                         ks_cond, 
                         elements_cond, mol_inds_cond = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary, models...)
 
-                        mean_U_gas = calc_mean_U_gas(epoch_n, mol_id_gas, feat_df_gas, training_sim_dir, temp, models...)
+                        @show potential_cond
+
+                        mean_U_gas = 0.0f0#calc_mean_U_gas(epoch_n, mol_id_gas, feat_df_gas, training_sim_dir, temp, models...)
                         cond_loss  = enth_vap_loss(potential_cond, mean_U_gas, temp, frame_idx, repeats, maximum(mol_inds_cond), mol_id) 
                         
                         vdw_params_reg = vdw_params_regularisation(sys_cond.atoms, sys_cond.pairwise_inters[1].inters, vdw_fnc_idx) * MODEL_PARAMS["training"]["loss_weight_vdw_params"] * λ_reg
@@ -629,7 +638,8 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
                         end
 
                         return cond_loss * train_on_weight + 
-                               torsions_loss + reg_loss +
+                               torsions_loss + 
+                               reg_loss * MODEL_PARAMS["training"]["loss_weight_regularisation"] +
                                vdw_params_reg
                     
                     end
@@ -752,7 +762,7 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
 
                 # Forward pass and feat prediction
                 sys,
-                forces, potential_i, charges,
+                forces_intra, forces_inter, potential_i, charges,
                 weights_vdw, torsion_size,
                 elements, mol_inds,
                 forces_loss_inter, forces_loss_intra,
@@ -780,7 +790,7 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
 
                     # Forward pass and feat prediction
                     sys,
-                    forces, potential_j, charges,
+                    forces_intra, forces_inter, potential_j, charges,
                     weights_vdw, torsion_size,
                     elements, mol_inds,
                     forces_loss_inter, forces_loss_intra,
@@ -841,7 +851,7 @@ function train_epoch!(models, optims, epoch_n, weight_Ω, conf_train, conf_val, 
 
 
                     sys_cond, 
-                    _, potential_cond, 
+                    _, _, potential_cond, 
                     charges_cond, 
                     func_probs_cond, weights_vdw_cond, 
                     ks_cond, 
@@ -1124,7 +1134,8 @@ function train!(models, optims)
             epoch_local = epoch_n - start_epoch
             λ_reg = sigmoid_switch(epoch_local, MODEL_PARAMS["training"]["vdw_reg_epoch"], tension) + T(1e-6)
         else
-            λ_reg = T(1)  # Small constant during joint training (or use separate logic)
+            epoch_local = epoch_n - 25
+            λ_reg = T(10)#sigmoid_switch(epoch_local, MODEL_PARAMS["training"]["vdw_reg_epoch"], tension) + T(1e-6)  # Small constant during joint training (or use separate logic)
         end
 
         models, optims = train_epoch!(models, optims, epoch_n, weight_Ω,

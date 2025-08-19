@@ -55,7 +55,7 @@ function atom_feats_to_charges(charges_k1::Vector{T}, charges_k2::Vector{T}, for
     e_over_s = e .* inv_s
 
     charge_factor = (sum(formal_charges) + sum(e_over_s)) / sum(inv_s)
-    return -one(T)*(-e_over_s .+ inv_s .* charge_factor)
+    return (-e_over_s .+ inv_s .* charge_factor)
 end
 
 function extract_vdw_params(feats::Matrix{T}, layout::Dict{Symbol,Tuple{UnitRange{Int}}}) where {T}

@@ -7,7 +7,7 @@ anneal_first_epoch = MODEL_PARAMS["training"]["anneal_first_epoch"]
 tau_mult_first     = MODEL_PARAMS["training"]["tau_mult_first"]
 
 β_min = T(MODEL_PARAMS["training"]["beta_min"])
-γ     = T(MODEL_PARAMS["training"]["gamma"])
+γ_anneal     = T(MODEL_PARAMS["training"]["gamma"])
 
 decay_rate_τ = T(log(τ_0 / τ_min) / τ_min_epoch)
 
@@ -59,17 +59,20 @@ function mol_to_preds(
     sils_4_atoms = filter(il -> il isa InteractionList4Atoms, values(sys.specific_inter_lists))
 
     if any(startswith.(mol_id, ("vapourisation_", "mixing_", "protein_")))
-        forces = nothing
+        forces_intra = nothing
+        forces_inter = nothing
         potential = pe_wrap(sys.atoms, sys.coords, sys.velocities, sys.boundary, sys.pairwise_inters,
-                            sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+                            (), (), (), neighbors)
     else
-        forces = forces_wrap(sys.atoms, sys.coords, sys.velocities, sys.boundary, sys.pairwise_inters,
-                             sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+
+        forces_intra = specific_forces_wrap(sys.atoms, sys.coords, sys.velocities, sys.boundary, sils_2_atoms, sils_3_atoms, sils_4_atoms)
+        forces_inter = pairwise_forces_wrap(sys.atoms, sys.coords, sys.velocities, sys.boundary, to_pack(sys.pairwise_inters), neighbors)
+    
         potential = pe_wrap(sys.atoms, sys.coords, sys.velocities, sys.boundary, sys.pairwise_inters,
                             sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
     end
 
-    return sys, forces, potential, partial_charges, func_probs, weights_vdw, torsion_size, elements, mol_inds
+    return sys, forces_intra, forces_inter, potential, partial_charges, func_probs, weights_vdw, torsion_size, elements, mol_inds
 
 end
 
@@ -147,6 +150,9 @@ function build_sys(
     δ::T,
     γ::T,
 
+    weight_lj::T,
+    weight_coul::T,
+
     bond_functional_form::String,
     bond_k::Vector{Float32},
     bond_r0::Vector{Float32},
@@ -164,12 +170,11 @@ function build_sys(
     propers_i, propers_j, propers_k, propers_l,
     impropers_i, impropers_j, impropers_k, impropers_l,
 
-    global_params
 )
     n_atoms = length(partial_charges)
     dist_nb_cutoff = T(MODEL_PARAMS["physics"]["dist_nb_cutoff"])
 
-    @show σ_lj[1]
+    #= @show σ_lj[1]
     @show ϵ_lj[1]
     @show σ_lj69[1]
     @show ϵ_lj69[1]
@@ -183,7 +188,7 @@ function build_sys(
     @show ϵ_buff[1]
     @show A[1]
     @show B[1]
-    @show C[1]
+    @show C[1] =#
 
     atoms      = [GeneralAtom(i, one(Int),
                               T(masses[i]), T(partial_charges[i]),
@@ -205,7 +210,7 @@ function build_sys(
     global vdw_functional_form = CHOICE_TO_VDW[choice]
 
     vdw_inters = (
-        inters = (LennardJones(DistanceCutoff(dist_nb_cutoff), true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, sigmoid(global_params.params[1])),
+        inters = (LennardJones(DistanceCutoff(dist_nb_cutoff), true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, weight_lj),
          Mie(6, 9, DistanceCutoff(dist_nb_cutoff), true, Molly.lj_zero_shortcut, σ_mixing, ϵ_mixing, one(T), 1),
          DoubleExponential(α, β, σ_mixing, ϵ_mixing, one(T), dist_nb_cutoff),
          Buffered147(δ, γ, σ_mixing, ϵ_mixing, one(T), dist_nb_cutoff),
@@ -218,15 +223,14 @@ function build_sys(
     if vdw_functional_form == "nn"
         # Placeholder
     else
-        weight_14_coul = sigmoid(global_params.params[2])
 
         if MODEL_PARAMS["physics"]["use_reaction_field"] &&
             any(startswith.(mol_id, ("vapourisation_liquid_", "mixing_", "protein_")))
             inter_coulomb = CoulombReactionField(dist_nb_cutoff, T(Molly.crf_solvent_dielectric),
-                                                 true, weight_14_coul, T(ustrip(Molly.coulomb_const)))
+                                                 true, weight_coul, T(ustrip(Molly.coulomb_const)))
         else
             inter_coulomb = Coulomb(DistanceCutoff(dist_nb_cutoff),
-                                    true, weight_14_coul, T(ustrip(Molly.coulomb_const)))
+                                    true, weight_coul, T(ustrip(Molly.coulomb_const)))
         end
 
         pairwise_inter = (vdw_inters, inter_coulomb)
@@ -397,8 +401,7 @@ function mol_to_system(
 
     #vdW Parameters
     func_probs = zeros(T, 5, n_atoms)
-    vdw_size   = zero(T)
-    weight_vdw = zero(T)
+
     vdw_σ_lj   = zeros(T, n_atoms)
     vdw_ϵ_lj   = zeros(T, n_atoms)
     vdw_σ_lj69 = zeros(T, n_atoms)
@@ -410,6 +413,9 @@ function mol_to_system(
     vdw_A      = zeros(T, n_atoms)
     vdw_B      = zeros(T, n_atoms)
     vdw_C      = zeros(T, n_atoms)
+
+    weight_lj   = sigmoid(global_params.params[1])
+    weight_coul = sigmoid(global_params.params[2])
     
     α = transform_dexp_α(global_params.params[3])
     β = transform_dexp_β(global_params.params[4])
@@ -479,7 +485,7 @@ function mol_to_system(
             relative_epoch = epoch_n - anneal_first_epoch
             β_noise_min = τ_min
             τ = annealing_schedule(relative_epoch, τ_0, τ_min, decay_rate_τ)
-            β_noise = annealing_schedule_β(relative_epoch, β_noise_min, τ_0, γ)
+            β_noise = annealing_schedule_β(relative_epoch, β_noise_min, τ_0, γ_anneal)
         end
 
         func_probs_mol = gumbel_softmax_symmetric(logits, labels, τ, β_noise)                # (5, n_atoms)
@@ -499,6 +505,7 @@ function mol_to_system(
                                                                             vs_template, labels, embeds_mol,
                                                                             proper_pooling_model, proper_features_model,
                                                                             improper_pooling_model, improper_features_model)
+
 
         ### Predict charges from atom features ###
         #charges_mol = atom_feats_to_charges(feats_mol, formal_charges[vs_template])
@@ -603,11 +610,11 @@ function mol_to_system(
     vdw_σ_buff, vdw_ϵ_buff,
     vdw_A, vdw_B, vdw_C,
     α, β, δ, γ, 
+    weight_lj, weight_coul,
     bond_functional_form, bonds_k, bonds_r0, bonds_a, angle_functional_form,
     angles_ki, angles_θ0i, angles_kj, angles_θ0j, bonds_i, bonds_j, angles_i, angles_j, angles_k, proper_feats_pad,
     improper_feats_pad, propers_i, propers_j, propers_k, propers_l, impropers_i, impropers_j, impropers_k,
-    impropers_l,
-    global_params)
+    impropers_l)
     
     return (
         molly_sys,

@@ -28,11 +28,26 @@ const ELEMENT_TO_Z = Dict(
     "Pa"=>91,"U"=>92,  "Np"=>93, "Pu"=>94, "Am"=>95, "Cm"=>96, "Bk"=>97, "Cf"=>98, "Es"=>99, "Fm"=>100
 )
 
-
 const ATOMIC_MASSES = [
     1.008 , 6.94        , 10.81, 12.011, 14.007 , 15.999, 18.998403163, 22.98976928, 24.305,
     28.085, 30.973761998, 32.06, 35.45 , 39.0983, 40.078, 79.904      , 126.90447  ,
 ]
+
+const WATER_DENSITY = Dict(
+    285.0 => 0.99964,
+    295.0 => 0.99794,
+    305.0 => 0.99518,
+    315.0 => 0.99155,
+    325.0 => 0.98719
+)
+
+const WATER_COMPRESS = Dict(
+    285.0 => 0.0004782,
+    295.0 => 0.000459,
+    305.0 => 0.0004478,
+    315.0 => 0.0004425,
+    325.0 => 0.0004418
+)
 
 global NAME_TO_MASS = Dict(Pair(e, m) for (e,m) in zip(ELEMENT_TO_NAME, ATOMIC_MASSES))
 
@@ -87,7 +102,7 @@ const n_improper_terms = MODEL_PARAMS["physics"]["n_improper_terms"]
 const torsion_periodicities = ntuple(i -> i, 6)
 const torsion_phases = ntuple(i -> i % 2 == 0 ? T(π) : zero(T), 6)
 
-# Some magic hackery. TODO: READ RELEVANT PAPERS
+
 transform_lj_σ(x) = sigmoid(x) * T(0.42) + T(0.08) # 0.08 nm -> 0.5 nm
 transform_lj_ϵ(x) = sigmoid(x) * T(0.95) + T(0.05) # 0.05 kJ/mol -> 1.0 kJ/mol
 
@@ -107,6 +122,5 @@ bond_r1, bond_r2   = T(MODEL_PARAMS["physics"]["bond_r1"]), T(MODEL_PARAMS["phys
 angle_r1, angle_r2 = T(MODEL_PARAMS["physics"]["angle_r1"]), T(MODEL_PARAMS["physics"]["angle_r2"])
 transform_bond_r0( k1, k2) = max(T((k1 * bond_r1  + k2 * bond_r2 ) / (k1 + k2)), zero(T))
 transform_angle_θ0(k1, k2) = max(T((k1 * deg2rad(angle_r1) + k2 * deg2rad(angle_r2)) / (k1 + k2)), zero(T))
-
 
 transform_morse_a(a) = max(a, zero(T))

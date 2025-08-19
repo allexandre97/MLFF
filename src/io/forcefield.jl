@@ -367,7 +367,7 @@ function build_nonbonded_force(root, atomtypes_list, unique_atoms)
         elseif vdw_functional_form == "dexp"
 
             α = unique_atoms[atomtypes_list[1][1]].α
-            β = unique_atoms[atomtypes_list[1][1]].α
+            β = unique_atoms[atomtypes_list[1][1]].β
 
             nb = ElementNode("CustomNonbondedForce")
             link!(nb, AttributeNode("energy", "sqrt(epsilon1*epsilon2)*(((β*exp(α))/(α-β))*exp(-α*(r/((2^(1/6))*(sigma1+sigma2)/2)))-((α*exp(β))/(α-β))*exp(-β*(r/((2^(1/6))*(sigma1+sigma2)/2))))"))
@@ -445,7 +445,7 @@ function build_nonbonded_force(root, atomtypes_list, unique_atoms)
         elseif vdw_functional_form == "buck"
 
             nb = ElementNode("CustomNonbondedForce")
-            link!(nb, AttributeNode("energy", "W1*W2*(((A1+A2)/2)*exp(((B1+B2)/2)*(-r)) - (((C1+C2)/2)/r)^6)"))
+            link!(nb, AttributeNode("energy", "(((A1+A2)/2)*exp(((B1+B2)/2)*(-r)) - (((C1+C2)/2)/r)^6)"))
             link!(nb, AttributeNode("bondCutoff", "3"))
 
             # Properly create and attach the UseAttributeFromResidue node with its attribute

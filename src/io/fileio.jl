@@ -235,7 +235,7 @@ function decode_feats(df::DataFrame)
     =#
 
     elements::Vector{Int}       = parse.(Int, split(df.ATOMIC_MASS[1], ","))
-    formal_charges::Vector{Int} = parse.(Int, split(df.FORMAL_CHARGE[1], ","))
+    formal_charges::Vector{Int} = Int.(trunc.(parse.(Float32, split(df.FORMAL_CHARGE[1], ","))))
 
     aromatics::Vector{Int} = parse.(Int, split(df.AROMATICITY[1], ","))
 

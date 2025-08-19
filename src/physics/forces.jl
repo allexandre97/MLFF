@@ -91,15 +91,7 @@ function ChainRulesCore.rrule(::typeof(split_forces), fs, coords, molecule_inds,
     return Y, split_forces_pullback
 end
 
-calc_RT(temp) = ustrip(u"kJ/mol", T(Unitful.R) * temp * u"K")
-@non_differentiable calc_RT(args...)
 
-function enthalpy_vaporization(snapshot_U_liquid, mean_U_gas, temp, n_molecules)
-    # See https://docs.openforcefield.org/projects/evaluator/en/stable/properties/properties.html
-    RT = calc_RT(temp)
-    ΔH_vap = mean_U_gas - snapshot_U_liquid / n_molecules + RT
-    return ΔH_vap
-end
 
 @inline function Molly.force(inter::Coulomb{C},
                        dr,
@@ -250,7 +242,7 @@ end
                              atom_i::GeneralAtom{T}, 
                              atom_j::GeneralAtom{T}, 
                              force_units,
-                             special, args...)
+                             special, args...) where T
     r2 = sum(abs2, vec_ij)
     r = sqrt(r2)
     if r <= inter.dist_cutoff
@@ -268,7 +260,7 @@ end
     end
 end
 
-function Molly.force(inter::NamedTuple,
+@inline function Molly.force(inter::NamedTuple,
                      dr, 
                      a1::GeneralAtom{T},
                      a2::GeneralAtom{T},
@@ -284,69 +276,133 @@ function Molly.force(inter::NamedTuple,
     return f_total
 end
 
-function forces_wrap(atoms, coords, velocities, boundary, pairwise_inters_nl,
-                     sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+# --- pairwise forces wrappers using CompositeInter ---
+@inline function pairwise_forces_wrap(atoms, coords, velocities, boundary,
+                                      pairwise_inters, neighbors)
     fs_nounits = zero(coords)
-    forces_wrap!(fs_nounits, atoms, coords, velocities, boundary, pairwise_inters_nl,
-                 sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
-    return fs_nounits
+    pairwise_forces_wrap!(fs_nounits, atoms, coords, velocities, boundary,
+                          pairwise_inters, neighbors)
+    fs_nounits
 end
 
-function forces_wrap!(fs_nounits, atoms, coords, velocities, boundary, pairwise_inters_nl,
-                      sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
-    Molly.pairwise_forces!(fs_nounits, atoms, coords, velocities, boundary, neighbors, NoUnits,
-                           length(atoms), (), pairwise_inters_nl, 0)
-    Molly.specific_forces!(fs_nounits, atoms, coords, velocities, boundary, NoUnits, (),
-                           sils_2_atoms, sils_3_atoms, sils_4_atoms, 0)
-    return fs_nounits
+# Fast path when already wrapped
+@inline function pairwise_forces_wrap!(fs_nounits, atoms, coords, velocities, boundary,
+                                       pairwise_inters::PairwisePack, neighbors)
+    Molly.pairwise_forces!(fs_nounits, atoms, coords, velocities, boundary,
+                           neighbors, NoUnits, length(atoms), (),
+                           to_tuple(pairwise_inters), 0)
+    fs_nounits
 end
 
-duplicated_if_present(x, dx) = (length(x) > 0 ? Enzyme.Duplicated(x, dx) : Enzyme.Const(x))
+# --- rrule for the wrapper ---
+function ChainRulesCore.rrule(::typeof(pairwise_forces_wrap),
+                              atoms, coords, velocities, boundary,
+                              pairwise_inters, neighbors)
 
-function ChainRulesCore.rrule(::typeof(forces_wrap), atoms, coords, velocities, boundary,
-                              pairwise_inters_nl, sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
-    Y = forces_wrap(atoms, coords, velocities, boundary, pairwise_inters_nl, sils_2_atoms,
-                    sils_3_atoms, sils_4_atoms, neighbors)
-    function forces_wrap_pullback(d_fs_nounits)
+    pack = pairwise_inters isa PairwisePack ? pairwise_inters : to_pack(pairwise_inters)
+    Y = pairwise_forces_wrap(atoms, coords, velocities, boundary, pack, neighbors)
+
+    function pairwise_forces_wrap_pullback(d_fs_nounits)
         fs_nounits = zero(coords)
-        d_atoms = zero.(atoms)
+        d_atoms  = zero.(atoms)
         d_coords = zero(coords)
-        d_sils_2_atoms = zero.(sils_2_atoms)
-        d_sils_3_atoms = zero.(sils_3_atoms)
-        d_sils_4_atoms = zero.(sils_4_atoms)
-        if vdw_functional_form == "nn"
-            # Active fails here
-            # Temp gives zero grad for weight_special, though that is set to 1 anyway
-            d_pairwise_inters_nl = zero.(pairwise_inters_nl)
-            pair_enz = Enzyme.Duplicated(pairwise_inters_nl, d_pairwise_inters_nl)
-        elseif length(pairwise_inters_nl) > 0
-            # Active required to get non-zero grads for weight_special etc.
-            pair_enz = Enzyme.Active(pairwise_inters_nl)
-        else
-            pair_enz = Enzyme.Const(pairwise_inters_nl)
-        end
+
         grads = Enzyme.autodiff(
             Enzyme.set_runtime_activity(Enzyme.Reverse),
-            forces_wrap!,
+            pairwise_forces_wrap!,
             Enzyme.Const,
             Enzyme.Duplicated(fs_nounits, d_fs_nounits),
             Enzyme.Duplicated(atoms, d_atoms),
             Enzyme.Duplicated(coords, d_coords),
             Enzyme.Const(velocities),
             Enzyme.Const(boundary),
-            pair_enz,
-            duplicated_if_present(sils_2_atoms, d_sils_2_atoms),
-            duplicated_if_present(sils_3_atoms, d_sils_3_atoms),
-            duplicated_if_present(sils_4_atoms, d_sils_4_atoms),
-            Enzyme.Const(neighbors),
+            Enzyme.Active(pack),
+            Enzyme.Const(neighbors)
         )[1]
-        pair_grad = (vdw_functional_form == "nn" ? d_pairwise_inters_nl : grads[6])
 
-        return NoTangent(), d_atoms, d_coords, NoTangent(), NoTangent(), pair_grad,
-               d_sils_2_atoms, d_sils_3_atoms, d_sils_4_atoms, NoTangent()
+        d_pack = grads[6]
+        d_pairwise = if pairwise_inters isa PairwisePack
+            d_pack
+        else
+            ((inters=(d_pack.lj, d_pack.mie, d_pack.dexp, d_pack.buff, d_pack.buck),
+              weights=d_pack.weights),
+             d_pack.coul)
+        end
+
+        # f, atoms, coords, velocities, boundary, pairwise_inters, neighbors
+        return NoTangent(),
+               d_atoms,
+               d_coords,
+               NoTangent(),      # velocities
+               NoTangent(),      # boundary
+               d_pairwise,
+               NoTangent()       # neighbors
     end
-    return Y, forces_wrap_pullback
+
+    return Y, pairwise_forces_wrap_pullback
 end
 
-Base.:+(::Nothing, ::DistanceCutoff{T, T, T}) where T = nothing
-Base.:+(::Nothing, ::Float32) = zero(T)
+function specific_forces_wrap(atoms, coords, velocities, boundary, sils_2_atoms, sils_3_atoms, sils_4_atoms)
+    fs_nounits = zero(coords)
+    specific_forces_wrap!(fs_nounits, atoms, coords, velocities, boundary, sils_2_atoms, sils_3_atoms, sils_4_atoms)
+    return fs_nounits
+end
+
+function specific_forces_wrap!(fs_nounits, atoms, coords, velocities, boundary, sils_2_atoms, sils_3_atoms, sils_4_atoms)
+    Molly.specific_forces!(fs_nounits, atoms, coords, velocities, boundary, NoUnits, (),
+                           sils_2_atoms, sils_3_atoms, sils_4_atoms, 0)
+end
+
+duplicated_if_present(x, dx) = (length(x) > 0 ? Enzyme.Duplicated(x, dx) : Enzyme.Const(x))
+
+function ChainRulesCore.rrule(::typeof(specific_forces_wrap), atoms, coords, velocities, boundary,
+                              sils_2_atoms, sils_3_atoms, sils_4_atoms)
+
+    Y = specific_forces_wrap(atoms, coords, velocities, boundary, sils_2_atoms, sils_3_atoms, sils_4_atoms)
+
+    function specific_forces_wrap_pullback(d_fs_nounits)
+
+        fs_nounits = zero(coords)
+        d_atoms = zero.(atoms)
+        d_coords = zero(coords)
+        d_sils_2_atoms = zero.(sils_2_atoms)
+        d_sils_3_atoms = zero.(sils_3_atoms)
+        d_sils_4_atoms = zero.(sils_4_atoms)
+
+        grads = Enzyme.autodiff(
+            Enzyme.set_runtime_activity(Enzyme.Reverse),
+            specific_forces_wrap!,
+            Enzyme.Const,
+            Enzyme.Duplicated(fs_nounits, d_fs_nounits),
+            Enzyme.Duplicated(atoms, d_atoms),
+            Enzyme.Duplicated(coords, d_coords),
+            Enzyme.Const(velocities),
+            Enzyme.Const(boundary),
+            duplicated_if_present(sils_2_atoms, d_sils_2_atoms),
+            duplicated_if_present(sils_3_atoms, d_sils_3_atoms),
+            duplicated_if_present(sils_4_atoms, d_sils_4_atoms)
+        )[1]
+
+        return NoTangent(),
+               d_atoms,
+               d_coords,
+               NoTangent(),
+               NoTangent(),
+               d_sils_2_atoms,
+               d_sils_3_atoms,
+               d_sils_4_atoms
+    end
+    return Y, specific_forces_wrap_pullback
+end
+
+# Generic pass-throughs
+@inline Base.:+(::Nothing, y::T) where {T} = y
+@inline Base.:+(x::T, ::Nothing) where {T} = x
+
+# Optional: make DistanceCutoff explicit to avoid any ambiguity in that codepath
+@inline Base.:+(::Nothing, y::DistanceCutoff{T1,T2,T3}) where {T1,T2,T3} = y
+@inline Base.:+(x::DistanceCutoff{T1,T2,T3}, ::Nothing) where {T1,T2,T3} = x
+
+# If you also hit Float32 explicitly in some sites, this is fine but not required:
+@inline Base.:+(::Nothing, y::Float32) = y
+@inline Base.:+(x::Float32, ::Nothing) = x
