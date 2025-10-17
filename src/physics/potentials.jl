@@ -8,13 +8,13 @@
                                   energy_units=u"kJ * mol^-1",
                                   special=false,
                                   args...) where {C, T}
-    r2 = sum(abs2, dr)
+    r = norm(dr)
     cutoff = inter.cutoff
     ke = inter.coulomb_const
     qi, qj = atom_i.charge, atom_j.charge
     params = (ke, qi, qj)
 
-    pe = Molly.potential_with_cutoff(inter, r2, params, cutoff, energy_units)
+    pe = Molly.pe_cutoff(cutoff, inter, r, params)
     if special
         return T(pe * inter.weight_special)
     else
@@ -29,14 +29,14 @@ end
                                   energy_units=u"kJ * mol^-1",
                                   special=false,
                                   args...) where T
-    r2 = sum(abs2, dr)
-    if r2 > (inter.dist_cutoff ^ 2)
+    r = norm(dr)
+    r2 = r*r
+    if r > (inter.dist_cutoff)
         return ustrip(zero(dr[1])) * energy_units
     end
 
     ke = inter.coulomb_const
     qi, qj = atom_i.charge, atom_j.charge
-    r = √r2
     if special
         # 1-4 interactions do not use the reaction field approximation
         krf = (1 / (inter.dist_cutoff ^ 3)) * 0
@@ -80,11 +80,11 @@ end
     ϵ = sqrt(atom_i.ϵ_lj * atom_j.ϵ_lj)
 
     cutoff = inter.cutoff
-    r2 = sum(abs2, dr)
+    r = norm(dr)
     σ2 = σ^2
     params = (σ2, ϵ)
 
-    pe = Molly.potential_with_cutoff(inter, r2, params, cutoff, energy_units)
+    pe = Molly.pe_cutoff(cutoff, inter, r, params)
 
     if special
         return T(pe * inter.weight_special)
@@ -117,15 +117,14 @@ end
     ϵ = sqrt(atom_i.ϵ_lj69 * atom_j.ϵ_lj69)
 
     cutoff = inter.cutoff
-    r2 = sum(abs2, dr)
-    r = √r2
+    r = norm(dr)
     m = inter.m
     n = inter.n
     const_mn = inter.mn_fac * ϵ
     σ_r = σ / r
     params = (m, n, σ_r, const_mn)
 
-    pe = Molly.potential_with_cutoff(inter, r2, params, cutoff, energy_units)
+    pe = Molly.pe_cutoff(cutoff, inter, r, params)
     if special
         return T(pe * inter.weight_special)
     else
@@ -257,11 +256,11 @@ function pe_wrap!(pe_vec, atoms, coords, velocities, boundary, pairwise_inters_n
                   sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
 
     
-    pe = T(Molly.pairwise_pe(atoms, coords, velocities, boundary, neighbors, NoUnits, length(atoms),
-                           (), pairwise_inters_nl, T, 0))
+    pe = T(Molly.pairwise_pe_loop(atoms, coords, velocities, boundary, neighbors, NoUnits, length(atoms),
+                                  (), pairwise_inters_nl, Val(T), Val(1), 0))
 
     pe += T(Molly.specific_pe(atoms, coords, velocities, boundary, NoUnits, (),
-                            sils_2_atoms, sils_3_atoms, sils_4_atoms, T, 0))
+                            sils_2_atoms, sils_3_atoms, sils_4_atoms, Val(T), 0))
 
     pe_vec[1] = T(pe)
     

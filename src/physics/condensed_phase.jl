@@ -11,22 +11,32 @@ end
 
 function calc_compressibility(
     kBT_kJ::T,
-    volume::Vector{T};
+    volume::AbstractVector;
     win_size::Int=5,
-    step_size::Int=1) where {T}
+    step_size::Int=1,
+) where {T<:Real}
 
-    # volume → m^3
-    s = T(1e-27)
-    V = s .* volume
+    @assert win_size ≥ 2 "win_size must be ≥ 2"
+    @assert step_size ≥ 1 "step_size must be ≥ 1"
+    @assert length(volume) ≥ win_size "window larger than data"
 
-    κ = T[]  # MPa^-1
-    kBT = kBT_kJ * T(1e3)  # J per molecule
+    # Work in native units: volume in nm^3, kBT in kJ
+    vol = Float64.(volume)
+    kBT = Float64(kBT_kJ)
 
-    for i in 1:step_size:length(V)-win_size+1
-        win = @view V[i:i+win_size-1]
-        m = mean(win)            # m^3
-        v = var(win)             # m^6
-        push!(κ, (v / (kBT * m)) * T(1e6))  # Pa^-1 → MPa^-1
+    # Unit conversion factor: (nm^3 / kJ) → MPa^-1
+    conv = ustrip(uconvert(u"MPa^-1", 1u"nm^3"/1u"kJ"))
+
+    nwin = 1 + (length(vol) - win_size) ÷ step_size
+    κ = Vector{Float64}(undef, nwin)  # MPa^-1
+
+    j = 1
+    @views for i in 1:step_size:(length(vol)-win_size+1)
+        win = vol[i:i+win_size-1]
+        m = mean(win)         # nm^3
+        v = var(win)          # nm^6  (sample variance)
+        κ[j] = (v / (kBT * m)) * conv  # MPa^-1
+        j += 1
     end
-    κ
+    return κ
 end

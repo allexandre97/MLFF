@@ -93,6 +93,9 @@ const global MACEOFF_PATH::String  = joinpath(DATASETS_PATH, "data_kovacs2023/wa
 const global EXP_DATA_DIR::String  = joinpath(DATASETS_PATH, "condensed_data/exp_data")
 const global HDF5_FILES = ("SPICE-2.0.1.hdf5",)
 
+global OUTDIR = MODEL_PARAMS["paths"]["out_dir"]
+global GAFF_DIR = joinpath(DATASETS_PATH, "condensed_data", "trajs_gaff")
+
 const global SUBSET_N_REPEATS = Dict(
     # SPICE
     "SPICE Solvated Amino Acids Single Points Dataset v1.1" => 100, # 1,300   -> 130,000
@@ -122,7 +125,7 @@ const global FEATURE_FILES = ("features.tsv",
                               "features_cond.tsv",) # Just the SPICE features for now too. Generated with custom script!!! TODO: Take a look at said script, maybe integrate here?
 
 const global CONF_DATAFRAME     = read_conf_data()
-const global FEATURE_DATAFRAMES = [read_feat_file(file) for file in FEATURE_FILES]
+const global FEATURE_DATAFRAMES = ([read_feat_file(file) for file in FEATURE_FILES]...,)
 
 const global CONDENSED_TEST_SYSTEMS = (
     "vapourisation_liquid_CC(=O)C", # Acetone
@@ -206,6 +209,7 @@ if !isnothing(out_dir) && !isdir(out_dir)
 end
 
 models, optims = train!(models, optims)
+println()
 
 #= Flux.trainmode!(models)
 

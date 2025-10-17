@@ -199,6 +199,8 @@ function build_sys(
                               T(A[i]),      T(B[i]),      T(C[i]))
                   for i in 1:n_atoms]
 
+    masses = [a.mass for a in atoms]
+
     if vdw_fnc_idx == zero(Int)
         weights_vdw = vec(mean(func_probs; dims=2))
     else
@@ -290,9 +292,9 @@ function build_sys(
     sys = System{3, Array, T, typeof(atoms), typeof(coords), typeof(boundary), typeof(velocities), typeof(atoms_data),
                  typeof(topo), typeof(pairwise_inter), typeof(specific_inter_lists), typeof(()), typeof(()),
                  typeof(neighbor_finder), typeof(()), typeof(NoUnits),
-                 typeof(NoUnits), T, Vector{T}, Nothing}(
+                 typeof(NoUnits), T, Vector{T}, T, Nothing}(
         atoms, coords, boundary, velocities, atoms_data, topo, pairwise_inter, specific_inter_lists,
-        (), (), neighbor_finder, (), 1, NoUnits, NoUnits, one(T), zeros(T, n_atoms), nothing)
+        (), (), neighbor_finder, (), 1, NoUnits, NoUnits, one(T), masses, sum(masses), nothing)
 
     return sys, weights_vdw
 end
@@ -344,7 +346,7 @@ function mol_to_system(
     mol_id::String,
     feat_df::DataFrame,
     coords,
-    boundary::CubicBoundary{Float32},
+    boundary::CubicBoundary,
     
     atom_embedding_model::GNNChain,
     bond_pooling_model::Chain,

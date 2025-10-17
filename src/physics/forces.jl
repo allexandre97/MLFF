@@ -100,13 +100,13 @@ end
                        force_units=u"kJ * mol^-1 * nm^-1",
                        special=false,
                        args...) where {C, T}
-    r2 = sum(abs2, dr)
+    r = norm(dr)
     cutoff = inter.cutoff
     ke = inter.coulomb_const
     qi, qj = atom_i.charge, atom_j.charge
     params = (ke, qi, qj)
 
-    f = Molly.force_divr_with_cutoff(inter, r2, params, cutoff, force_units)
+    f = Molly.force_cutoff(cutoff, inter, r, params)
     if special
         return T.(f * dr * inter.weight_special)
     else
@@ -129,11 +129,10 @@ end
         ϵ = sqrt(atom_i.ϵ_lj * atom_j.ϵ_lj)
 
         cutoff = inter.cutoff
-        r2 = sum(abs2, dr)
         σ2 = σ^2
         params = (σ2, ϵ)
 
-        f = Molly.force_divr_with_cutoff(inter, r2, params, cutoff, force_units)
+        f = Molly.force_cutoff(cutoff, inter, r, params)
         if special
             return T.(f * dr * inter.weight_special)
         else
@@ -159,15 +158,13 @@ end
         ϵ = sqrt(atom_i.ϵ_lj69 * atom_j.ϵ_lj69)
 
         cutoff = inter.cutoff
-        r2 = sum(abs2, dr)
-        r = √r2
         m = inter.m
         n = inter.n
         const_mn = inter.mn_fac * ϵ
         σ_r = σ / r
         params = (m, n, σ_r, const_mn)
 
-        f = Molly.force_divr_with_cutoff(inter, r2, params, cutoff, force_units)
+        f = Molly.force_cutoff(cutoff, inter, r, params)
         if special
             return T.(f * dr * inter.weight_special)
         else
@@ -288,9 +285,9 @@ end
 # Fast path when already wrapped
 @inline function pairwise_forces_wrap!(fs_nounits, atoms, coords, velocities, boundary,
                                        pairwise_inters::PairwisePack, neighbors)
-    Molly.pairwise_forces!(fs_nounits, atoms, coords, velocities, boundary,
+    Molly.pairwise_forces_loop!(fs_nounits, nothing, nothing, nothing, atoms, coords, velocities, boundary,
                            neighbors, NoUnits, length(atoms), (),
-                           to_tuple(pairwise_inters), 0)
+                           to_tuple(pairwise_inters), Val(1), Val(false), 0)
     fs_nounits
 end
 
@@ -349,8 +346,8 @@ function specific_forces_wrap(atoms, coords, velocities, boundary, sils_2_atoms,
 end
 
 function specific_forces_wrap!(fs_nounits, atoms, coords, velocities, boundary, sils_2_atoms, sils_3_atoms, sils_4_atoms)
-    Molly.specific_forces!(fs_nounits, atoms, coords, velocities, boundary, NoUnits, (),
-                           sils_2_atoms, sils_3_atoms, sils_4_atoms, 0)
+    Molly.specific_forces!(fs_nounits, nothing, atoms, coords, velocities, boundary, NoUnits, (),
+                           sils_2_atoms, sils_3_atoms, sils_4_atoms, Val(false), 0)
 end
 
 duplicated_if_present(x, dx) = (length(x) > 0 ? Enzyme.Duplicated(x, dx) : Enzyme.Const(x))
@@ -400,8 +397,8 @@ end
 @inline Base.:+(x::T, ::Nothing) where {T} = x
 
 # Optional: make DistanceCutoff explicit to avoid any ambiguity in that codepath
-@inline Base.:+(::Nothing, y::DistanceCutoff{T1,T2,T3}) where {T1,T2,T3} = y
-@inline Base.:+(x::DistanceCutoff{T1,T2,T3}, ::Nothing) where {T1,T2,T3} = x
+@inline Base.:+(::Nothing, y::DistanceCutoff{T1,T2}) where {T1,T2} = y
+@inline Base.:+(x::DistanceCutoff{T1,T2}, ::Nothing) where {T1,T2} = x
 
 # If you also hit Float32 explicitly in some sites, this is fine but not required:
 @inline Base.:+(::Nothing, y::Float32) = y

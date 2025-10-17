@@ -1,6 +1,6 @@
 {
     "paths":{
-        "out_dir":"./runs/probas"
+        "out_dir":"/ssd/runs/probas"
     },
 
     "training":{
@@ -13,16 +13,18 @@
 	
 	"train_size":0.9,
 	
-	"n_epochs":120,
-	
-	"condensed_indiv_first_epoch":1000,
-	"condensed_indiv_sims_epoch":1000,
+	"n_epochs":20,
+
+	"reweight_lag":4,
+
+	"min_epoch_valid_sims":3,
+
+	"condensed_indiv_first_epoch":2,
 	"condensed_joint_first_epoch":1000,
-	"condensed_joint_sims_epoch":1000,
 	
 	"vdw_reg_epoch":1,
 	
-	"vdw_fn_epoch_switch":20,
+	"vdw_fn_epoch_switch":1000,
 	
 	"n_minibatch":256,
 	
@@ -38,7 +40,10 @@
 	"loss_weight_regularisation":0.0,
 	"loss_weight_vdw_params":1e-1,
 	"loss_energy_first_epoch":1,
-	
+
+	"loss_weight_density":1.0,
+	"loss_weight_compress":0.5,
+
 	"anneal_first_epoch":1000,
 	"tau_min":0.25,
 	"tau_0":1.0,
@@ -55,7 +60,9 @@
 	"train_on_entropy":1.0,
 	"train_on_enth_vap":1.0,
 	"train_on_enth_mix":1.0,
-	
+	"train_on_dens_rw":1.0,
+	"train_on_comp_rw":1.0,
+
 	"enth_vap_gas_n_samples":10,
 	
 	"grad_clamp_val":1e3
