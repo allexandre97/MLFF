@@ -116,6 +116,24 @@ end
 
 ########## MODELS ##########
 
+# Not sharing
+PARAM_LAYOUT = Dict(
+    :lj   => (1:2,  [:σ, :ϵ]),
+    :lj69 => (3:4,  [:σ, :ϵ]),
+    :dexp => (5:6,  [:σ, :ϵ]),
+    :buff => (7:8,  [:σ, :ϵ]),
+    :buck => (9:11, [:A, :B, :C]),
+)
+
+CHOICE_TO_VDW = Dict(
+    1 => "lj",
+    2 => "lj69",
+    3 => "dexp",
+    4 => "buff",
+    5 => "buck"
+)
+
+
 function build_models()
     # Pooling step
     atom_embedding_model = GNNChain(
@@ -154,13 +172,63 @@ function build_models()
     )
 
     #
+    nonbonded_selection_model = Chain(
+        Dense(NET_PARAMS["dim_embed_atom"] => NET_PARAMS["dim_hidden_dense"],
+              activation_dense; init=init_dense),
+        generate_dense_layers(NET_PARAMS["n_layers_nn"] - 2)...,
+        Dense(NET_PARAMS["dim_hidden_dense"] => 5)
+    )
 
     # Feature prediction step
-    atom_features_model = Chain(
+    #= atom_features_model = Chain(
         Dense(NET_PARAMS["dim_embed_atom"] => NET_PARAMS["dim_hidden_dense"],
               activation_dense; init = init_dense),
         generate_dense_layers(NET_PARAMS["n_layers_nn"] - 2)...,
         Dense(NET_PARAMS["dim_hidden_dense"] => 2 + n_vdw_atom_params)
+    ) =#
+
+    ##### Need one MLP for each functional form we try to predict.
+    ##### If we do not do this, there is no way of training each functional form individually.
+    charge_features_model = Chain(
+        Dense(NET_PARAMS["dim_embed_atom"] => NET_PARAMS["dim_hidden_dense"],
+              activation_dense; init = init_dense),
+        generate_dense_layers(NET_PARAMS["n_layers_nn"] - 2)...,
+        Dense(NET_PARAMS["dim_hidden_dense"] => 2) # Charge features
+    )
+    
+    lj_features_model = Chain(
+        Dense(NET_PARAMS["dim_embed_atom"] => NET_PARAMS["dim_hidden_dense"],
+              activation_dense; init = init_dense),
+        generate_dense_layers(NET_PARAMS["n_layers_nn"] - 2)...,
+        Dense(NET_PARAMS["dim_hidden_dense"] => 2) # σ, ϵ
+    )
+
+    lj69_features_model = Chain(
+        Dense(NET_PARAMS["dim_embed_atom"] => NET_PARAMS["dim_hidden_dense"],
+              activation_dense; init = init_dense),
+        generate_dense_layers(NET_PARAMS["n_layers_nn"] - 2)...,
+        Dense(NET_PARAMS["dim_hidden_dense"] => 2) # σ, ϵ
+    )
+
+    dexp_features_model = Chain(
+        Dense(NET_PARAMS["dim_embed_atom"] => NET_PARAMS["dim_hidden_dense"],
+              activation_dense; init = init_dense),
+        generate_dense_layers(NET_PARAMS["n_layers_nn"] - 2)...,
+        Dense(NET_PARAMS["dim_hidden_dense"] => 2) # σ, ϵ
+    )
+
+    buff_features_model = Chain(
+        Dense(NET_PARAMS["dim_embed_atom"] => NET_PARAMS["dim_hidden_dense"],
+              activation_dense; init = init_dense),
+        generate_dense_layers(NET_PARAMS["n_layers_nn"] - 2)...,
+        Dense(NET_PARAMS["dim_hidden_dense"] => 2) # σ, ϵ
+    )
+
+    buck_features_model = Chain(
+        Dense(NET_PARAMS["dim_embed_atom"] => NET_PARAMS["dim_hidden_dense"],
+              activation_dense; init = init_dense),
+        generate_dense_layers(NET_PARAMS["n_layers_nn"] - 2)...,
+        Dense(NET_PARAMS["dim_hidden_dense"] => 3) # A, B, C
     )
 
     bond_features_model = Chain(
@@ -192,13 +260,56 @@ function build_models()
     )
 
     models = [atom_embedding_model, bond_pooling_model, angle_pooling_model, proper_pooling_model, improper_pooling_model,
-              atom_features_model, bond_features_model, angle_features_model, proper_features_model, improper_features_model]
+
+              nonbonded_selection_model,
+
+              charge_features_model, lj_features_model, 
+              
+              lj69_features_model, dexp_features_model, buff_features_model, buck_features_model,
+              
+              bond_features_model, angle_features_model, proper_features_model, improper_features_model,
+    
+              model_global_params]
 
     optims = [Flux.setup(Adam(NET_PARAMS["learning_rate"]), m) for m in models]
 
     return models, optims
 
 end
+
+annealing_schedule(relative_epoch, τ_0, τ_min, decay_rate) = T(max(τ_min, (τ_0 - τ_min) * exp(-decay_rate * relative_epoch) + τ_min))
+annealing_schedule_β(relative_epoch, β_min, τ, γ) = T(τ * (1.0 - exp(-γ * relative_epoch) + β_min))
+
+function gumbel_softmax_symmetric(
+    logits::Matrix{T},
+    labels::Vector{String}, 
+    τ::T = T(1e-1),
+    β::T = T(1.0))
+    n_forms, n_atoms = size(logits)
+    
+    noise = ignore_derivatives() do
+        noise = zeros(T, n_forms, n_atoms)
+        # Group atoms by label
+        label_to_inds = Dict{String, Vector{Int}}()
+        for (i, label) in enumerate(labels)
+            push!(get!(label_to_inds, label, Int[]), i)
+        end
+
+        # Assign same noise to all atoms in a label group
+        for (_, inds) in label_to_inds
+            shared_noise = -β * log.(-log.(rand(T, n_forms)))
+            for j in inds
+                noise[:, j] = shared_noise
+            end
+        end
+
+        noise
+    end
+
+    y = softmax((logits + noise) / τ; dims=1)
+    return y
+end
+
 
 function calc_embeddings(
     adj_list::Vector{Vector{Int}},
@@ -213,29 +324,51 @@ function calc_embeddings(
 end
 
 function predict_atom_features(
-    labels,
-    embeds_mol,
-    atom_features_model
-)
+    labels::AbstractVector{<:AbstractString},
+    embeds_mol::AbstractMatrix{T},
+    charge_features_model,
+    lj_features_model,
+    lj69_features_model,
+    dexp_features_model,
+    buff_features_model,
+    buck_features_model;
+    vdw_fnc_idx::Integer = 0,
+) where {T}
 
+    # Map first occurrence of each label to an index (kept outside AD)
     label_to_index = Dict{String, Int}()
     for (i, label) in enumerate(labels)
-        if !haskey(label_to_index, label)
-            label_to_index[label] = i
-        end
+        haskey(label_to_index, label) || (label_to_index[label] = i)
     end
     unique_label_indices = ignore_derivatives() do
-        return collect(values(label_to_index))
+        collect(values(label_to_index))
     end
+    ks = ignore_derivatives() do
+        [label_to_index[lbl] for lbl in labels]   # index vector into "unique"
+    end
+
     unique_embeds = embeds_mol[:, unique_label_indices]
-    unique_feats  = atom_features_model(unique_embeds)
+    n_unique = length(unique_label_indices)
 
-    feats_mol = map(labels) do label
-        return unique_feats[:, label_to_index[label]]
-    end
-    feats_mol = hcat(feats_mol...)
-    return feats_mol
+    charge_unique = charge_features_model(unique_embeds)  # (2, n_unique)
 
+    # Per-form features (fill zeros where disabled) — all shapes are (rows, n_unique)
+
+    lj_unique    = lj_features_model(unique_embeds)
+    lj69_unique  = lj69_features_model(unique_embeds)
+    dexp_unique  = dexp_features_model(unique_embeds)
+    buff_unique  = buff_features_model(unique_embeds)
+    buck_unique  = buck_features_model(unique_embeds)  # (3, n_unique)
+
+    # Gather columns in label order, then stack blocks vertically → (13, N)
+    return vcat(
+        charge_unique[:, ks],
+        lj_unique[:,    ks],
+        lj69_unique[:,  ks],
+        dexp_unique[:,  ks],
+        buff_unique[:,  ks],
+        buck_unique[:,  ks],
+    )
 end
 
 function predict_bond_features(

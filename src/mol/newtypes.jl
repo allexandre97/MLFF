@@ -4,10 +4,19 @@ mutable struct BundledAtomData
     name::String
     type::String
     resname::String
-    mass::Float32
-    charge::Float32
-    σ::Float32
-    ϵ::Float32
+    mass::T
+    charge::T
+    
+    α::Union{T, Nothing}
+    β::Union{T, Nothing}
+    δ::Union{T, Nothing}
+    γ::Union{T, Nothing}
+
+    σ::Union{T, Nothing}
+    ϵ::Union{T, Nothing}
+    A::Union{T, Nothing}
+    B::Union{T, Nothing}
+    C::Union{T, Nothing}
 end
 
 function ==(a::BundledAtomData, b::BundledAtomData)

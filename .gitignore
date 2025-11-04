@@ -6,6 +6,12 @@
 *.png
 *.tsv
 *.csv
+*.swp
+*.out
+*.err
+slurm*
+params_*
+Papers/
 hyparams/
 runs/
 old_runs/

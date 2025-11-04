@@ -1,4 +1,5 @@
 function read_sim_data(mol_id, training_sim_dir, frame_i, temp=nothing)
+    
     exp_type, sim_type, smiles = split(mol_id, "_"; limit=3)
     if exp_type == "vapourisation"
         traj_fp = "$(smiles)_$(Int(temp))K.dcd"
@@ -38,6 +39,35 @@ function read_sim_data(mol_id, training_sim_dir, frame_i, temp=nothing)
         coords .= wrap_coords.(coords, (boundary,))
     end
     return coords, boundary
+end
+
+function read_sim_data(trj_file_path, frames)
+    
+    traj = Chemfiles.Trajectory(trj_file_path)
+
+    n_frames = Int(length(traj))
+
+    coords_list   = []
+    boundary_list = []
+
+    for (i, frame_idx) in enumerate(frames)
+
+        frame = Chemfiles.read_step(traj, frame_idx - 1)
+
+        boundary  = T.(Chemfiles.lengths(Chemfiles.UnitCell(frame))) ./ 10
+        boundary = CubicBoundary(boundary...)
+        
+        positions  = Chemfiles.positions(frame)
+        positions  = SVector{3, T}.(eachcol(positions)) ./ 10
+        positions .= wrap_coords.(positions, (boundary,))
+
+        push!(coords_list, positions)
+        push!(boundary_list, boundary)
+        
+    end
+
+    return coords_list, boundary_list
+
 end
 
 Flux.@non_differentiable read_sim_data(args...)

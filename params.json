@@ -1,51 +1,78 @@
 {
     "paths":{
-        "out_dir":"./runs/ccl_o"
+        "out_dir":"/cephfs/alexandrebg/runs/dens_intra_charge"
     },
 
     "training":{
 
-        "verbose":true,
+	"verbose":false,
+	
+	"use_gaff_simulations":true,
+	
+	"n_frames_val_cond":500,
+	
+	"train_size":0.9,
+	
+	"n_epochs":60,
 
-        "use_gaff_simulations":true,
+	"reweight_lag":2,
 
-        "n_frames_val_cond":500,
+	"min_epoch_valid_sims":25,
 
-        "train_size":0.9,
+	"condensed_indiv_first_epoch":30,
+	"condensed_joint_first_epoch":1000,
+	
+	"vdw_reg_epoch":1,
+	
+	"vdw_fn_epoch_switch":1000,
+	
+	"n_minibatch":256,
+	
+	"loss_weight_force":1e-1,
+	"loss_weight_force_inter":1.0,
+	"loss_weight_energy":2e-2,
+	"loss_weight_charge":1e6,
+	"loss_weight_vdw_entropy_0":10.0,
+	"loss_weight_vdw_entropy_min":0.01,
+	"loss_weight_torsion_ks":1e-2,
+	"loss_weight_enth_vap":0.2,
+	"loss_weight_enth_mixing":0.1,
+	"loss_weight_regularisation":0.0,
+	"loss_weight_vdw_params":1e-1,
+	"loss_energy_first_epoch":1,
 
-        "n_epochs":300,
+	"loss_weight_density":1e5,
+	"loss_weight_compress":1e0,
+	"loss_weight_permt":1e0,
 
-        "training_sims_first_epoch":200,
-        "condensed_data_first_epoch":150,
+	"anneal_first_epoch":1000,
+	"tau_min":0.25,
+	"tau_0":1.0,
+	"tau_min_epoch":1000,
+	"tau_mult_first":100.0,
+	"beta_min":0.1,
+	"gamma":1.0,
+	"entropy_min_epoch":100000,
+	
+	"train_on_forces_intra":1.0,
+	"train_on_forces_inter":0.0,
+	"train_on_pe":0.0,
+	"train_on_charges":1.0,
+	"train_on_entropy":0.0,
+	"train_on_enth_vap":1.0,
+	"train_on_enth_mix":0.0,
+	"train_on_dens_rw":1.0,
+	"train_on_comp_rw":0.0,
+	"train_on_perm_rw":0.0,
 
-        "n_minibatch":256,
-
-        "loss_weight_force":1e-3,
-        "loss_weight_force_inter":10.0,
-        "loss_weight_energy":1e-2,
-        "loss_weight_charge":5.0,
-        "loss_weight_torsion_ks":1e-2,
-        "loss_weight_enth_vap":0.15,
-        "loss_weight_enth_mixing":0.1,
-        "loss_weight_regularisation":1e-5,
-        "loss_weight_vdw_params":0.0,
-        "loss_energy_first_epoch":1,
-
-        "train_on_forces_intra":1.0,
-        "train_on_forces_inter":1.0,
-        "train_on_pe":1.0,
-        "train_on_charges":1.0,
-        "train_on_enth_vap":1.0,
-        "train_on_enth_mix":1.0,
-
-        "enth_vap_gas_n_samples":10,
-
-        "grad_clamp_val":1e3
+	"enth_vap_gas_n_samples":10,
+	
+	"grad_clamp_val":1e3
     },
 
     "networks":{
 
-        "learning_rate":1e-5,
+        "learning_rate":1e-4,
 
         "n_atom_features_in": 29,
 
@@ -57,14 +84,15 @@
 
         "gcn_conv_layer":"SAGEConv",
         "activation_str": "relu",
-        "aggr_str": "mean",
+        "aggr_str":"mean",
 
         "dropout_dense":0.0,
         "n_layers_nn":2
     },
 
     "physics":{
-
+	"min_lj_sig":0.25,
+	"max_lj_sig":0.50,
         "vdw_functional_form":"lj",
         "mixing_function":"lb",
         "dist_nb_cutoff":1.0,

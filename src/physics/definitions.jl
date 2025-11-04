@@ -28,32 +28,51 @@ const ELEMENT_TO_Z = Dict(
     "Pa"=>91,"U"=>92,  "Np"=>93, "Pu"=>94, "Am"=>95, "Cm"=>96, "Bk"=>97, "Cf"=>98, "Es"=>99, "Fm"=>100
 )
 
-
 const ATOMIC_MASSES = [
     1.008 , 6.94        , 10.81, 12.011, 14.007 , 15.999, 18.998403163, 22.98976928, 24.305,
     28.085, 30.973761998, 32.06, 35.45 , 39.0983, 40.078, 79.904      , 126.90447  ,
 ]
 
+const WATER_DENSITY = Dict(
+    285.0 => 0.99964,
+    295.0 => 0.99794,
+    305.0 => 0.99518,
+    315.0 => 0.99155,
+    325.0 => 0.98719
+)
+
+const WATER_COMPRESS = Dict(
+    285.0 => 0.0004782,
+    295.0 => 0.000459,
+    305.0 => 0.0004478,
+    315.0 => 0.0004425,
+    325.0 => 0.0004418
+)
+
+const WATER_PERMIT = Dict(
+    285.0 => 83.213,
+    295.0 => 79.0,
+    305.0 => 75.935,
+    315.0 => 72.0,
+    325.0 => 69.275
+)
+
 global NAME_TO_MASS = Dict(Pair(e, m) for (e,m) in zip(ELEMENT_TO_NAME, ATOMIC_MASSES))
 
-# Initialize some constants depending on the functional form of vdW interactions
-if vdw_functional_form in ("lj", "lj69")
-    const n_vdw_atom_params = 2
-    const global_params = [starting_weight14_vdw, starting_weight14_coul]
-elseif vdw_functional_form in ("dexp", "buff")
-    const n_vdw_atom_params = 2
-    const global_params = [starting_weight14_vdw, starting_weight14_coul, zero(T), zero(T)]
-elseif vdw_functional_form == "buck"
-    const n_vdw_atom_params = 3
-    const global_params = [starting_weight14_vdw, starting_weight14_coul]
-elseif vdw_functional_form == "nn"
-    training_sims_first_epoch == 0 || error("cannot run training simulations with vdw functional form nn")
-    const n_vdw_atom_params = nn_dim_atom
-    const n_params_pairwise = (2 * nn_dim_atom + 3 + 1 + 1) * dim_hidden_pairwise
-    const global_params = vcat(starting_weight14_vdw, T.(Flux.kaiming_uniform(n_params_pairwise)))
-else
-    error("unknown vdw functional form $vdw_functional_form")
+# Initialize some constants for non bonded interactions. Now we let the model choose the best functional form for vdw
+const global n_vdw_atom_params = 11
+
+struct GlobalParams{T}
+    params::Vector{T}
 end
+(model::GlobalParams)() = model.params
+
+init_global_params = [inverse_sigmoid(T(0.5)),
+                      inverse_sigmoid(T(0.833)),
+                      zero(T), zero(T), zero(T), zero(T)]
+
+global model_global_params = GlobalParams(init_global_params)
+
 
 if mixing_function == "lb"
     const σ_mixing = Molly.lorentz_σ_mixing
@@ -91,8 +110,12 @@ const n_improper_terms = MODEL_PARAMS["physics"]["n_improper_terms"]
 const torsion_periodicities = ntuple(i -> i, 6)
 const torsion_phases = ntuple(i -> i % 2 == 0 ? T(π) : zero(T), 6)
 
-# Some magic hackery. TODO: READ RELEVANT PAPERS
-transform_lj_σ(x) = sigmoid(x) * T(0.42) + T(0.08) # 0.08 nm -> 0.5 nm
+
+min_lj_σ = T(get(MODEL_PARAMS["physics"], "min_lj_sig", T(0.08)))
+max_lj_σ = T(get(MODEL_PARAMS["physics"], "max_lj_sig", T(0.50)))
+mult     = max_lj_σ - min_lj_σ 
+
+transform_lj_σ(x) = sigmoid(x) * mult + min_lj_σ # 0.08 nm -> 0.5 nm
 transform_lj_ϵ(x) = sigmoid(x) * T(0.95) + T(0.05) # 0.05 kJ/mol -> 1.0 kJ/mol
 
 transform_dexp_α(x) = sigmoid(x) * T(8.0) + T(12.766) # 12.766 -> 20.766
@@ -102,15 +125,16 @@ transform_buff_δ(x) = sigmoid(x) * T(0.08) + T(0.03) # 0.03 -> 0.11
 transform_buff_γ(x) = sigmoid(x) * T(0.16) + T(0.04) # 0.04 -> 0.2
 
 transform_buck_A(x) = sigmoid(x) * T(800_000.0) + T(100_000.0) # 100_000 kJ/mol -> 900_000 kJ/mol
-transform_buck_B(x) = sigmoid(x) * T(40.0) + T(10.0) # 10 nm^-1 -> 50 nm^-1
-transform_buck_C(x) = sigmoid(x) * T(0.0095) + T(0.0005) # 0.0005 kJ/mol nm^6 -> 0.01 kJ/mol nm^6
+transform_buck_B(x) = sigmoid(x) * T(80.0) + T(20.0) # 20 nm^-1 -> 100 nm^-1
+transform_buck_C(x) = sigmoid(x) * T(0.75) + T(0.0) # 0 kJ/mol nm -> 0.75 kJ/mol nm this now reflects the change of how the potential is computed
 
+transform_bond_k(k) = sigmoid(k) * T(500_000) + T(100_000)# 0 kJ/mol -> 1_000_000 kJ/mol
 transform_bond_k(  k1, k2) = max(k1 + k2, zero(T))
+transform_angle_k(k) = sigmoid(k) * T(900) + T(100) # 100 kJ/mol -> 1_000 kJ/mol 
 transform_angle_k( k1, k2) = max(k1 + k2, zero(T))
 bond_r1, bond_r2   = T(MODEL_PARAMS["physics"]["bond_r1"]), T(MODEL_PARAMS["physics"]["bond_r2"])
 angle_r1, angle_r2 = T(MODEL_PARAMS["physics"]["angle_r1"]), T(MODEL_PARAMS["physics"]["angle_r2"])
 transform_bond_r0( k1, k2) = max(T((k1 * bond_r1  + k2 * bond_r2 ) / (k1 + k2)), zero(T))
 transform_angle_θ0(k1, k2) = max(T((k1 * deg2rad(angle_r1) + k2 * deg2rad(angle_r2)) / (k1 + k2)), zero(T))
-
 
 transform_morse_a(a) = max(a, zero(T))

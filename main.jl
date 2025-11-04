@@ -32,6 +32,9 @@ using Molly
 
 using CairoMakie
 
+import Base: +
+import Base: *
+
 
 function parse_commandline()::Dict{String, Any}
 
@@ -54,7 +57,18 @@ end
 const T = Float32
 
 parsed_args::Dict{String, Any} = parse_commandline() # Read args from cli
-const global MODEL_PARAMS::Dict = JSON.parsefile(parsed_args["json"]) # Read model parameters from JSON file
+global MODEL_PARAMS::Dict = JSON.parsefile(parsed_args["json"]) # Read model parameters from JSON file
+
+include("./src/physics/definitions.jl")
+
+include("./src/physics/molly_ext/general_atom.jl")
+include("./src/physics/molly_ext/functionals_nonbonded.jl")
+include("./src/physics/molly_ext/functionals_bonded.jl")
+
+include("./src/physics/forces.jl")
+include("./src/physics/condensed_phase.jl")
+include("./src/physics/potentials.jl")
+include("./src/physics/transformer.jl")
 
 include("./src/io/conformations.jl")
 include("./src/io/fileio.jl")
@@ -72,17 +86,15 @@ include("./src/nets/losses.jl")
 include("./src/nets/models.jl")
 include("./src/nets/trainer.jl")
 
-include("./src/physics/definitions.jl")
-include("./src/physics/forces.jl")
-include("./src/physics/molly_extensions.jl")
-include("./src/physics/transformer.jl")
-
 ############### MAIN LOGIC ###############
 
 const global DATASETS_PATH::String = parsed_args["db"]
 const global MACEOFF_PATH::String  = joinpath(DATASETS_PATH, "data_kovacs2023/water")
 const global EXP_DATA_DIR::String  = joinpath(DATASETS_PATH, "condensed_data/exp_data")
 const global HDF5_FILES = ("SPICE-2.0.1.hdf5",)
+
+global OUTDIR = MODEL_PARAMS["paths"]["out_dir"]
+global GAFF_DIR = joinpath(DATASETS_PATH, "condensed_data", "trajs_gaff")
 
 const global SUBSET_N_REPEATS = Dict(
     # SPICE
@@ -110,10 +122,10 @@ const global SUBSET_N_REPEATS = Dict(
 const global FEATURE_COL_NAMES = ["MOLECULE", "ATOMIC_MASS", "FORMAL_CHARGE", "AROMATICITY", "N_BONDS", "BONDS", "ANGLES", "PROPER", "IMPROPER", "MOL_ID"]
 const global FEATURE_FILES = ("features.tsv",
                               "features_maceoff.tsv",
-                              "features_cond.tsv",) # Just the SPICE features for now too. Generated with custom script!!! TODO: Take a look at said script, maybe integrate here?
+                              "features_cond_bigbox.tsv",) # Just the SPICE features for now too. Generated with custom script!!! TODO: Take a look at said script, maybe integrate here?
 
 const global CONF_DATAFRAME     = read_conf_data()
-const global FEATURE_DATAFRAMES = [read_feat_file(file) for file in FEATURE_FILES]
+const global FEATURE_DATAFRAMES = ([read_feat_file(file) for file in FEATURE_FILES]...,)
 
 const global CONDENSED_TEST_SYSTEMS = (
     "vapourisation_liquid_CC(=O)C", # Acetone
@@ -172,19 +184,19 @@ const global COND_MOL_TRAIN = COND_MOLECULES[(MODEL_PARAMS["training"]["n_frames
 # Molly Constants. TODO: How can I pack these in a json?
 const global boundary_inf = CubicBoundary(T(Inf))
 
-models, optims     = build_models()
+#models, optims     = build_models()
 
 #= BSON.@save "init_models.bson" models
-BSON.@save "init_optims.bson" optims =#
+BSON.@save "init_optims.bson" optims =# 
 
-#= BSON.@load "../MLFF_hyp/runs/only_forces_own_sims/models/model_ep_9.bson" models
-BSON.@load "../MLFF_hyp/runs/only_forces_own_sims/optims/optim_ep_9.bson" optims =#
+BSON.@load "./init_models.bson" models
+BSON.@load "./init_optims.bson" optims
 
 @non_differentiable Molly.find_neighbors(args...)
 
 out_dir = MODEL_PARAMS["paths"]["out_dir"]
 
-const global save_every_epoch = true
+const global save_every_epoch = false
 
 if !isnothing(out_dir) && !isdir(out_dir)
     mkpath(out_dir)
@@ -196,73 +208,72 @@ if !isnothing(out_dir) && !isdir(out_dir)
     end
 end
 
-models, optims = train!(models, optims)
 
-#= mol_id = "water"
+#= df = FEATURE_DATAFRAMES[1]
+df = df[df.MOLECULE .== "water", :]
 
-feat_df = FEATURE_DATAFRAMES[1]
-feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
+conf_data = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)
 
-coords_i, forces_i, energy_i,
+coords_i, forces_i, energy_i, 
 charges_i, has_charges_i,
 coords_j, forces_j, energy_j,
-charges_j, has_charges_j = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)[1]
+charges_j, has_charges_j,
+exceeds_force, pair_present = conf_data[1]
+
+vdw_fnc_idx = 1
+
+sys, _ = mol_to_system(1, "water", df, coords_i, boundary_inf, models...) =#
+
+models, optims = train!(models, optims)
 println()
 
-begin 
-    grads = Zygote.gradient(models...) do models...
+#= df = FEATURE_DATAFRAMES[3]
+df = df[df.MOLECULE .== "big_waterbox", :]
 
-        sys, partial_charges, vdw_size, ks_size, elements, mol_inds = mol_to_system(mol_id, feat_df, coords_i, boundary_inf, models...)
+temps = (285, 295, 305, 315, 325)
 
-        neighbors = ignore_derivatives() do
-            return find_neighbors(sys; n_threads = 1)
-        end
-        # Get interaction lists separate depending on the number of atoms involves
-        sils_2_atoms = filter(il -> il isa InteractionList2Atoms, values(sys.specific_inter_lists))
-        sils_3_atoms = filter(il -> il isa InteractionList3Atoms, values(sys.specific_inter_lists))
-        sils_4_atoms = filter(il -> il isa InteractionList4Atoms, values(sys.specific_inter_lists))
-        forces = forces_wrap(sys.atoms, sys.coords, sys.velocities, sys.boundary, sys.pairwise_inters,
-                            sils_2_atoms, sils_3_atoms, sils_4_atoms, neighbors)
+vdw_fnc_idx = 1
 
-        dft_forces_intra, dft_forces_inter = split_forces(forces_i, coords_i, mol_inds, elements)
-        forces_intra, forces_inter         = split_forces(forces, coords_i, mol_inds, elements)
+ff_path    = joinpath(MODEL_PARAMS["paths"]["out_dir"], "ff_xml", "model_epoch_38.xml")
 
-        return force_loss(forces_intra, dft_forces_intra)
-    end
+ff = MolecularForceField(T, ff_path, units = false)
 
-    for (i, model_grads) in enumerate(grads)
-        println("Model $i:")
-        if isnothing(model_grads)
-            println("No gradients for this model")
-            continue
-        end
-        for (j, layer_grads) in enumerate(model_grads.layers)
-            has_weight = hasfield(typeof(layer_grads), :weight)
-            has_bias   = hasfield(typeof(layer_grads), :bias)
+sys_ML = features_to_xml(ff_path, 1, "vapourisation_liquid_O", 141, 295, df, models...)
 
-            w_grad = has_weight ? getfield(layer_grads, :weight) : nothing
-            b_grad = has_bias   ? getfield(layer_grads, :bias)   : nothing
+states, trajs = build_rw_states("vapourisation_liquid_O", 40, 1, true, temps)
+coords, bounds, gradsU, Ldens, Lcomp = sample_trajs("vapourisation_liquid_O", df, trajs, states) =#
 
-            has_w = w_grad !== nothing && any(!iszero, w_grad)
-            has_b = b_grad !== nothing && any(!iszero, b_grad)
+#=Ldens      = collect(Iterators.flatten(Ldens))
+Lcomp      = collect(Iterators.flatten(Lcomp))
+Ldens_mean = mean(Ldens)
+Lcomp_mean = mean(Lcomp)
 
-            println("  Layer $j - weight grad: ", has_w, ", bias grad: ", has_b)
-        end
-    end
+ff_path    = joinpath(MODEL_PARAMS["paths"]["out_dir"], "ff_xml", "model_epoch_38.xml")
 
+ff = MolecularForceField(T, ff_path, units = false)
+initial_dir = joinpath(DATASETS_PATH, "condensed_data", "starting_structures")
+sys = System(joinpath(initial_dir, "big_waterbox.pdb"),
+        ff;
+        units               = false,
+        array_type          = Array,
+        rename_terminal_res = false,
+        nonbonded_method    = "cutoff",
+        dist_cutoff         = T(0.8))
+
+kBT = ustrip(u"kJ/mol", Unitful.R * 310*u"K")
+β   = T(1/kBT)
+target = ThermoState("target", β, T(1), deepcopy(sys))
+
+gen_mbar = assemble_mbar_inputs(coords, bounds, states; target_state = target)
+
+_, w_target, _ = mbar_weights(gen_mbar)
+
+gradsU_flat  = collect(Iterators.flatten(gradsU))
+gradsU_w     = multiply_grads.(gradsU_flat, w_target)
+gradsU_w_sum = convert(Vector{Any}, fill(nothing, length(models)))
+for gUw in gradsU_w 
+    gradsU_w_sum = accum_grads.(gradsU_w_sum, gUw)
 end
 
-println(grads[7].layers[1].weight)
-
-begin
-    f = open("grad_angle_feature_layer_2.tsv", "w")
-    Is, Js = size(grads[8].layers[2].weight)
-    for i in 1:Is
-        for j in 1:Js
-            print(f, grads[8].layers[2].weight[i,j])
-            print(f, "\t")
-        end
-        println()
-    end
-    close(f)
-end =#
+grads_dens = grads_reweight(Ldens, β, w_target, gradsU_w, gradsU_w_sum, length(models))
+grads_comp = grads_reweight(Lcomp, β, w_target, gradsU_w, gradsU_w_sum, length(models)) =#
