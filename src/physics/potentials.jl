@@ -368,7 +368,7 @@ function pe_from_snapshot(
     args...
 )
 
-    sys, partial_charges, func_probs, weights_vdw, torsion_size, elements, mol_inds = mol_to_system(epoch_n, mol_id, args...)
+    sys, _ = mol_to_system(epoch_n, mol_id, args...)
 
     neighbors = ignore_derivatives() do
         return find_neighbors(sys; n_threads = 1)

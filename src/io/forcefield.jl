@@ -152,7 +152,7 @@ function build_residues_node(root, all_atoms, sys)
         for i in inds
             atom = all_atoms[i]
             at = ElementNode("Atom")
-            link!(at, AttributeNode("name", atom.name))
+            link!(at, AttributeNode("name", resname .== "HOH" && atom.name .== "O1" ? "O" : atom.name))
             link!(at, AttributeNode("type", atom.type))
             link!(at, AttributeNode("charge", string(atom.charge)))
             link!(res, at)
@@ -160,8 +160,8 @@ function build_residues_node(root, all_atoms, sys)
         for (i,j) in bond_pairs
             if i in inds && j in inds
                 bond = ElementNode("Bond")
-                link!(bond, AttributeNode("atomName1", idx_to_name[i]))
-                link!(bond, AttributeNode("atomName2", idx_to_name[j]))
+                link!(bond, AttributeNode("atomName1", resname .== "HOH" && idx_to_name[i] .== "O1" ? "O" : idx_to_name[i]))
+                link!(bond, AttributeNode("atomName2", resname .== "HOH" && idx_to_name[j] .== "O1" ? "O" : idx_to_name[j]))
                 link!(res, bond)
             end
         end
@@ -302,7 +302,7 @@ function build_nonbonded_force(root, atomtypes_list, unique_atoms)
     if vdw_functional_form == "lj"
 
         nb = ElementNode("NonbondedForce")
-        link!(nb, AttributeNode("coulomb14scale", "$(model_global_params.params[2])"))
+        link!(nb, AttributeNode("coulomb14scale", "$(sigmoid(model_global_params.params[2]))"))
         link!(nb, AttributeNode("lj14scale", "0.5"))
 
         # Properly create and attach the UseAttributeFromResidue node with its attribute
@@ -323,7 +323,7 @@ function build_nonbonded_force(root, atomtypes_list, unique_atoms)
     
     else
         nb = ElementNode("NonbondedForce")
-        link!(nb, AttributeNode("coulomb14scale", "$(model_global_params.params[2])"))
+        link!(nb, AttributeNode("coulomb14scale", "$(sigmoid(model_global_params.params[2]))"))
         link!(nb, AttributeNode("lj14scale", "0.5"))
         use_charge = ElementNode("UseAttributeFromResidue")
         link!(use_charge, AttributeNode("name", "charge"))
@@ -506,10 +506,10 @@ function features_to_xml(io,
     cond_sim_dir = joinpath(DATASETS_PATH, "condensed_data", "trajs_gaff")
 
     coords, boundary = read_sim_data(mol_id, cond_sim_dir, frame_i, temp)
-    feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
 
     sys, _ = mol_to_system(epoch_n, mol_id, feat_df, coords, boundary, models...)
 
     write_openmm_xml(sys, io)
 
+    return sys
 end

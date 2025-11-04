@@ -1,6 +1,6 @@
 {
     "paths":{
-        "out_dir":"/ssd/runs/probas"
+        "out_dir":"/cephfs/alexandrebg/runs/dens_intra_charge"
     },
 
     "training":{
@@ -13,13 +13,13 @@
 	
 	"train_size":0.9,
 	
-	"n_epochs":20,
+	"n_epochs":60,
 
-	"reweight_lag":4,
+	"reweight_lag":2,
 
-	"min_epoch_valid_sims":3,
+	"min_epoch_valid_sims":25,
 
-	"condensed_indiv_first_epoch":2,
+	"condensed_indiv_first_epoch":30,
 	"condensed_joint_first_epoch":1000,
 	
 	"vdw_reg_epoch":1,
@@ -28,10 +28,10 @@
 	
 	"n_minibatch":256,
 	
-	"loss_weight_force":1e-4,
-	"loss_weight_force_inter":1.5,
-	"loss_weight_energy":2e-3,
-	"loss_weight_charge":1e0,
+	"loss_weight_force":1e-1,
+	"loss_weight_force_inter":1.0,
+	"loss_weight_energy":2e-2,
+	"loss_weight_charge":1e6,
 	"loss_weight_vdw_entropy_0":10.0,
 	"loss_weight_vdw_entropy_min":0.01,
 	"loss_weight_torsion_ks":1e-2,
@@ -41,8 +41,9 @@
 	"loss_weight_vdw_params":1e-1,
 	"loss_energy_first_epoch":1,
 
-	"loss_weight_density":1.0,
-	"loss_weight_compress":0.5,
+	"loss_weight_density":1e5,
+	"loss_weight_compress":1e0,
+	"loss_weight_permt":1e0,
 
 	"anneal_first_epoch":1000,
 	"tau_min":0.25,
@@ -54,14 +55,15 @@
 	"entropy_min_epoch":100000,
 	
 	"train_on_forces_intra":1.0,
-	"train_on_forces_inter":1.0,
-	"train_on_pe":1.0,
+	"train_on_forces_inter":0.0,
+	"train_on_pe":0.0,
 	"train_on_charges":1.0,
-	"train_on_entropy":1.0,
+	"train_on_entropy":0.0,
 	"train_on_enth_vap":1.0,
-	"train_on_enth_mix":1.0,
+	"train_on_enth_mix":0.0,
 	"train_on_dens_rw":1.0,
-	"train_on_comp_rw":1.0,
+	"train_on_comp_rw":0.0,
+	"train_on_perm_rw":0.0,
 
 	"enth_vap_gas_n_samples":10,
 	
@@ -89,7 +91,8 @@
     },
 
     "physics":{
-
+	"min_lj_sig":0.25,
+	"max_lj_sig":0.50,
         "vdw_functional_form":"lj",
         "mixing_function":"lb",
         "dist_nb_cutoff":1.0,

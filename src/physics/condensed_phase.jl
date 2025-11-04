@@ -9,6 +9,36 @@ function enthalpy_vaporization(snapshot_U_liquid, mean_U_gas, temp, n_molecules)
     return ΔH_vap
 end
 
+function calc_permitivity(Ms, Vs, temp;
+    win_size::Int=5,
+    step_size::Int=1,
+)
+    ε0 = ustrip(u"F/m", Unitful.ϵ0)
+    kB = ustrip(Unitful.k)
+
+    nwin = 1 + (length(Vs) - win_size) ÷ step_size
+    ϵ    = Vector{Float64}(undef, nwin)  # MPa^-1
+
+    j = 1
+    @views for i in 1:step_size:(length(Vs)-win_size+1)
+        
+        winV = Vs[i:i+win_size-1]
+        winM = Ms[i:i+win_size-1]
+
+        avgv  = mean(winV)
+        avgm  = sum(winM) / length(winM)
+        avgm2 = mean(dot.(winM, winM))
+        m2    = dot(avgm, avgm)
+
+        ϵ[j] = 1 + (avgm2 - m2) / (3 * ε0 * kB * temp * avgv)
+
+        j += 1
+    end
+
+    return ϵ
+
+end
+
 function calc_compressibility(
     kBT_kJ::T,
     volume::AbstractVector;

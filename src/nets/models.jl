@@ -263,9 +263,9 @@ function build_models()
 
               nonbonded_selection_model,
 
-              charge_features_model,
-
-              lj_features_model, lj69_features_model, dexp_features_model, buff_features_model, buck_features_model,
+              charge_features_model, lj_features_model, 
+              
+              lj69_features_model, dexp_features_model, buff_features_model, buck_features_model,
               
               bond_features_model, angle_features_model, proper_features_model, improper_features_model,
     
@@ -359,46 +359,6 @@ function predict_atom_features(
     dexp_unique  = dexp_features_model(unique_embeds)
     buff_unique  = buff_features_model(unique_embeds)
     buck_unique  = buck_features_model(unique_embeds)  # (3, n_unique)
-
-#=     if vdw_fnc_idx == 0
-        lj_unique    = lj_features_model(unique_embeds)
-        lj69_unique  = lj69_features_model(unique_embeds)
-        dexp_unique  = dexp_features_model(unique_embeds)
-        buff_unique  = buff_features_model(unique_embeds)
-        buck_unique  = buck_features_model(unique_embeds)  # (3, n_unique)
-    elseif vdw_fnc_idx == 1
-        lj_unique    = lj_features_model(unique_embeds)
-        lj69_unique  = zeros(T, 2, n_unique)
-        dexp_unique  = zeros(T, 2, n_unique)
-        buff_unique  = zeros(T, 2, n_unique)
-        buck_unique  = zeros(T, 3, n_unique)
-    elseif vdw_fnc_idx == 2
-        lj_unique    = zeros(T, 2, n_unique)
-        lj69_unique  = lj69_features_model(unique_embeds)
-        dexp_unique  = zeros(T, 2, n_unique)
-        buff_unique  = zeros(T, 2, n_unique)
-        buck_unique  = zeros(T, 3, n_unique)
-    elseif vdw_fnc_idx == 3
-        lj_unique    = zeros(T, 2, n_unique)
-        lj69_unique  = zeros(T, 2, n_unique)
-        dexp_unique  = dexp_features_model(unique_embeds)
-        buff_unique  = zeros(T, 2, n_unique)
-        buck_unique  = zeros(T, 3, n_unique)
-    elseif vdw_fnc_idx == 4
-        lj_unique    = zeros(T, 2, n_unique)
-        lj69_unique  = zeros(T, 2, n_unique)
-        dexp_unique  = zeros(T, 2, n_unique)
-        buff_unique  = buff_features_model(unique_embeds)
-        buck_unique  = zeros(T, 3, n_unique)
-    elseif vdw_fnc_idx == 5
-        lj_unique    = zeros(T, 2, n_unique)
-        lj69_unique  = zeros(T, 2, n_unique)
-        dexp_unique  = zeros(T, 2, n_unique)
-        buff_unique  = zeros(T, 2, n_unique)
-        buck_unique  = buck_features_model(unique_embeds)
-    else
-        error("vdw_fnc_idx must be 0..5, got $vdw_fnc_idx")
-    end =#
 
     # Gather columns in label order, then stack blocks vertically → (13, N)
     return vcat(

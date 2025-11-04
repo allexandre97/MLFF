@@ -122,7 +122,7 @@ const global SUBSET_N_REPEATS = Dict(
 const global FEATURE_COL_NAMES = ["MOLECULE", "ATOMIC_MASS", "FORMAL_CHARGE", "AROMATICITY", "N_BONDS", "BONDS", "ANGLES", "PROPER", "IMPROPER", "MOL_ID"]
 const global FEATURE_FILES = ("features.tsv",
                               "features_maceoff.tsv",
-                              "features_cond.tsv",) # Just the SPICE features for now too. Generated with custom script!!! TODO: Take a look at said script, maybe integrate here?
+                              "features_cond_bigbox.tsv",) # Just the SPICE features for now too. Generated with custom script!!! TODO: Take a look at said script, maybe integrate here?
 
 const global CONF_DATAFRAME     = read_conf_data()
 const global FEATURE_DATAFRAMES = ([read_feat_file(file) for file in FEATURE_FILES]...,)
@@ -208,104 +208,72 @@ if !isnothing(out_dir) && !isdir(out_dir)
     end
 end
 
-models, optims = train!(models, optims)
-println()
 
-#= Flux.trainmode!(models)
+#= df = FEATURE_DATAFRAMES[1]
+df = df[df.MOLECULE .== "water", :]
 
-training_sim_dir = joinpath(DATASETS_PATH, "condensed_data", "trajs_gaff")
+conf_data = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)
 
-epoch_n = 1
-
-λ_reg = 1.0f0
-
-vdw_fnc_idx = 1
-
-mol_id = "water"
 coords_i, forces_i, energy_i, 
 charges_i, has_charges_i,
 coords_j, forces_j, energy_j,
 charges_j, has_charges_j,
-exceeds_force, pair_present = read_conformation(CONF_DATAFRAME, [(1,2,1)], 1, 1)[1]
+exceeds_force, pair_present = conf_data[1]
 
+vdw_fnc_idx = 1
 
-feat_df = FEATURE_DATAFRAMES[1]
-feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
+sys, _ = mol_to_system(1, "water", df, coords_i, boundary_inf, models...) =#
 
-grads = Zygote.gradient(models...) do models...
+models, optims = train!(models, optims)
+println()
 
-    sys,
-    forces_intra_i, forces_inter_i,
-    potential_i, charges,
-    weights_vdw, torsion_size,
-    elements, mol_inds,
-    forces_loss_inter_j, forces_loss_intra_i,
-    charges_loss_i, 
-    vdw_params_reg_i,
-    torsions_loss, reg_loss = fwd_and_loss(epoch_n, 1.0, mol_id, feat_df, coords_i, forces_i, charges_i, has_charges_i, boundary_inf, models)
+#= df = FEATURE_DATAFRAMES[3]
+df = df[df.MOLECULE .== "big_waterbox", :]
 
-    if pair_present
+temps = (285, 295, 305, 315, 325)
 
-        sys,
-        forces_intra_j, forces_inter_j, 
-        potential_j, charges,
-        weights_vdw, torsion_size,
-        elements, mol_inds,
-        forces_loss_inter_i, forces_loss_intra_j,
-        charges_loss_j, 
-        vdw_params_reg_j,
-        torsions_loss, reg_loss = fwd_and_loss(epoch_n, 1.0, mol_id, feat_df, coords_j, forces_j, charges_j, has_charges_j, boundary_inf, models)
+vdw_fnc_idx = 1
 
-        dpe     = potential_j - potential_i
-        dpe_dft = energy_j - energy_i
+ff_path    = joinpath(MODEL_PARAMS["paths"]["out_dir"], "ff_xml", "model_epoch_38.xml")
 
-        potential_loss = pe_loss(dpe, dpe_dft)
+ff = MolecularForceField(T, ff_path, units = false)
 
-    end
+sys_ML = features_to_xml(ff_path, 1, "vapourisation_liquid_O", 141, 295, df, models...)
 
-    f_intra_loss = (forces_loss_intra_i + forces_loss_intra_j) 
-    f_inter_loss = (forces_loss_inter_i + forces_loss_inter_j)
+states, trajs = build_rw_states("vapourisation_liquid_O", 40, 1, true, temps)
+coords, bounds, gradsU, Ldens, Lcomp = sample_trajs("vapourisation_liquid_O", df, trajs, states) =#
 
-    ch_loss = (charges_loss_i + charges_loss_j)
+#=Ldens      = collect(Iterators.flatten(Ldens))
+Lcomp      = collect(Iterators.flatten(Lcomp))
+Ldens_mean = mean(Ldens)
+Lcomp_mean = mean(Lcomp)
 
-    ener_loss = potential_loss
+ff_path    = joinpath(MODEL_PARAMS["paths"]["out_dir"], "ff_xml", "model_epoch_38.xml")
 
-    return potential_loss 
-end =#
+ff = MolecularForceField(T, ff_path, units = false)
+initial_dir = joinpath(DATASETS_PATH, "condensed_data", "starting_structures")
+sys = System(joinpath(initial_dir, "big_waterbox.pdb"),
+        ff;
+        units               = false,
+        array_type          = Array,
+        rename_terminal_res = false,
+        nonbonded_method    = "cutoff",
+        dist_cutoff         = T(0.8))
 
+kBT = ustrip(u"kJ/mol", Unitful.R * 310*u"K")
+β   = T(1/kBT)
+target = ThermoState("target", β, T(1), deepcopy(sys))
 
-#= mol_id, temp, frame_i, repeat_i = COND_MOL_TRAIN[10]
+gen_mbar = assemble_mbar_inputs(coords, bounds, states; target_state = target)
 
-feat_df = FEATURE_DATAFRAMES[3]
-feat_df = feat_df[feat_df.MOLECULE .== mol_id, :]
+_, w_target, _ = mbar_weights(gen_mbar)
 
-mol_id_gas = replace(mol_id, "vapourisation_liquid_" => "vapourisation_gas_")
-df_gas = FEATURE_DATAFRAMES[3]
-df_gas = df_gas[df_gas.MOLECULE .== mol_id_gas, :]
+gradsU_flat  = collect(Iterators.flatten(gradsU))
+gradsU_w     = multiply_grads.(gradsU_flat, w_target)
+gradsU_w_sum = convert(Vector{Any}, fill(nothing, length(models)))
+for gUw in gradsU_w 
+    gradsU_w_sum = accum_grads.(gradsU_w_sum, gUw)
+end
 
-grads = Zygote.gradient(models...) do models...
-
-    coords, boundary = read_sim_data(mol_id, training_sim_dir, frame_i, temp)
-
-    sys,
-    _, potential, _, func_probs,
-    weights_vdw, torsion_size, 
-    _, mol_inds = mol_to_preds(epoch_n, mol_id, feat_df, coords, boundary, models...)
-
-    mean_U_gas = calc_mean_U_gas(epoch_n, mol_id_gas, df_gas, training_sim_dir, temp, models...)
-
-    cond_loss =  enth_vap_loss(potential, mean_U_gas, temp, frame_i, repeat_i, maximum(mol_inds), mol_id)
-
-    vdw_params_reg = vdw_params_regularisation(sys.atoms, sys.pairwise_inters[1].inters, vdw_fnc_idx)
-
-    cond_loss *= MODEL_PARAMS["training"]["loss_weight_enth_mixing"]
-
-    @show cond_loss
-
-    return cond_loss
-
-end =#
-
-#@show size(grads[8].layers[2].weight)
-
-#_ = features_to_xml("probas.xml", 1, "vapourisation_liquid_O", 141, 295, FEATURE_DATAFRAMES[3], models...)
+grads_dens = grads_reweight(Ldens, β, w_target, gradsU_w, gradsU_w_sum, length(models))
+grads_comp = grads_reweight(Lcomp, β, w_target, gradsU_w, gradsU_w_sum, length(models)) =#

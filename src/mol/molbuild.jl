@@ -287,7 +287,11 @@ function build_sys(
         MolecularTopology(bonds_i, bonds_j, n_atoms)
     end
 
-    atoms_data = [AtomData(atom_types[i], atom_names[i], mol_inds[i], split_grad_safe(atom_types[i], "_")[1], "A", "?", true) for i in 1:n_atoms]
+    atoms_data = [AtomData(atom_types[i], atom_names[i], mol_inds[i], let 
+                                                                        rname = split_grad_safe(atom_types[i], "_")[1]
+                                                                        rname = rname .== "water" ? "HOH" : rname
+                                                                        rname
+                                                                      end, "A", "?", true) for i in 1:n_atoms]
 
     sys = System{3, Array, T, typeof(atoms), typeof(coords), typeof(boundary), typeof(velocities), typeof(atoms_data),
                  typeof(topo), typeof(pairwise_inter), typeof(specific_inter_lists), typeof(()), typeof(()),
@@ -300,7 +304,7 @@ function build_sys(
 end
 
 function atom_names_from_elements(el_list::Vector{Int},
-                                   name_map::Vector{String})
+                                  name_map::Vector{String})
     counts = Dict{String,Int}() 
     names  = String[]
     for el in el_list
@@ -416,13 +420,13 @@ function mol_to_system(
     vdw_B      = zeros(T, n_atoms)
     vdw_C      = zeros(T, n_atoms)
 
-    weight_lj   = sigmoid(global_params.params[1])
-    weight_coul = sigmoid(global_params.params[2])
+    weight_lj   = sigmoid(global_params()[1])
+    weight_coul = sigmoid(global_params()[2])
     
-    α = transform_dexp_α(global_params.params[3])
-    β = transform_dexp_β(global_params.params[4])
-    δ = transform_buff_δ(global_params.params[5])
-    γ = transform_buff_γ(global_params.params[6])
+    α = transform_dexp_α(global_params()[3])
+    β = transform_dexp_β(global_params()[4])
+    δ = transform_buff_δ(global_params()[5])
+    γ = transform_buff_γ(global_params()[6])
     
     #Bond Parameters
     bond_functional_form = MODEL_PARAMS["physics"]["bond_functional_form"]
@@ -477,7 +481,6 @@ function mol_to_system(
         ### Atom pooling and feature prediction ###
         embeds_mol = calc_embeddings(adj_mol, feat_mol, atom_embedding_model)
         logits     = nonbonded_selection_model(embeds_mol)  # (5, n_atoms)
-
 
         if epoch_n < anneal_first_epoch
             τ = T(tau_mult_first * τ_0)

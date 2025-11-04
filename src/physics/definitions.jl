@@ -49,10 +49,18 @@ const WATER_COMPRESS = Dict(
     325.0 => 0.0004418
 )
 
+const WATER_PERMIT = Dict(
+    285.0 => 83.213,
+    295.0 => 79.0,
+    305.0 => 75.935,
+    315.0 => 72.0,
+    325.0 => 69.275
+)
+
 global NAME_TO_MASS = Dict(Pair(e, m) for (e,m) in zip(ELEMENT_TO_NAME, ATOMIC_MASSES))
 
 # Initialize some constants for non bonded interactions. Now we let the model choose the best functional form for vdw
-const  global n_vdw_atom_params = 11
+const global n_vdw_atom_params = 11
 
 struct GlobalParams{T}
     params::Vector{T}
@@ -103,7 +111,11 @@ const torsion_periodicities = ntuple(i -> i, 6)
 const torsion_phases = ntuple(i -> i % 2 == 0 ? T(π) : zero(T), 6)
 
 
-transform_lj_σ(x) = sigmoid(x) * T(0.42) + T(0.08) # 0.08 nm -> 0.5 nm
+min_lj_σ = T(get(MODEL_PARAMS["physics"], "min_lj_sig", T(0.08)))
+max_lj_σ = T(get(MODEL_PARAMS["physics"], "max_lj_sig", T(0.50)))
+mult     = max_lj_σ - min_lj_σ 
+
+transform_lj_σ(x) = sigmoid(x) * mult + min_lj_σ # 0.08 nm -> 0.5 nm
 transform_lj_ϵ(x) = sigmoid(x) * T(0.95) + T(0.05) # 0.05 kJ/mol -> 1.0 kJ/mol
 
 transform_dexp_α(x) = sigmoid(x) * T(8.0) + T(12.766) # 12.766 -> 20.766
@@ -116,7 +128,9 @@ transform_buck_A(x) = sigmoid(x) * T(800_000.0) + T(100_000.0) # 100_000 kJ/mol 
 transform_buck_B(x) = sigmoid(x) * T(80.0) + T(20.0) # 20 nm^-1 -> 100 nm^-1
 transform_buck_C(x) = sigmoid(x) * T(0.75) + T(0.0) # 0 kJ/mol nm -> 0.75 kJ/mol nm this now reflects the change of how the potential is computed
 
+transform_bond_k(k) = sigmoid(k) * T(500_000) + T(100_000)# 0 kJ/mol -> 1_000_000 kJ/mol
 transform_bond_k(  k1, k2) = max(k1 + k2, zero(T))
+transform_angle_k(k) = sigmoid(k) * T(900) + T(100) # 100 kJ/mol -> 1_000 kJ/mol 
 transform_angle_k( k1, k2) = max(k1 + k2, zero(T))
 bond_r1, bond_r2   = T(MODEL_PARAMS["physics"]["bond_r1"]), T(MODEL_PARAMS["physics"]["bond_r2"])
 angle_r1, angle_r2 = T(MODEL_PARAMS["physics"]["angle_r1"]), T(MODEL_PARAMS["physics"]["angle_r2"])
